@@ -1,5 +1,6 @@
 'use client';
 
+import { useDroppable } from '@dnd-kit/core';
 import type { CalendarOccurrenceDto } from '../calendar-api';
 import { toDateKey } from '../calendar-range';
 import { EventBlock } from './event-block';
@@ -11,6 +12,41 @@ type MonthGridProps = {
   onSelectOccurrence: (occurrence: CalendarOccurrenceDto) => void;
   onSelectDay: (day: Date) => void;
 };
+
+function DroppableMonthDay({
+  day,
+  inMonth,
+  children,
+  onSelectDay,
+}: {
+  day: Date;
+  inMonth: boolean;
+  children: React.ReactNode;
+  onSelectDay: (day: Date) => void;
+}) {
+  const dateKey = toDateKey(day);
+  const { setNodeRef, isOver } = useDroppable({
+    id: `day:${dateKey}`,
+    data: { dateKey, kind: 'month-day' },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelectDay(day)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') onSelectDay(day);
+      }}
+      className={`min-h-24 border-b border-r border-border p-1 text-left hover:bg-muted/40 ${isOver ? 'bg-accent/40' : ''}`}
+    >
+      <div className={`mb-1 text-xs ${inMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
+        {day.getDate()}
+      </div>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
 
 export function MonthGrid({ days, anchor, events, onSelectOccurrence, onSelectDay }: MonthGridProps) {
   const month = anchor.getMonth();
@@ -34,26 +70,22 @@ export function MonthGrid({ days, anchor, events, onSelectOccurrence, onSelectDa
             return toDateKey(new Date(item.startAt)) === key;
           }).slice(0, 3);
           return (
-            <button
+            <DroppableMonthDay
               key={day.toISOString()}
-              type="button"
-              onClick={() => onSelectDay(day)}
-              className="min-h-24 border-b border-r border-border p-1 text-left hover:bg-muted/40"
+              day={day}
+              inMonth={day.getMonth() === month}
+              onSelectDay={onSelectDay}
             >
-              <div className={`mb-1 text-xs ${day.getMonth() === month ? 'text-foreground' : 'text-muted-foreground'}`}>
-                {day.getDate()}
-              </div>
-              <div className="space-y-1">
-                {dayEvents.map((occurrence) => (
-                  <EventBlock
-                    key={`${occurrence.eventId}-${occurrence.occurrenceStart}`}
-                    occurrence={occurrence}
-                    compact
-                    onClick={() => onSelectOccurrence(occurrence)}
-                  />
-                ))}
-              </div>
-            </button>
+              {dayEvents.map((occurrence) => (
+                <EventBlock
+                  key={`${occurrence.eventId}-${occurrence.occurrenceStart}`}
+                  occurrence={occurrence}
+                  compact
+                  draggable={occurrence.kind !== 'due_chip'}
+                  onClick={() => onSelectOccurrence(occurrence)}
+                />
+              ))}
+            </DroppableMonthDay>
           );
         })}
       </div>

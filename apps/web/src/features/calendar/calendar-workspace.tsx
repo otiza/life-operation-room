@@ -20,27 +20,71 @@ import {
   type CalendarOccurrenceDto,
   viewerTimeZone,
 } from './calendar-api';
-import { addDays, rangeForView, snapToQuarterHour, startOfDay } from './calendar-range';
+import {
+  addDays,
+  rangeForView,
+  shiftDateKey,
+  shiftIsoByDays,
+  snapToQuarterHour,
+  startOfDay,
+  toDateKey,
+} from './calendar-range';
 import { AgendaList } from './grid/agenda-list';
 import { MonthGrid } from './grid/month-grid';
 import { TimeGrid } from './grid/time-grid';
 import { QuickAdd, type QuickAddDraft } from './quick-add';
 import { CommandPalette, type CalendarCommand } from './command-palette';
 import { TaskSidebar } from './task-sidebar';
-import { EventEditor } from './event-editor';
+import { EventEditor, type EventEditorSaveInput } from './event-editor';
+import { ScopePrompt } from './scope-prompt';
+
+type MovePrevious = {
+  startAt: string | null;
+  endAt: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  isAllDay: boolean;
+  timezone: string;
+};
 
 type UndoAction =
   | { kind: 'delete'; eventId: string; label: string }
   | {
       kind: 'move';
       eventId: string;
-      previous: { startAt: string; endAt: string };
+      scope: CalendarMutationScope;
+      occurrenceStart?: string;
+      previous: MovePrevious;
       label: string;
     };
+
+type PendingMove = {
+  occurrence: CalendarOccurrenceDto;
+  next: MovePrevious;
+  label: string;
+};
 
 type CalendarWorkspaceProps = {
   workspaceId: string;
 };
+
+function occurrenceStartPayload(occurrence: CalendarOccurrenceDto) {
+  if (!occurrence.isRecurring) return undefined;
+  return occurrence.isAllDay
+    ? `${occurrence.occurrenceStart}T00:00:00.000Z`
+    : occurrence.occurrenceStart;
+}
+
+function previousFromOccurrence(occurrence: CalendarOccurrenceDto): MovePrevious {
+  return {
+    startAt: occurrence.startAt,
+    endAt: occurrence.endAt,
+    startDate: occurrence.startDate,
+    endDate: occurrence.endDate,
+    isAllDay: occurrence.isAllDay,
+    timezone: occurrence.timezone,
+  };
+}
 
 export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
   const queryClient = useQueryClient();
@@ -69,6 +113,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
   const [selected, setSelected] = useState<CalendarOccurrenceDto | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [undo, setUndo] = useState<UndoAction | null>(null);
+  const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
 
   useEffect(() => {
     if (!undo) return;
@@ -78,9 +123,10 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
 
   const range = useMemo(() => rangeForView(view, anchor, weekStartsOn), [view, anchor, weekStartsOn]);
   const tz = viewerTimeZone();
+  const eventsQueryKey = ['calendar-events', workspaceId, range.from.toISOString(), range.to.toISOString(), tz] as const;
 
   const eventsQuery = useQuery({
-    queryKey: ['calendar-events', workspaceId, range.from.toISOString(), range.to.toISOString(), tz],
+    queryKey: eventsQueryKey,
     queryFn: () => listCalendarEvents(workspaceId, range.from.toISOString(), range.to.toISOString(), tz),
     enabled: calendarInstalled,
   });
@@ -184,15 +230,68 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
   async function handleDelete(occurrence: CalendarOccurrenceDto, scope: CalendarMutationScope) {
     await deleteCalendarEvent(workspaceId, occurrence.eventId, {
       scope,
-      occurrenceStart: occurrence.isRecurring
-        ? occurrence.isAllDay
-          ? `${occurrence.occurrenceStart}T00:00:00.000Z`
-          : occurrence.occurrenceStart
-        : undefined,
+      occurrenceStart: occurrenceStartPayload(occurrence),
     });
     setUndo({ kind: 'delete', eventId: occurrence.eventId, label: `Deleted “${occurrence.title}”` });
     setSelected(null);
     await invalidateEvents();
+  }
+
+  async function applyOccurrenceChange(
+    occurrence: CalendarOccurrenceDto,
+    next: MovePrevious,
+    scope: CalendarMutationScope,
+    label: string,
+  ) {
+    const previous = previousFromOccurrence(occurrence);
+    const snapshot = queryClient.getQueryData(eventsQueryKey);
+    queryClient.setQueryData(eventsQueryKey, (current: { events: CalendarOccurrenceDto[] } | undefined) => {
+      if (!current) return current;
+      return {
+        events: current.events.map((item) =>
+          item.eventId === occurrence.eventId && item.occurrenceStart === occurrence.occurrenceStart
+            ? { ...item, ...next }
+            : item,
+        ),
+      };
+    });
+    try {
+      const response = await updateCalendarEvent(workspaceId, occurrence.eventId, {
+        scope,
+        occurrenceStart: occurrenceStartPayload(occurrence),
+        isAllDay: next.isAllDay,
+        timezone: next.timezone,
+        startAt: next.startAt ?? undefined,
+        endAt: next.endAt ?? undefined,
+        startDate: next.startDate ?? undefined,
+        endDate: next.endDate ?? undefined,
+      });
+      setUndo({
+        kind: 'move',
+        eventId: response.event.id,
+        scope: scope === 'following' ? 'all' : scope,
+        occurrenceStart: scope === 'this' ? occurrenceStartPayload(occurrence) : undefined,
+        previous,
+        label,
+      });
+    } catch (error) {
+      queryClient.setQueryData(eventsQueryKey, snapshot);
+      throw error;
+    } finally {
+      await invalidateEvents();
+    }
+  }
+
+  function requestOccurrenceChange(
+    occurrence: CalendarOccurrenceDto,
+    next: MovePrevious,
+    label: string,
+  ) {
+    if (occurrence.isRecurring) {
+      setPendingMove({ occurrence, next, label });
+      return;
+    }
+    void applyOccurrenceChange(occurrence, next, 'all', label);
   }
 
   async function handleCommand(command: CalendarCommand) {
@@ -204,6 +303,49 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
   }
 
   async function onDragEnd(event: DragEndEvent) {
+    const activeOccurrence = event.active.data.current?.occurrence as CalendarOccurrenceDto | undefined;
+    if (activeOccurrence && event.over) {
+      const overId = event.over.id.toString();
+      if (overId.startsWith('day:')) {
+        const targetDateKey = overId.slice(4);
+        const sourceDateKey = activeOccurrence.isAllDay
+          ? activeOccurrence.startDate ?? activeOccurrence.occurrenceStart.slice(0, 10)
+          : activeOccurrence.startAt
+            ? toDateKey(new Date(activeOccurrence.startAt))
+            : null;
+        if (!sourceDateKey || sourceDateKey === targetDateKey) return;
+        const [sourceY, sourceM, sourceD] = sourceDateKey.split('-').map(Number);
+        const [targetY, targetM, targetD] = targetDateKey.split('-').map(Number);
+        const dayDelta = Math.round(
+          (new Date(targetY, targetM - 1, targetD).getTime() -
+            new Date(sourceY, sourceM - 1, sourceD).getTime()) /
+            86_400_000,
+        );
+        if (activeOccurrence.isAllDay && activeOccurrence.startDate && activeOccurrence.endDate) {
+          requestOccurrenceChange(
+            activeOccurrence,
+            {
+              ...previousFromOccurrence(activeOccurrence),
+              startDate: shiftDateKey(activeOccurrence.startDate, dayDelta),
+              endDate: shiftDateKey(activeOccurrence.endDate, dayDelta),
+            },
+            `Moved “${activeOccurrence.title}”`,
+          );
+        } else if (activeOccurrence.startAt && activeOccurrence.endAt) {
+          requestOccurrenceChange(
+            activeOccurrence,
+            {
+              ...previousFromOccurrence(activeOccurrence),
+              startAt: shiftIsoByDays(activeOccurrence.startAt, dayDelta),
+              endAt: shiftIsoByDays(activeOccurrence.endAt, dayDelta),
+            },
+            `Moved “${activeOccurrence.title}”`,
+          );
+        }
+        return;
+      }
+    }
+
     const taskId = event.active.data.current?.taskId as string | undefined;
     if (!taskId || !event.over) return;
     const overId = event.over.id.toString();
@@ -329,6 +471,13 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
                   setSelected(occurrence);
                   setEditorOpen(true);
                 }}
+                onTimedOccurrenceChange={({ occurrence, startAt, endAt }) => {
+                  requestOccurrenceChange(
+                    occurrence,
+                    { ...previousFromOccurrence(occurrence), startAt, endAt, isAllDay: false },
+                    `Moved “${occurrence.title}”`,
+                  );
+                }}
                 onEmptySlotClick={async (day, minute) => {
                   const start = new Date(day);
                   start.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
@@ -364,18 +513,46 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         occurrence={selected}
         open={editorOpen}
         onOpenChange={setEditorOpen}
-        onSave={async ({ title, location, scope }) => {
+        onSave={async (input: EventEditorSaveInput) => {
           if (!selected || selected.kind === 'due_chip') return;
+          const next: MovePrevious = {
+            startAt: input.startAt,
+            endAt: input.endAt,
+            startDate: input.startDate,
+            endDate: input.endDate,
+            isAllDay: input.isAllDay,
+            timezone: input.timezone,
+          };
+          const previous = previousFromOccurrence(selected);
           await updateCalendarEvent(workspaceId, selected.eventId, {
-            title,
-            location,
-            scope,
-            occurrenceStart: selected.isRecurring
-              ? selected.isAllDay
-                ? `${selected.occurrenceStart}T00:00:00.000Z`
-                : selected.occurrenceStart
-              : undefined,
+            title: input.title,
+            location: input.location,
+            scope: input.scope,
+            occurrenceStart: occurrenceStartPayload(selected),
+            isAllDay: input.isAllDay,
+            timezone: input.timezone,
+            startAt: input.startAt ?? undefined,
+            endAt: input.endAt ?? undefined,
+            startDate: input.startDate ?? undefined,
+            endDate: input.endDate ?? undefined,
           });
+          const timesChanged =
+            previous.startAt !== next.startAt ||
+            previous.endAt !== next.endAt ||
+            previous.startDate !== next.startDate ||
+            previous.endDate !== next.endDate ||
+            previous.isAllDay !== next.isAllDay ||
+            previous.timezone !== next.timezone;
+          if (timesChanged) {
+            setUndo({
+              kind: 'move',
+              eventId: selected.eventId,
+              scope: input.scope === 'following' ? 'all' : input.scope,
+              occurrenceStart: input.scope === 'this' ? occurrenceStartPayload(selected) : undefined,
+              previous,
+              label: `Updated “${selected.title}”`,
+            });
+          }
           await invalidateEvents();
         }}
         onDelete={async (scope) => {
@@ -394,6 +571,20 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         }
       />
 
+      <ScopePrompt
+        open={Boolean(pendingMove)}
+        title="Move recurring event"
+        onOpenChange={(open) => {
+          if (!open) setPendingMove(null);
+        }}
+        onSelect={(scope) => {
+          if (!pendingMove) return;
+          const { occurrence, next, label } = pendingMove;
+          setPendingMove(null);
+          void applyOccurrenceChange(occurrence, next, scope, label);
+        }}
+      />
+
       {undo ? (
         <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-popover px-4 py-2 text-sm shadow-lg">
           <span>{undo.label}</span>
@@ -406,9 +597,14 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
               }
               if (undo.kind === 'move') {
                 await updateCalendarEvent(workspaceId, undo.eventId, {
-                  startAt: undo.previous.startAt,
-                  endAt: undo.previous.endAt,
-                  scope: 'all',
+                  scope: undo.scope,
+                  occurrenceStart: undo.occurrenceStart,
+                  isAllDay: undo.previous.isAllDay,
+                  timezone: undo.previous.timezone,
+                  startAt: undo.previous.startAt ?? undefined,
+                  endAt: undo.previous.endAt ?? undefined,
+                  startDate: undo.previous.startDate ?? undefined,
+                  endDate: undo.previous.endDate ?? undefined,
                 });
               }
               setUndo(null);

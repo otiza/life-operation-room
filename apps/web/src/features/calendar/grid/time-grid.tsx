@@ -1,13 +1,22 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import type { CalendarOccurrenceDto } from '../calendar-api';
-import { minutesSinceMidnight, toDateKey } from '../calendar-range';
+import {
+  CALENDAR_HOUR_HEIGHT,
+  minutesSinceMidnight,
+  snapMinute,
+  toDateKey,
+} from '../calendar-range';
 import { EventBlock } from './event-block';
 import { layoutTimedEvents } from './overlap';
 
-const HOUR_HEIGHT = 56;
+export type TimedOccurrenceChange = {
+  occurrence: CalendarOccurrenceDto;
+  startAt: string;
+  endAt: string;
+};
 
 type TimeGridProps = {
   days: Date[];
@@ -16,7 +25,23 @@ type TimeGridProps = {
   secondaryTimeZone: string | null;
   onSelectOccurrence: (occurrence: CalendarOccurrenceDto) => void;
   onEmptySlotClick: (day: Date, minute: number) => void;
+  onTimedOccurrenceChange?: (change: TimedOccurrenceChange) => void;
 };
+
+function AllDayDropCell({ dateKey, children }: { dateKey: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `day:${dateKey}`,
+    data: { dateKey, kind: 'all-day' },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`min-h-10 space-y-1 border-b border-l border-border p-1 ${isOver ? 'bg-accent/40' : ''}`}
+    >
+      {children}
+    </div>
+  );
+}
 
 function DroppableDayColumn({
   day,
@@ -45,12 +70,13 @@ function DroppableDayColumn({
   return (
     <div
       ref={setNodeRef}
+      data-date-key={dateKey}
       className={`relative border-l border-border ${isOver ? 'bg-accent/40' : ''}`}
-      style={{ height: hours.length * HOUR_HEIGHT }}
+      style={{ height: hours.length * CALENDAR_HOUR_HEIGHT }}
       onClick={(event) => {
         const rect = (event.currentTarget as HTMLDivElement).getBoundingClientRect();
         const y = event.clientY - rect.top;
-        const minute = gridStartMinute + Math.round(y / (HOUR_HEIGHT / 60) / 15) * 15;
+        const minute = gridStartMinute + Math.round(y / (CALENDAR_HOUR_HEIGHT / 60) / 15) * 15;
         onEmptySlotClick(day, minute);
       }}
     >
@@ -58,19 +84,32 @@ function DroppableDayColumn({
         <div
           key={hour}
           className="absolute inset-x-0 border-t border-border/60"
-          style={{ top: (hour * 60 - gridStartMinute) * (HOUR_HEIGHT / 60) }}
+          style={{ top: (hour * 60 - gridStartMinute) * (CALENDAR_HOUR_HEIGHT / 60) }}
         />
       ))}
       {isToday && nowMinutes >= gridStartMinute && nowMinutes <= gridStartMinute + totalMinutes ? (
         <div
           className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-red-500"
-          style={{ top: (nowMinutes - gridStartMinute) * (HOUR_HEIGHT / 60) }}
+          style={{ top: (nowMinutes - gridStartMinute) * (CALENDAR_HOUR_HEIGHT / 60) }}
         />
       ) : null}
       {children}
     </div>
   );
 }
+
+type DragState =
+  | {
+      mode: 'move' | 'resize';
+      occurrence: CalendarOccurrenceDto;
+      day: Date;
+      originClientY: number;
+      originStartMinutes: number;
+      originEndMinutes: number;
+      previewStartMinutes: number;
+      previewEndMinutes: number;
+    }
+  | null;
 
 export function TimeGrid({
   days,
@@ -79,9 +118,11 @@ export function TimeGrid({
   secondaryTimeZone,
   onSelectOccurrence,
   onEmptySlotClick,
+  onTimedOccurrenceChange,
 }: TimeGridProps) {
   const now = new Date();
   const nowMinutes = minutesSinceMidnight(now);
+  const [drag, setDrag] = useState<DragState>(null);
   const hours = useMemo(() => {
     const startHour = Math.floor(workingHours.startMinute / 60);
     const endHour = Math.ceil(workingHours.endMinute / 60);
@@ -90,6 +131,123 @@ export function TimeGrid({
 
   const gridStartMinute = hours[0] * 60;
   const totalMinutes = hours.length * 60;
+
+  function occurrenceStyle(
+    occurrence: CalendarOccurrenceDto,
+    layout: { topMinutes: number; bottomMinutes: number; column: number; columnCount: number },
+  ) {
+    const preview =
+      drag &&
+      drag.occurrence.eventId === occurrence.eventId &&
+      drag.occurrence.occurrenceStart === occurrence.occurrenceStart
+        ? drag
+        : null;
+    const topMinutes = preview?.previewStartMinutes ?? layout.topMinutes;
+    const bottomMinutes = preview?.previewEndMinutes ?? layout.bottomMinutes;
+    const width = 100 / layout.columnCount;
+    return {
+      top: (topMinutes - gridStartMinute) * (CALENDAR_HOUR_HEIGHT / 60),
+      height: Math.max((bottomMinutes - topMinutes) * (CALENDAR_HOUR_HEIGHT / 60), 18),
+      left: `${layout.column * width}%`,
+      width: `calc(${width}% - 4px)`,
+      position: 'absolute' as const,
+      zIndex: preview ? 30 : undefined,
+    };
+  }
+
+  function beginDrag(
+    mode: 'move' | 'resize',
+    occurrence: CalendarOccurrenceDto,
+    day: Date,
+    event: React.PointerEvent,
+  ) {
+    if (!occurrence.startAt || !occurrence.endAt || !onTimedOccurrenceChange) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const originStartMinutes = minutesSinceMidnight(new Date(occurrence.startAt));
+    const originEndMinutes = minutesSinceMidnight(new Date(occurrence.endAt));
+    const pointerId = event.pointerId;
+    const target = event.currentTarget as HTMLElement;
+    target.setPointerCapture?.(pointerId);
+
+    setDrag({
+      mode,
+      occurrence,
+      day,
+      originClientY: event.clientY,
+      originStartMinutes,
+      originEndMinutes,
+      previewStartMinutes: originStartMinutes,
+      previewEndMinutes: originEndMinutes,
+    });
+
+    const onMove = (moveEvent: PointerEvent) => {
+      const deltaMinutes = snapMinute(
+        (moveEvent.clientY - event.clientY) / (CALENDAR_HOUR_HEIGHT / 60),
+      );
+      setDrag((current) => {
+        if (!current) return current;
+        if (current.mode === 'move') {
+          const duration = current.originEndMinutes - current.originStartMinutes;
+          const nextStart = snapMinute(
+            Math.max(gridStartMinute, Math.min(gridStartMinute + totalMinutes - duration, current.originStartMinutes + deltaMinutes)),
+          );
+          return {
+            ...current,
+            previewStartMinutes: nextStart,
+            previewEndMinutes: nextStart + duration,
+          };
+        }
+        const nextEnd = snapMinute(
+          Math.max(current.originStartMinutes + 15, current.originEndMinutes + deltaMinutes),
+        );
+        return { ...current, previewEndMinutes: nextEnd };
+      });
+    };
+
+    const onUp = (upEvent: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      const deltaMinutes = snapMinute(
+        (upEvent.clientY - event.clientY) / (CALENDAR_HOUR_HEIGHT / 60),
+      );
+      const duration = originEndMinutes - originStartMinutes;
+      let nextStart = originStartMinutes;
+      let nextEnd = originEndMinutes;
+      if (mode === 'move') {
+        nextStart = snapMinute(
+          Math.max(gridStartMinute, Math.min(gridStartMinute + totalMinutes - duration, originStartMinutes + deltaMinutes)),
+        );
+        nextEnd = nextStart + duration;
+      } else {
+        nextEnd = snapMinute(Math.max(originStartMinutes + 15, originEndMinutes + deltaMinutes));
+      }
+      let targetDay = day;
+      if (mode === 'move') {
+        const under = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
+        const dateKey = under?.closest('[data-date-key]')?.getAttribute('data-date-key');
+        if (dateKey) {
+          const [year, month, dayNumber] = dateKey.split('-').map(Number);
+          targetDay = new Date(year, month - 1, dayNumber);
+        }
+      }
+      setDrag(null);
+      const sameDay = toDateKey(targetDay) === toDateKey(day);
+      if (sameDay && nextStart === originStartMinutes && nextEnd === originEndMinutes) return;
+      const start = new Date(targetDay);
+      start.setHours(Math.floor(nextStart / 60), nextStart % 60, 0, 0);
+      const end = new Date(targetDay);
+      end.setHours(Math.floor(nextEnd / 60), nextEnd % 60, 0, 0);
+      onTimedOccurrenceChange({
+        occurrence,
+        startAt: start.toISOString(),
+        endAt: end.toISOString(),
+      });
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
 
   return (
     <div className="overflow-auto rounded-xl border border-border bg-card">
@@ -113,25 +271,26 @@ export function TimeGrid({
             (item) => item.isAllDay && item.startDate && item.startDate <= key && (item.endDate ?? item.startDate) > key,
           );
           return (
-            <div key={`allday-${day.toISOString()}`} className="min-h-10 space-y-1 border-b border-l border-border p-1">
+            <AllDayDropCell key={`allday-${day.toISOString()}`} dateKey={key}>
               {allDay.map((occurrence) => (
                 <EventBlock
                   key={`${occurrence.eventId}-${occurrence.occurrenceStart}`}
                   occurrence={occurrence}
                   compact
+                  draggable={occurrence.kind !== 'due_chip'}
                   onClick={() => onSelectOccurrence(occurrence)}
                 />
               ))}
-            </div>
+            </AllDayDropCell>
           );
         })}
 
-        <div className="relative" style={{ height: hours.length * HOUR_HEIGHT }}>
+        <div className="relative" style={{ height: hours.length * CALENDAR_HOUR_HEIGHT }}>
           {hours.map((hour) => (
             <div
               key={hour}
               className="absolute right-1 text-[10px] text-muted-foreground"
-              style={{ top: (hour * 60 - gridStartMinute) * (HOUR_HEIGHT / 60) - 6 }}
+              style={{ top: (hour * 60 - gridStartMinute) * (CALENDAR_HOUR_HEIGHT / 60) - 6 }}
             >
               {String(hour).padStart(2, '0')}:00
               {secondaryTimeZone ? (
@@ -167,23 +326,17 @@ export function TimeGrid({
               nowMinutes={nowMinutes}
               totalMinutes={totalMinutes}
             >
-              {laidOut.map((item) => {
-                const width = 100 / item.columnCount;
-                return (
-                  <EventBlock
-                    key={`${item.occurrence.eventId}-${item.occurrence.occurrenceStart}`}
-                    occurrence={item.occurrence}
-                    onClick={() => onSelectOccurrence(item.occurrence)}
-                    style={{
-                      top: (item.topMinutes - gridStartMinute) * (HOUR_HEIGHT / 60),
-                      height: Math.max((item.bottomMinutes - item.topMinutes) * (HOUR_HEIGHT / 60), 18),
-                      left: `${item.column * width}%`,
-                      width: `calc(${width}% - 4px)`,
-                      position: 'absolute',
-                    }}
-                  />
-                );
-              })}
+              {laidOut.map((item) => (
+                <EventBlock
+                  key={`${item.occurrence.eventId}-${item.occurrence.occurrenceStart}`}
+                  occurrence={item.occurrence}
+                  resizable
+                  onClick={() => onSelectOccurrence(item.occurrence)}
+                  onMovePointerDown={(event) => beginDrag('move', item.occurrence, day, event)}
+                  onResizePointerDown={(event) => beginDrag('resize', item.occurrence, day, event)}
+                  style={occurrenceStyle(item.occurrence, item)}
+                />
+              ))}
             </DroppableDayColumn>
           );
         })}

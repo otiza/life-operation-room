@@ -65,3 +65,20 @@ export function snapToQuarterHour(date: Date): Date {
 export function minutesSinceMidnight(date: Date): number {
   return date.getHours() * 60 + date.getMinutes();
 }
+
+export const CALENDAR_HOUR_HEIGHT = 56;
+
+export function snapMinute(minute: number): number {
+  return Math.round(minute / 15) * 15;
+}
+
+export function shiftIsoByDays(iso: string, dayDelta: number): string {
+  const next = new Date(iso);
+  next.setDate(next.getDate() + dayDelta);
+  return next.toISOString();
+}
+
+export function shiftDateKey(dateKey: string, dayDelta: number): string {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return toDateKey(addDays(new Date(year, month - 1, day), dayDelta));
+}
