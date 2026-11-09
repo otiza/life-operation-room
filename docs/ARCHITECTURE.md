@@ -21,11 +21,11 @@ ERP Tiza is a **modular life OS**, not a single monolithic feature app.
 | Cross-app links | Generic table for interconnect (Odoo-like). Apps do not share tables. |
 | Platform services | Files / AI / Integrations / Goals — contracts exist; implement when first needed. |
 
-Phase 1 ships the **shell only**. Marketplace apps are stubs (`status: coming_soon`).
+Phase 1 shipped the **shell**. **Projects** and **Tasks** are the first available mini-apps (`status: available`); other catalog entries remain stubs (`coming_soon`).
 
 Vision roadmap (do not build unless asked):
 
-1. Near-term: tasks, calendar, notes, costs, chat
+1. Near-term: calendar, notes, costs, chat
 2. Mid-term: learning, work finder, goals
 3. Later: AI coach, fitness / wearables
 
@@ -340,7 +340,7 @@ Checklist:
 5. Emit domain events for anything notifications/AI/goals might care about
 6. If you need files/AI/integrations/goals, implement the matching platform module behind the existing contract
 
-Suggested first real app: **Tasks** (`key: 'tasks'`).
+First real apps: **Projects** + **Tasks** — see [apps/TASKS.md](./apps/TASKS.md).
 
 ---
 
@@ -358,7 +358,7 @@ Suggested first real app: **Tasks** (`key: 'tasks'`).
 
 ## 10. What is intentionally unfinished
 
-- Full domain UIs (tasks/notes/…)
+- Remaining domain UIs (calendar/notes/…); Projects + Tasks v1 are shipped — see [apps/TASKS.md](./apps/TASKS.md)
 - Real `FilesModule` / `AiModule` / `IntegrationsModule` / `GoalsModule` implementations
 - BullMQ workers on Redis
 - Dedicated Nest `WorkspaceGuard` / `AppInstalledGuard` classes (logic exists in services)

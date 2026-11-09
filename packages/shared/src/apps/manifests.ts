@@ -2,17 +2,30 @@ import type { AppManifest } from './types.js';
 
 export const APP_MANIFESTS: AppManifest[] = [
   {
+    key: 'projects',
+    name: 'Projects',
+    description: 'Organize work into projects that tasks and other apps can attach to.',
+    version: '0.1.0',
+    category: 'productivity',
+    dependsOn: [],
+    permissions: ['projects.read', 'projects.write'],
+    capabilities: [],
+    nav: { label: 'Projects', href: '/projects', icon: 'FolderKanban' },
+    backendModule: 'ProjectsModule',
+    status: 'available',
+  },
+  {
     key: 'tasks',
     name: 'Tasks',
     description: 'Track to-dos and project work across your life.',
     version: '0.1.0',
     category: 'productivity',
-    dependsOn: [],
+    dependsOn: ['projects'],
     permissions: ['tasks.read', 'tasks.write'],
     capabilities: [],
     nav: { label: 'Tasks', href: '/tasks', icon: 'CheckSquare' },
     backendModule: 'TasksModule',
-    status: 'coming_soon',
+    status: 'available',
   },
   {
     key: 'calendar',

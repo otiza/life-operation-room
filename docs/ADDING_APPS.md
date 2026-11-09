@@ -60,3 +60,10 @@ Implement the Nest module the first time an app truly needs it; until then keep 
 ## 5. Events
 
 Emit typed events through Nest `EventEmitter2` (see `DOMAIN_EVENTS`). Notifications and future AI/goals subscribers listen without tight coupling.
+
+## 6. Patterns used by Projects / Tasks
+
+- **Install seed:** listen for `app.installed` in the app service (Projects creates an Inbox when none exists).
+- **Uninstall cleanup:** listen for `app.uninstalled` and delete that workspace’s app rows (do not leave orphan data after uninstall).
+- **Hard dependency without cross-app FK:** when `dependsOn` is required (Tasks → Projects), store the foreign id as a UUID column **without** a DB FK, and validate through the other app’s exported service.
+- Soft coupling to optional apps (e.g. Calendar): emit domain events only; do not write `cross_app_links` until a real target exists.

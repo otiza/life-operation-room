@@ -4,7 +4,11 @@ import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, desc, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { notifications, users } from '../db/schema.js';
-import { DOMAIN_EVENTS, type MemberInvitedEvent } from '../common/events/domain-events.js';
+import {
+  DOMAIN_EVENTS,
+  type MemberInvitedEvent,
+  type TaskDomainEvent,
+} from '../common/events/domain-events.js';
 import { toIso } from '../common/utils/crypto.js';
 import { NotificationsGateway } from './notifications.gateway.js';
 
@@ -91,6 +95,47 @@ export class NotificationsService {
       body: `${event.appKey} is now available in this workspace.`,
       payload: { appKey: event.appKey },
     });
+  }
+
+  @OnEvent(DOMAIN_EVENTS.taskAssigned)
+  async onTaskAssigned(event: TaskDomainEvent) {
+    for (const userId of event.assigneeUserIds) {
+      if (!userId || userId === event.actorUserId) continue;
+      await this.create({
+        userId,
+        workspaceId: event.workspaceId,
+        type: DOMAIN_EVENTS.taskAssigned,
+        title: 'Task assigned to you',
+        body: event.title,
+        payload: {
+          taskId: event.taskId,
+          projectId: event.projectId,
+          workspaceId: event.workspaceId,
+        },
+      });
+    }
+  }
+
+  @OnEvent(DOMAIN_EVENTS.taskScheduled)
+  async onTaskScheduled(event: TaskDomainEvent) {
+    if (!event.dueAt) return;
+    const dueLabel = new Date(event.dueAt).toLocaleString();
+    for (const userId of event.assigneeUserIds) {
+      if (!userId || userId === event.actorUserId) continue;
+      await this.create({
+        userId,
+        workspaceId: event.workspaceId,
+        type: DOMAIN_EVENTS.taskScheduled,
+        title: 'Task due date set',
+        body: `${event.title} · due ${dueLabel}`,
+        payload: {
+          taskId: event.taskId,
+          projectId: event.projectId,
+          workspaceId: event.workspaceId,
+          dueAt: event.dueAt,
+        },
+      });
+    }
   }
 
   toDto(row: typeof notifications.$inferSelect) {

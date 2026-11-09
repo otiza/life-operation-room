@@ -7,7 +7,12 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { APP_MANIFESTS, getAppManifest, type InstallAppInput } from '@erp-tiza/shared';
+import {
+  APP_MANIFESTS,
+  DEFAULT_TASK_SETTINGS,
+  getAppManifest,
+  type InstallAppInput,
+} from '@erp-tiza/shared';
 import { workspaceApps } from '../db/schema.js';
 import type { User } from '../db/schema.js';
 import { DOMAIN_EVENTS } from '../common/events/domain-events.js';
@@ -58,12 +63,16 @@ export class AppsService {
     if (missingDeps.length) {
       throw new BadRequestException(`Missing dependencies: ${missingDeps.join(', ')}`);
     }
+    const seededConfig =
+      manifest.key === 'tasks'
+        ? { ...DEFAULT_TASK_SETTINGS, ...(input.config ?? {}) }
+        : (input.config ?? {});
     const [row] = await this.db
       .insert(workspaceApps)
       .values({
         workspaceId,
         appKey: manifest.key,
-        config: input.config ?? {},
+        config: seededConfig,
       })
       .returning();
     this.eventEmitter.emit(DOMAIN_EVENTS.appInstalled, {
@@ -71,6 +80,16 @@ export class AppsService {
       appKey: manifest.key,
       installedByUserId: user.id,
     });
+    return this.toDto(row);
+  }
+
+  async updateConfig(workspaceId: string, appKey: string, config: Record<string, unknown>) {
+    const [row] = await this.db
+      .update(workspaceApps)
+      .set({ config })
+      .where(and(eq(workspaceApps.workspaceId, workspaceId), eq(workspaceApps.appKey, appKey)))
+      .returning();
+    if (!row) throw new NotFoundException(`App ${appKey} is not installed in this workspace`);
     return this.toDto(row);
   }
 

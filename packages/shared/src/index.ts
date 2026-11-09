@@ -4,3 +4,5 @@ export * from './schemas/auth.js';
 export * from './schemas/workspace.js';
 export * from './schemas/apps.js';
 export * from './schemas/notifications.js';
+export * from './schemas/projects.js';
+export * from './schemas/tasks.js';

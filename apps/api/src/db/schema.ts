@@ -1,8 +1,9 @@
-import { jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid, index } from 'drizzle-orm/pg-core';
 
 export const workspaceKindEnum = pgEnum('workspace_kind', ['personal', 'shared']);
 export const memberRoleEnum = pgEnum('member_role', ['owner', 'admin', 'member', 'guest']);
 export const memberStatusEnum = pgEnum('member_status', ['invited', 'active']);
+export const projectStatusEnum = pgEnum('project_status', ['active', 'archived']);
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -87,6 +88,40 @@ export const integrationAccounts = pgTable('integration_accounts', {
   uniqueIndex('integration_accounts_user_provider_idx').on(table.userId, table.provider),
 ]);
 
+export const projects = pgTable('projects', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  status: projectStatusEnum('status').notNull().default('active'),
+  createdByUserId: uuid('created_by_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('projects_workspace_id_idx').on(table.workspaceId),
+]);
+
+/** project_id is a soft UUID ref to projects (no cross-app FK). */
+export const tasks = pgTable('tasks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').notNull(),
+  title: text('title').notNull(),
+  description: text('description'),
+  status: text('status').notNull().default('todo'),
+  priority: text('priority').notNull().default('none'),
+  dueAt: timestamp('due_at', { withTimezone: true }),
+  assigneeUserId: uuid('assignee_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdByUserId: uuid('created_by_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  position: integer('position').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('tasks_workspace_id_idx').on(table.workspaceId),
+  index('tasks_workspace_project_idx').on(table.workspaceId, table.projectId),
+  index('tasks_workspace_status_idx').on(table.workspaceId, table.status),
+]);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Workspace = typeof workspaces.$inferSelect;
@@ -94,3 +129,5 @@ export type WorkspaceMember = typeof workspaceMembers.$inferSelect;
 export type WorkspaceApp = typeof workspaceApps.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
+export type Project = typeof projects.$inferSelect;
+export type Task = typeof tasks.$inferSelect;

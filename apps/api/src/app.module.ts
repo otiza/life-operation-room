@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module.js';
 import { HealthModule } from './health/health.module.js';
 import { LinksModule } from './links/links.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { ProjectsModule } from './projects/projects.module.js';
+import { TasksModule } from './tasks/tasks.module.js';
 import { UsersModule } from './users/users.module.js';
 import { WorkspacesModule } from './workspaces/workspaces.module.js';
 import * as schema from './db/schema.js';
@@ -34,6 +36,8 @@ import * as schema from './db/schema.js';
     AppsModule,
     NotificationsModule,
     LinksModule,
+    ProjectsModule,
+    TasksModule,
   ],
 })
 export class AppModule {}
