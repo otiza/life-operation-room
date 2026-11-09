@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidIanaTimeZone } from '../utils/timezone.js';
 
 export const taskKeySchema = z
   .string()
@@ -10,6 +11,12 @@ export const taskStatusSchema = z.string().min(1).max(64);
 export const taskPrioritySchema = z.string().min(1).max(64);
 export const taskDueFilterSchema = z.enum(['overdue', 'today', 'upcoming', 'none']);
 export const taskAssigneeFilterSchema = z.enum(['me', 'anyone']);
+
+export const ianaTimeZoneSchema = z
+  .string()
+  .min(1)
+  .max(100)
+  .refine((value) => isValidIanaTimeZone(value), { message: 'Invalid IANA timezone' });
 
 const hexColorSchema = z
   .string()
@@ -81,6 +88,7 @@ export const listTasksQuerySchema = z.object({
   status: taskStatusSchema.optional(),
   assignee: taskAssigneeFilterSchema.optional(),
   due: taskDueFilterSchema.optional(),
+  tz: ianaTimeZoneSchema.default('UTC'),
 });
 
 export const taskSchema = z.object({

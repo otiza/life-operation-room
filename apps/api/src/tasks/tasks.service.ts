@@ -6,10 +6,11 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, asc, count, eq, gt, gte, inArray, isNull, lt, lte, max, notInArray } from 'drizzle-orm';
+import { and, asc, count, eq, gte, inArray, isNull, lt, max, notInArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   DEFAULT_TASK_SETTINGS,
+  getDayBoundsInTimeZone,
   taskSettingsSchema,
   type CreateTaskInput,
   type ListTasksQuery,
@@ -106,11 +107,7 @@ export class TasksService {
     if (query.status) conditions.push(eq(tasks.status, query.status));
     if (query.assignee === 'me') conditions.push(eq(tasks.assigneeUserId, userId));
     if (query.due) {
-      const now = new Date();
-      const startOfToday = new Date(now);
-      startOfToday.setHours(0, 0, 0, 0);
-      const endOfToday = new Date(now);
-      endOfToday.setHours(23, 59, 59, 999);
+      const { startOfToday, startOfTomorrow } = getDayBoundsInTimeZone(new Date(), query.tz);
       if (query.due === 'none') {
         conditions.push(isNull(tasks.dueAt));
       } else if (query.due === 'overdue') {
@@ -120,9 +117,9 @@ export class TasksService {
           conditions.push(lt(tasks.dueAt, startOfToday));
         }
       } else if (query.due === 'today') {
-        conditions.push(and(gte(tasks.dueAt, startOfToday), lte(tasks.dueAt, endOfToday))!);
+        conditions.push(and(gte(tasks.dueAt, startOfToday), lt(tasks.dueAt, startOfTomorrow))!);
       } else if (query.due === 'upcoming') {
-        conditions.push(gt(tasks.dueAt, endOfToday));
+        conditions.push(gte(tasks.dueAt, startOfTomorrow));
       }
     }
     const rows = await this.db

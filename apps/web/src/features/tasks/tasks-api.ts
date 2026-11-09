@@ -27,6 +27,7 @@ export async function listTasks(workspaceId: string, query: ListTasksQuery = {})
   if (query.status) params.set('status', query.status);
   if (query.assignee) params.set('assignee', query.assignee);
   if (query.due) params.set('due', query.due);
+  params.set('tz', query.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
   const suffix = params.toString() ? `?${params.toString()}` : '';
   return api<{ tasks: Task[] }>(`/workspaces/${workspaceId}/tasks${suffix}`);
 }

@@ -1,9 +1,14 @@
 import {
   DEFAULT_TASK_SETTINGS,
+  getDayBoundsInTimeZone,
   type TaskPriorityOption,
   type TaskSettings,
   type TaskStatusOption,
 } from '@erp-tiza/shared';
+
+function clientTimeZone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
 
 export function formatDueAt(dueAt: string | null) {
   if (!dueAt) return null;
@@ -17,26 +22,28 @@ export function formatDueAt(dueAt: string | null) {
 
 export function formatDueAtShort(dueAt: string | null) {
   if (!dueAt) return null;
+  const timeZone = clientTimeZone();
   const due = new Date(dueAt);
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfDue = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-  const dayDiff = Math.round((startOfDue.getTime() - startOfToday.getTime()) / 86_400_000);
-  if (dayDiff === 0) return 'Today';
-  if (dayDiff === 1) return 'Tomorrow';
-  if (dayDiff === -1) return 'Yesterday';
-  return due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const { startOfToday, startOfTomorrow } = getDayBoundsInTimeZone(new Date(), timeZone);
+  if (due >= startOfToday && due < startOfTomorrow) return 'Today';
+  if (due >= startOfTomorrow) {
+    const dayAfter = getDayBoundsInTimeZone(startOfTomorrow, timeZone).startOfTomorrow;
+    if (due < dayAfter) return 'Tomorrow';
+  }
+  const { startOfToday: startOfYesterday } = getDayBoundsInTimeZone(
+    new Date(startOfToday.getTime() - 12 * 60 * 60 * 1000),
+    timeZone,
+  );
+  if (due >= startOfYesterday && due < startOfToday) return 'Yesterday';
+  return due.toLocaleDateString(undefined, { timeZone, month: 'short', day: 'numeric' });
 }
 
 export function isDueToday(dueAt: string | null) {
   if (!dueAt) return false;
+  const timeZone = clientTimeZone();
+  const { startOfToday, startOfTomorrow } = getDayBoundsInTimeZone(new Date(), timeZone);
   const due = new Date(dueAt);
-  const now = new Date();
-  return (
-    due.getFullYear() === now.getFullYear() &&
-    due.getMonth() === now.getMonth() &&
-    due.getDate() === now.getDate()
-  );
+  return due >= startOfToday && due < startOfTomorrow;
 }
 
 export function assigneeInitials(label: string) {
@@ -78,10 +85,8 @@ export function isOverdue(dueAt: string | null, statusKey: string, settings?: Ta
   if (settings ? isDoneStatus(settings, statusKey) : statusKey === 'done' || statusKey === 'cancelled') {
     return false;
   }
-  const due = new Date(dueAt);
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  return due < startOfToday;
+  const { startOfToday } = getDayBoundsInTimeZone(new Date(), clientTimeZone());
+  return new Date(dueAt) < startOfToday;
 }
 
 export function priorityColor(settings: TaskSettings, key: string) {
