@@ -43,6 +43,7 @@ import { CommandPalette, type CalendarCommand } from './command-palette';
 import { TaskSidebar } from './task-sidebar';
 import { EventEditor, type EventEditorSaveInput } from './event-editor';
 import { ScopePrompt } from './scope-prompt';
+import { registerAppCommands } from '../shell/command-registry';
 
 type MovePrevious = {
   startAt: string | null;
@@ -210,11 +211,6 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         target?.tagName === 'TEXTAREA' ||
         target?.tagName === 'SELECT' ||
         target?.isContentEditable;
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setPaletteOpen(true);
-        return;
-      }
       if (typing || event.metaKey || event.ctrlKey || event.altKey || editorOpen || paletteOpen) return;
       if (event.key === 'd') setView('day');
       if (event.key === 'w') setView('week');
@@ -309,6 +305,60 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
     if (command.type === 'toggle-sidebar') setSidebarOpen((value) => !value);
     if (command.type === 'go-date') setAnchor(startOfDay(command.date));
   }
+
+  useEffect(() => {
+    return registerAppCommands('calendar', () => [
+      {
+        id: 'calendar-new',
+        appKey: 'calendar',
+        label: 'New event',
+        keywords: 'create event',
+        run: () => setPaletteOpen(true),
+      },
+      {
+        id: 'calendar-today',
+        appKey: 'calendar',
+        label: 'Jump to today',
+        keywords: 'today',
+        run: () => setAnchor(startOfDay(new Date())),
+      },
+      {
+        id: 'calendar-day',
+        appKey: 'calendar',
+        label: 'Day view',
+        keywords: 'day',
+        run: () => setView('day'),
+      },
+      {
+        id: 'calendar-week',
+        appKey: 'calendar',
+        label: 'Week view',
+        keywords: 'week',
+        run: () => setView('week'),
+      },
+      {
+        id: 'calendar-month',
+        appKey: 'calendar',
+        label: 'Month view',
+        keywords: 'month',
+        run: () => setView('month'),
+      },
+      {
+        id: 'calendar-agenda',
+        appKey: 'calendar',
+        label: 'Agenda view',
+        keywords: 'agenda',
+        run: () => setView('agenda'),
+      },
+      {
+        id: 'calendar-sidebar',
+        appKey: 'calendar',
+        label: 'Toggle task sidebar',
+        keywords: 'tasks sidebar',
+        run: () => setSidebarOpen((value) => !value),
+      },
+    ]);
+  }, []);
 
   async function onDragEnd(event: DragEndEvent) {
     const activeOccurrence = event.active.data.current?.occurrence as CalendarOccurrenceDto | undefined;

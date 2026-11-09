@@ -21,17 +21,13 @@ import { useNotificationsSocket } from '../notifications/use-notifications-socke
 import { createWorkspace, listWorkspaces } from '../workspaces/workspaces-api';
 import { useShellStore } from './shell-store';
 import { TaskQuickAddDialog } from '../tasks/task-quick-add-dialog';
+import { ShellCommandPalette } from './command-palette';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { isTypingTarget } from '../../lib/keyboard';
 import { cn } from '../../lib/utils';
 import { useEffect, useMemo, useState } from 'react';
 import * as lucideIcons from 'lucide-react';
-
-function isTypingTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
-}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -51,6 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     hasHydrated,
   } = useShellStore();
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const meQuery = useQuery({
     queryKey: ['me'],
@@ -109,6 +106,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.key !== 'q' && event.key !== 'Q') return;
       if (isTypingTarget(event.target)) return;
@@ -386,6 +388,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           defaults={quickAddDefaults}
         />
       ) : null}
+      <ShellCommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        installedAppKeys={(appsQuery.data?.apps ?? []).map((app) => app.appKey)}
+      />
     </div>
   );
 }

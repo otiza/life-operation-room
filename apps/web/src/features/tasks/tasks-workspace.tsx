@@ -7,6 +7,7 @@ import { LayoutGrid, List as ListIcon, Plus, X } from 'lucide-react';
 import type { TaskSettings, TaskView } from '@erp-tiza/shared';
 import {
   createTask,
+  deleteTask,
   getTaskSettings,
   listTasks,
   reorderTasks,
@@ -17,6 +18,9 @@ import {
 } from './tasks-api';
 import {
   defaultTaskSettings,
+  dueLocalFromDateInput,
+  dueLocalOnDay,
+  enabledPriorities,
   enabledStatuses,
   formatDueAtShort,
   isDoneStatus,
@@ -34,10 +38,16 @@ import { me } from '../auth/auth-api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent } from '../../components/ui/card';
+import { Sheet } from '../../components/ui/sheet';
 import { Dialog } from '../../components/ui/dialog';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { ApiError } from '../../lib/api';
+import { isTypingTarget, TASK_SHORTCUTS } from '../../lib/keyboard';
 import { cn } from '../../lib/utils';
+import { registerAppCommands } from '../shell/command-registry';
+import { useShellStore } from '../shell/shell-store';
+import { TaskActionPicker } from './task-action-picker';
+import { parseTaskQuickAdd } from '@erp-tiza/shared';
 
 type LayoutMode = 'list' | 'board';
 const SMART_VIEWS = new Set<TaskView>(['inbox', 'today', 'upcoming', 'anytime', 'someday', 'logbook']);
@@ -48,12 +58,6 @@ type UndoAction =
 
 const selectClass =
   'h-11 w-full rounded-lg border border-border bg-card px-2.5 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:w-auto sm:text-sm';
-
-function isTypingTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
-}
 
 export function TasksWorkspace({
   workspaceId,
@@ -94,6 +98,9 @@ export function TasksWorkspace({
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   const [undo, setUndo] = useState<UndoAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [picker, setPicker] = useState<null | 'status' | 'priority' | 'due' | 'when' | 'move' | 'assignee'>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const openQuickAdd = useShellStore((state) => state.openQuickAdd);
 
   const installedQuery = useQuery({
     queryKey: ['installed-apps', workspaceId],
@@ -347,23 +354,52 @@ export function TasksWorkspace({
     document.querySelector(`[data-task-id="${focusedTaskId}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [focusedTaskId]);
 
+  const selectedOrFocusedId = selectedTaskId ?? focusedTaskId;
+  const activeTask = listedTasks.find((task) => task.id === selectedOrFocusedId) ?? null;
+
+  useEffect(() => {
+    return registerAppCommands('tasks', () => [
+      {
+        id: 'tasks-new',
+        appKey: 'tasks',
+        label: 'New task',
+        keywords: 'create add capture',
+        run: () => openQuickAdd(smartView === 'today' ? { whenDate: new Date().toISOString().slice(0, 10) } : {}),
+      },
+      ...(['inbox', 'today', 'upcoming', 'anytime', 'someday', 'logbook'] as TaskView[]).map((view) => ({
+        id: `tasks-view-${view}`,
+        appKey: 'tasks',
+        label: `Go to ${view}`,
+        keywords: view,
+        run: () => router.push(`/w/${workspaceId}/tasks?view=${view}`),
+      })),
+      ...activeProjects.map((project) => ({
+        id: `tasks-project-${project.id}`,
+        appKey: 'tasks',
+        label: `Go to ${project.name}`,
+        keywords: `project ${project.name}`,
+        run: () => router.push(`/w/${workspaceId}/projects/${project.id}`),
+      })),
+    ]);
+  }, [activeProjects, openQuickAdd, router, smartView, workspaceId]);
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (selectedTaskId) return;
-      if (event.key === '/' && !isTypingTarget(event.target)) {
+      if (isTypingTarget(event.target)) return;
+      if (event.key === '?' ) {
+        event.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
+      if (event.key === '/' ) {
         event.preventDefault();
         searchRef.current?.focus();
         searchRef.current?.select();
         return;
       }
-      if (event.key === 'c' && !isTypingTarget(event.target)) {
-        event.preventDefault();
-        composerRef.current?.focus();
-        return;
-      }
-      if (isBoard || isTypingTarget(event.target) || navigableTaskIds.length === 0) return;
       if (event.key === 'j' || event.key === 'k') {
+        if (isBoard || navigableTaskIds.length === 0) return;
         event.preventDefault();
         const currentIndex = focusedTaskId ? navigableTaskIds.indexOf(focusedTaskId) : -1;
         const nextIndex =
@@ -372,17 +408,135 @@ export function TasksWorkspace({
               ? 0
               : navigableTaskIds.length - 1
             : Math.min(navigableTaskIds.length - 1, Math.max(0, currentIndex + (event.key === 'j' ? 1 : -1)));
-        setFocusedTaskId(navigableTaskIds[nextIndex] ?? null);
+        const nextId = navigableTaskIds[nextIndex] ?? null;
+        setFocusedTaskId(nextId);
+        if (selectedTaskId && nextId) openTask(nextId);
         return;
       }
-      if (event.key === 'Enter' && focusedTaskId) {
+      if (event.key === 'Enter' && focusedTaskId && !selectedTaskId) {
         event.preventDefault();
         openTask(focusedTaskId);
+        return;
+      }
+      if (!activeTask) return;
+      if (event.key === 's') {
+        event.preventDefault();
+        setPicker('status');
+      } else if (event.key === 'p') {
+        event.preventDefault();
+        setPicker('priority');
+      } else if (event.key === 'd') {
+        event.preventDefault();
+        setPicker('due');
+      } else if (event.key === 'w') {
+        event.preventDefault();
+        setPicker('when');
+      } else if (event.key === 'm') {
+        event.preventDefault();
+        setPicker('move');
+      } else if (event.key === 'a') {
+        event.preventDefault();
+        setPicker('assignee');
+      } else if (event.key === 'x') {
+        event.preventDefault();
+        const done = isDoneStatus(settings, activeTask.status);
+        const fallbackOpen = statusOptions.find((item) => !item.isDone)?.key ?? activeTask.status;
+        const doneStatus = settings.statuses.find((item) => item.isDone && item.enabled)?.key ?? activeTask.status;
+        statusMutation.mutate({ taskId: activeTask.id, nextStatus: done ? fallbackOpen : doneStatus });
+      } else if (event.key === 'e') {
+        event.preventDefault();
+        openTask(activeTask.id);
+      } else if (event.key === 'Backspace') {
+        event.preventDefault();
+        void deleteTaskAndUndo(activeTask);
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [focusedTaskId, isBoard, navigableTaskIds, selectedTaskId]);
+  }, [
+    activeTask,
+    focusedTaskId,
+    isBoard,
+    navigableTaskIds,
+    selectedTaskId,
+    settings,
+    statusMutation,
+    statusOptions,
+  ]);
+
+  async function deleteTaskAndUndo(task: Task) {
+    await deleteTask(workspaceId, task.id);
+    setUndo({ kind: 'delete', task, label: `Deleted “${task.title}”` });
+    if (selectedTaskId === task.id) closeTask();
+    await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
+    await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
+  }
+
+  async function applyPickerValue(value: string) {
+    if (!activeTask || !picker) return;
+    if (picker === 'status') {
+      statusMutation.mutate({ taskId: activeTask.id, nextStatus: value });
+    } else if (picker === 'priority') {
+      await updateTask(workspaceId, activeTask.id, { priority: value });
+    } else if (picker === 'move') {
+      await updateTask(workspaceId, activeTask.id, { projectId: value || null });
+    } else if (picker === 'assignee') {
+      await updateTask(workspaceId, activeTask.id, { assigneeUserId: value || null });
+    } else if (picker === 'when') {
+      if (value === 'clear') {
+        await updateTask(workspaceId, activeTask.id, { whenDate: null, whenEvening: false, isSomeday: false });
+      } else if (value === 'someday') {
+        await updateTask(workspaceId, activeTask.id, { isSomeday: true });
+      } else if (value === 'evening') {
+        await updateTask(workspaceId, activeTask.id, {
+          whenDate: new Date().toISOString().slice(0, 10),
+          whenEvening: true,
+        });
+      } else if (value === 'today') {
+        await updateTask(workspaceId, activeTask.id, {
+          whenDate: new Date().toISOString().slice(0, 10),
+          whenEvening: false,
+        });
+      } else if (value === 'tomorrow') {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        await updateTask(workspaceId, activeTask.id, {
+          whenDate: tomorrow.toISOString().slice(0, 10),
+          whenEvening: false,
+        });
+      } else {
+        const parsed = parseTaskQuickAdd(value, {
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
+        if (parsed.whenDate) {
+          await updateTask(workspaceId, activeTask.id, {
+            whenDate: parsed.whenDate,
+            whenEvening: parsed.whenEvening,
+          });
+        }
+      }
+    } else if (picker === 'due') {
+      if (value === 'clear') {
+        await updateTask(workspaceId, activeTask.id, { dueAt: null });
+      } else if (value === 'today') {
+        await updateTask(workspaceId, activeTask.id, { dueAt: dueLocalOnDay(0) });
+      } else if (value === 'tomorrow') {
+        await updateTask(workspaceId, activeTask.id, { dueAt: dueLocalOnDay(1) });
+      } else {
+        const parsed = parseTaskQuickAdd(`due ${value}`, {
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
+        if (parsed.dueAt) {
+          await updateTask(workspaceId, activeTask.id, { dueAt: parsed.dueAt });
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          await updateTask(workspaceId, activeTask.id, { dueAt: dueLocalFromDateInput(value) });
+        }
+      }
+    }
+    await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
+    await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
+    setPicker(null);
+  }
 
   function moveTasks(moves: TaskBoardMove[]) {
     const previous = moves
@@ -656,7 +810,7 @@ export function TasksWorkspace({
         </div>
       </div>
 
-      <Dialog open={Boolean(selectedTaskId)} onClose={closeTask} className="sm:max-w-xl">
+      <Sheet open={Boolean(selectedTaskId)} onClose={closeTask}>
         <div className="flex items-center justify-end border-b border-border px-3 py-2">
           <button
             type="button"
@@ -678,6 +832,84 @@ export function TasksWorkspace({
             }}
           />
         ) : null}
+      </Sheet>
+      <TaskActionPicker
+        open={picker === 'status'}
+        title="Status"
+        options={statusOptions.map((item) => ({ value: item.key, label: item.label }))}
+        onSelect={(value) => void applyPickerValue(value)}
+        onClose={() => setPicker(null)}
+      />
+      <TaskActionPicker
+        open={picker === 'priority'}
+        title="Priority"
+        options={enabledPriorities(settings).map((item) => ({ value: item.key, label: item.label }))}
+        onSelect={(value) => void applyPickerValue(value)}
+        onClose={() => setPicker(null)}
+      />
+      <TaskActionPicker
+        open={picker === 'move'}
+        title="Move to project"
+        options={[
+          { value: '', label: 'Inbox' },
+          ...activeProjects.map((project) => ({ value: project.id, label: project.name })),
+        ]}
+        onSelect={(value) => void applyPickerValue(value)}
+        onClose={() => setPicker(null)}
+      />
+      <TaskActionPicker
+        open={picker === 'assignee'}
+        title="Assignee"
+        options={[
+          { value: '', label: 'Unassigned' },
+          ...(membersQuery.data?.members ?? [])
+            .filter((member) => member.status === 'active' && member.userId)
+            .map((member) => ({
+              value: member.userId!,
+              label: member.name?.trim() || member.email,
+            })),
+        ]}
+        onSelect={(value) => void applyPickerValue(value)}
+        onClose={() => setPicker(null)}
+      />
+      <TaskActionPicker
+        open={picker === 'when'}
+        title="When"
+        options={[
+          { value: 'today', label: 'Today' },
+          { value: 'evening', label: 'This evening' },
+          { value: 'tomorrow', label: 'Tomorrow' },
+          { value: 'someday', label: 'Someday' },
+          { value: 'clear', label: 'Clear' },
+        ]}
+        allowFreeText
+        onSelect={(value) => void applyPickerValue(value)}
+        onClose={() => setPicker(null)}
+      />
+      <TaskActionPicker
+        open={picker === 'due'}
+        title="Due"
+        options={[
+          { value: 'today', label: 'Today' },
+          { value: 'tomorrow', label: 'Tomorrow' },
+          { value: 'clear', label: 'Clear' },
+        ]}
+        allowFreeText
+        onSelect={(value) => void applyPickerValue(value)}
+        onClose={() => setPicker(null)}
+      />
+      <Dialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} className="sm:max-w-md">
+        <div className="space-y-3 p-4">
+          <h2 className="text-base font-semibold">Keyboard shortcuts</h2>
+          <ul className="space-y-2">
+            {TASK_SHORTCUTS.map((item) => (
+              <li key={item.key} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">{item.description}</span>
+                <kbd className="rounded border border-border bg-muted px-2 py-0.5 font-mono text-xs">{item.label}</kbd>
+              </li>
+            ))}
+          </ul>
+        </div>
       </Dialog>
       {undo ? (
         <div className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-primary px-4 py-2 text-sm text-primary-foreground shadow-lg">
