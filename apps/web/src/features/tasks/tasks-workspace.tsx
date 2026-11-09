@@ -54,6 +54,7 @@ const SMART_VIEWS = new Set<TaskView>(['inbox', 'today', 'upcoming', 'anytime', 
 
 type UndoAction =
   | { kind: 'delete'; task: Task; label: string }
+  | { kind: 'complete'; task: Task; previousStatus: string; label: string }
   | { kind: 'move'; previous: { id: string; status: string; position: number }[]; label: string };
 
 const selectClass =
@@ -100,7 +101,17 @@ export function TasksWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [picker, setPicker] = useState<null | 'status' | 'priority' | 'due' | 'when' | 'move' | 'assignee'>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [pendingCompleteIds, setPendingCompleteIds] = useState<Set<string>>(new Set());
+  const pendingTimers = useRef<Map<string, number>>(new Map());
   const openQuickAdd = useShellStore((state) => state.openQuickAdd);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(media.matches);
+    const onChange = () => setPrefersReducedMotion(media.matches);
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
 
   const installedQuery = useQuery({
     queryKey: ['installed-apps', workspaceId],
@@ -226,6 +237,44 @@ export function TasksWorkspace({
     },
   });
 
+  function clearPendingComplete(taskId: string) {
+    const timer = pendingTimers.current.get(taskId);
+    if (timer) window.clearTimeout(timer);
+    pendingTimers.current.delete(taskId);
+    setPendingCompleteIds((current) => {
+      const next = new Set(current);
+      next.delete(taskId);
+      return next;
+    });
+  }
+
+  function toggleComplete(task: Task) {
+    const done = isDoneStatus(settings, task.status);
+    const fallbackOpen = statusOptions.find((item) => !item.isDone)?.key ?? task.status;
+    const doneStatus = settings.statuses.find((item) => item.isDone && item.enabled)?.key ?? task.status;
+    if (done || pendingCompleteIds.has(task.id)) {
+      clearPendingComplete(task.id);
+      statusMutation.mutate({ taskId: task.id, nextStatus: fallbackOpen });
+      return;
+    }
+    if (prefersReducedMotion || smartView === 'logbook') {
+      statusMutation.mutate({ taskId: task.id, nextStatus: doneStatus });
+      return;
+    }
+    setPendingCompleteIds((current) => new Set(current).add(task.id));
+    const timer = window.setTimeout(() => {
+      statusMutation.mutate({ taskId: task.id, nextStatus: doneStatus });
+      setUndo({
+        kind: 'complete',
+        task,
+        previousStatus: task.status,
+        label: `Completed “${task.title}”`,
+      });
+      clearPendingComplete(task.id);
+    }, 1500);
+    pendingTimers.current.set(task.id, timer);
+  }
+
   const moveMutation = useMutation({
     mutationFn: (moves: TaskBoardMove[]) => reorderTasks(workspaceId, { moves }),
     onMutate: async (moves) => {
@@ -307,12 +356,14 @@ export function TasksWorkspace({
 
   const isProjectList = Boolean(lockedProjectId);
   const listedTasks = isProjectList
-    ? visibleTasks.filter((task) => !isDoneStatus(settings, task.status))
+    ? visibleTasks.filter((task) => !isDoneStatus(settings, task.status) || pendingCompleteIds.has(task.id))
     : smartView === 'logbook'
       ? visibleTasks
-      : !showDone && !smartView
-        ? visibleTasks.filter((task) => !isDoneStatus(settings, task.status))
-        : visibleTasks;
+      : smartView
+        ? visibleTasks.filter((task) => !isDoneStatus(settings, task.status) || pendingCompleteIds.has(task.id))
+        : !showDone
+          ? visibleTasks.filter((task) => !isDoneStatus(settings, task.status) || pendingCompleteIds.has(task.id))
+          : visibleTasks;
   const completedTasks = isProjectList
     ? visibleTasks.filter((task) => isDoneStatus(settings, task.status))
     : [];
@@ -439,10 +490,7 @@ export function TasksWorkspace({
         setPicker('assignee');
       } else if (event.key === 'x') {
         event.preventDefault();
-        const done = isDoneStatus(settings, activeTask.status);
-        const fallbackOpen = statusOptions.find((item) => !item.isDone)?.key ?? activeTask.status;
-        const doneStatus = settings.statuses.find((item) => item.isDone && item.enabled)?.key ?? activeTask.status;
-        statusMutation.mutate({ taskId: activeTask.id, nextStatus: done ? fallbackOpen : doneStatus });
+        toggleComplete(activeTask);
       } else if (event.key === 'e') {
         event.preventDefault();
         openTask(activeTask.id);
@@ -555,6 +603,8 @@ export function TasksWorkspace({
     setUndo(null);
     if (action.kind === 'delete') {
       await restoreTask(workspaceId, action.task.id);
+    } else if (action.kind === 'complete') {
+      await updateTask(workspaceId, action.task.id, { status: action.previousStatus });
     } else {
       await reorderTasks(workspaceId, {
         moves: action.previous.map((item) => ({
@@ -759,21 +809,14 @@ export function TasksWorkspace({
               <TaskRows
                 tasks={group.tasks}
                 settings={settings}
-                showProject={!lockedProjectId && group.key.startsWith('status:')}
+                showProject={!lockedProjectId && (group.key.startsWith('status:') || Boolean(smartView))}
                 focusedTaskId={focusedTaskId}
+                pendingCompleteIds={pendingCompleteIds}
                 projectName={projectName}
                 memberLabel={memberLabel}
                 onOpen={openTask}
                 onFocusTask={setFocusedTaskId}
-                onToggleDone={(task) => {
-                  const fallbackOpen = statusOptions.find((item) => !item.isDone)?.key ?? task.status;
-                  const doneStatus = settings.statuses.find((item) => item.isDone && item.enabled)?.key ?? task.status;
-                  const done = isDoneStatus(settings, task.status);
-                  statusMutation.mutate({
-                    taskId: task.id,
-                    nextStatus: done ? fallbackOpen : doneStatus,
-                  });
-                }}
+                onToggleDone={toggleComplete}
               />
             </section>
           ))}
@@ -793,14 +836,12 @@ export function TasksWorkspace({
                   settings={settings}
                   showProject={false}
                   focusedTaskId={focusedTaskId}
+                  pendingCompleteIds={pendingCompleteIds}
                   projectName={projectName}
                   memberLabel={memberLabel}
                   onOpen={openTask}
                   onFocusTask={setFocusedTaskId}
-                  onToggleDone={(task) => {
-                    const fallbackOpen = statusOptions.find((item) => !item.isDone)?.key ?? task.status;
-                    statusMutation.mutate({ taskId: task.id, nextStatus: fallbackOpen });
-                  }}
+                  onToggleDone={toggleComplete}
                 />
               ) : null}
             </section>
@@ -952,6 +993,7 @@ function TaskRows({
   settings,
   showProject,
   focusedTaskId,
+  pendingCompleteIds,
   projectName,
   memberLabel,
   onOpen,
@@ -962,6 +1004,7 @@ function TaskRows({
   settings: TaskSettings;
   showProject: boolean;
   focusedTaskId: string | null;
+  pendingCompleteIds: Set<string>;
   projectName: (id: string | null) => string;
   memberLabel: (userId: string | null) => string;
   onOpen: (taskId: string) => void;
@@ -972,7 +1015,8 @@ function TaskRows({
     <div className="overflow-hidden rounded-xl border border-border bg-card">
       {tasks.map((task, index) => {
         const overdue = isOverdue(task.dueAt, task.status, settings);
-        const done = isDoneStatus(settings, task.status);
+        const pending = pendingCompleteIds.has(task.id);
+        const done = isDoneStatus(settings, task.status) || pending;
         const dueLabel = formatDueAtShort(task.dueAt);
         const accent = priorityColor(settings, task.priority);
         const showAccent = task.priority !== 'none';
@@ -982,11 +1026,12 @@ function TaskRows({
             key={task.id}
             data-task-id={task.id}
             className={cn(
-              'group relative flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-muted sm:px-4',
+              'group relative flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-muted sm:px-4 motion-safe:transition-all motion-safe:duration-300',
               index > 0 && 'border-t border-border',
               overdue && 'bg-red-50/30 hover:bg-red-50/50',
               focused && 'bg-accent',
               done && 'opacity-70',
+              pending && 'motion-safe:translate-x-1 motion-safe:opacity-40',
             )}
           >
             {showAccent ? (
@@ -995,10 +1040,11 @@ function TaskRows({
             <button
               type="button"
               className={cn(
-                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px]',
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] motion-safe:transition-colors',
                 done
                   ? 'border-emerald-500 bg-emerald-500 text-white'
                   : 'border-border text-transparent hover:border-foreground/40',
+                pending && 'motion-safe:scale-110',
               )}
               aria-label={done ? 'Mark as open' : 'Mark as done'}
               onClick={(event) => {
