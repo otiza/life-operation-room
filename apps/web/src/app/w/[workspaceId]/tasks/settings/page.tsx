@@ -8,8 +8,10 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import type { TaskPriorityOption, TaskSettings, TaskStatusOption } from '@erp-tiza/shared';
+import { me } from '../../../../../features/auth/auth-api';
 import { getTaskSettings, updateTaskSettings } from '../../../../../features/tasks/tasks-api';
 import { defaultTaskSettings, slugifyKey, sortByOrder } from '../../../../../features/tasks/task-status';
+import { listMembers } from '../../../../../features/workspaces/workspaces-api';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import { PageContainer } from '../../../../../components/layout/page-container';
@@ -26,6 +28,16 @@ export default function TasksSettingsPage() {
   const dirtyRef = useRef(false);
   const draftRef = useRef(draft);
   draftRef.current = draft;
+
+  const meQuery = useQuery({ queryKey: ['me'], queryFn: me });
+  const membersQuery = useQuery({
+    queryKey: ['members', workspaceId],
+    queryFn: () => listMembers(workspaceId),
+  });
+  const myRole = (membersQuery.data?.members ?? []).find(
+    (member) => member.userId === meQuery.data?.user.id && member.status === 'active',
+  )?.role;
+  const canManageSettings = myRole === 'owner' || myRole === 'admin';
 
   const settingsQuery = useQuery({
     queryKey: ['task-settings', workspaceId],
@@ -65,7 +77,7 @@ export default function TasksSettingsPage() {
   });
 
   useEffect(() => {
-    if (!settingsQuery.isSuccess) return;
+    if (!canManageSettings || !settingsQuery.isSuccess) return;
     const serialized = JSON.stringify(draft);
     if (hydratedRef.current === serialized) {
       hydratedRef.current = null;
@@ -74,7 +86,7 @@ export default function TasksSettingsPage() {
     dirtyRef.current = true;
     const handle = window.setTimeout(() => saveMutation.mutate(draftRef.current), 500);
     return () => window.clearTimeout(handle);
-  }, [draft, settingsQuery.isSuccess]);
+  }, [canManageSettings, draft, settingsQuery.isSuccess]);
 
   function updateStatus(key: string, patch: Partial<TaskStatusOption>) {
     setDraft((current) => ({
@@ -158,11 +170,22 @@ export default function TasksSettingsPage() {
     }));
   }
 
-  if (settingsQuery.isLoading) {
+  if (settingsQuery.isLoading || membersQuery.isLoading || meQuery.isLoading) {
     return (
       <PageContainer size="full">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground">Loading…</p>
+      </PageContainer>
+    );
+  }
+
+  if (!canManageSettings) {
+    return (
+      <PageContainer size="full">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Settings</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Only workspace owners and admins can edit task statuses and priorities.
+        </p>
       </PageContainer>
     );
   }

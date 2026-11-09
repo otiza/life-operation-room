@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { DrizzleModule } from '@nestjs/drizzle';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerModule, minutes } from '@nestjs/throttler';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { AppsModule } from './apps/apps.module.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -23,6 +24,9 @@ import * as schema from './db/schema.js';
       envFilePath: ['../../.env', '.env'],
     }),
     EventEmitterModule.forRoot(),
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: 'default', ttl: minutes(1), limit: 10 }],
+    }),
     DrizzleModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

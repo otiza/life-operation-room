@@ -10,6 +10,7 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import { AppInstalledGuard, InstalledApp } from '../common/guards/app-installed.guard.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import {
+  WORKSPACE_ADMIN_ROLES,
   WORKSPACE_READ_ROLES,
   WORKSPACE_WRITE_ROLES,
   WorkspaceAccessGuard,
@@ -32,7 +33,7 @@ export class TasksController {
   }
 
   @Patch('workspaces/:id/tasks/settings')
-  @WorkspaceRoles(WORKSPACE_WRITE_ROLES)
+  @WorkspaceRoles(WORKSPACE_ADMIN_ROLES)
   async updateSettings(@Param('id') workspaceId: string, @Body() body: unknown) {
     const input = updateTaskSettingsSchema.parse(body);
     const settings = await this.tasksService.updateSettings(workspaceId, input);

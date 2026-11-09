@@ -19,7 +19,7 @@ import {
   type UpdateTaskInput,
   type UpdateTaskSettingsInput,
 } from '@erp-tiza/shared';
-import { tasks, type Task, type User } from '../db/schema.js';
+import { tasks, workspaceApps, type Task, type User } from '../db/schema.js';
 import {
   DOMAIN_EVENTS,
   type AppInstalledEvent,
@@ -48,63 +48,72 @@ export class TasksService {
 
   async getSettings(workspaceId: string): Promise<TaskSettings> {
     const row = await this.appsService.assertInstalled(workspaceId, 'tasks');
-    const parsed = taskSettingsSchema.safeParse(row.config);
-    if (parsed.success) return parsed.data;
-    const defaults = structuredClone(DEFAULT_TASK_SETTINGS);
-    await this.appsService.updateConfig(workspaceId, 'tasks', { ...row.config, ...defaults });
-    return defaults;
+    return this.resolveSettingsFromConfig(workspaceId, row.config);
   }
 
   async updateSettings(workspaceId: string, input: UpdateTaskSettingsInput): Promise<TaskSettings> {
     const settings = taskSettingsSchema.parse(input);
     this.assertUniqueKeys(settings);
-    const previous = await this.getSettings(workspaceId);
-    const removedStatusKeys = previous.statuses
-      .map((item) => item.key)
-      .filter((key) => !settings.statuses.some((item) => item.key === key));
-    const removedPriorityKeys = previous.priorities
-      .map((item) => item.key)
-      .filter((key) => !settings.priorities.some((item) => item.key === key));
 
-    if (removedStatusKeys.length) {
-      const [row] = await this.db
-        .select({ value: count() })
-        .from(tasks)
-        .where(
-          and(
-            eq(tasks.workspaceId, workspaceId),
-            inArray(tasks.status, removedStatusKeys),
-            isNull(tasks.deletedAt),
-          ),
-        );
-      if (Number(row?.value ?? 0) > 0) {
-        throw new BadRequestException(
-          `Cannot delete statuses still used by tasks: ${removedStatusKeys.join(', ')}`,
-        );
+    return this.db.transaction(async (tx) => {
+      const [installed] = await tx
+        .select()
+        .from(workspaceApps)
+        .where(and(eq(workspaceApps.workspaceId, workspaceId), eq(workspaceApps.appKey, 'tasks')))
+        .for('update');
+      if (!installed) {
+        throw new BadRequestException(`App tasks is not installed in this workspace`);
       }
-    }
-    if (removedPriorityKeys.length) {
-      const [row] = await this.db
-        .select({ value: count() })
-        .from(tasks)
-        .where(
-          and(
-            eq(tasks.workspaceId, workspaceId),
-            inArray(tasks.priority, removedPriorityKeys),
-            isNull(tasks.deletedAt),
-          ),
-        );
-      if (Number(row?.value ?? 0) > 0) {
-        throw new BadRequestException(
-          `Cannot delete priorities still used by tasks: ${removedPriorityKeys.join(', ')}`,
-        );
-      }
-    }
 
-    const installed = await this.appsService.assertInstalled(workspaceId, 'tasks');
-    const nextConfig = { ...installed.config, ...settings };
-    await this.appsService.updateConfig(workspaceId, 'tasks', nextConfig);
-    return settings;
+      const previous = this.resolveSettingsFromConfig(workspaceId, installed.config, false);
+      const removedStatusKeys = previous.statuses
+        .map((item) => item.key)
+        .filter((key) => !settings.statuses.some((item) => item.key === key));
+      const removedPriorityKeys = previous.priorities
+        .map((item) => item.key)
+        .filter((key) => !settings.priorities.some((item) => item.key === key));
+
+      if (removedStatusKeys.length) {
+        const [row] = await tx
+          .select({ value: count() })
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.workspaceId, workspaceId),
+              inArray(tasks.status, removedStatusKeys),
+              isNull(tasks.deletedAt),
+            ),
+          );
+        if (Number(row?.value ?? 0) > 0) {
+          throw new BadRequestException(
+            `Cannot delete statuses still used by tasks: ${removedStatusKeys.join(', ')}`,
+          );
+        }
+      }
+      if (removedPriorityKeys.length) {
+        const [row] = await tx
+          .select({ value: count() })
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.workspaceId, workspaceId),
+              inArray(tasks.priority, removedPriorityKeys),
+              isNull(tasks.deletedAt),
+            ),
+          );
+        if (Number(row?.value ?? 0) > 0) {
+          throw new BadRequestException(
+            `Cannot delete priorities still used by tasks: ${removedPriorityKeys.join(', ')}`,
+          );
+        }
+      }
+
+      await tx
+        .update(workspaceApps)
+        .set({ config: { ...installed.config, ...settings } })
+        .where(and(eq(workspaceApps.workspaceId, workspaceId), eq(workspaceApps.appKey, 'tasks')));
+      return settings;
+    });
   }
 
   async list(workspaceId: string, userId: string, query: ListTasksQuery) {
@@ -415,22 +424,39 @@ export class TasksService {
 
   @OnEvent(DOMAIN_EVENTS.taskScheduled)
   onTaskScheduled(event: TaskDomainEvent) {
-    this.logger.log(`task.scheduled ${event.taskId} dueAt=${event.dueAt}`);
+    this.logger.debug(`task.scheduled ${event.taskId} dueAt=${event.dueAt}`);
   }
 
   @OnEvent(DOMAIN_EVENTS.taskUpdated)
   onTaskUpdated(event: TaskDomainEvent) {
-    this.logger.log(`task.updated ${event.taskId}`);
+    this.logger.debug(`task.updated ${event.taskId}`);
   }
 
   @OnEvent(DOMAIN_EVENTS.taskCompleted)
   onTaskCompleted(event: TaskDomainEvent) {
-    this.logger.log(`task.completed ${event.taskId}`);
+    this.logger.debug(`task.completed ${event.taskId}`);
   }
 
   @OnEvent(DOMAIN_EVENTS.taskUnscheduled)
   onTaskUnscheduled(event: TaskDomainEvent) {
-    this.logger.log(`task.unscheduled ${event.taskId}`);
+    this.logger.debug(`task.unscheduled ${event.taskId}`);
+  }
+
+  private resolveSettingsFromConfig(
+    workspaceId: string,
+    config: Record<string, unknown>,
+    warnOnInvalid = true,
+  ): TaskSettings {
+    const parsed = taskSettingsSchema.safeParse(config);
+    if (parsed.success) return parsed.data;
+    const merged = { ...structuredClone(DEFAULT_TASK_SETTINGS), ...config };
+    const mergedParsed = taskSettingsSchema.safeParse(merged);
+    if (warnOnInvalid) {
+      this.logger.warn(
+        `Invalid tasks config for workspace ${workspaceId}; returning in-memory defaults`,
+      );
+    }
+    return mergedParsed.success ? mergedParsed.data : structuredClone(DEFAULT_TASK_SETTINGS);
   }
 
   private assertUniqueKeys(settings: TaskSettings) {

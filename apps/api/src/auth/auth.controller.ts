@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { loginSchema, signupSchema } from '@erp-tiza/shared';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -18,6 +19,8 @@ export class AuthController {
   ) {}
 
   @Post('signup')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async signup(@Body() body: unknown, @Res({ passthrough: true }) response: Response) {
     const input = signupSchema.parse(body);
     const result = await this.authService.signup(input);
@@ -29,6 +32,8 @@ export class AuthController {
   }
 
   @Post('login')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async login(@Body() body: unknown, @Res({ passthrough: true }) response: Response) {
     const input = loginSchema.parse(body);
     const result = await this.authService.login(input);
