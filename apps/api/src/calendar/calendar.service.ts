@@ -95,6 +95,8 @@ export class CalendarService {
     const taskIdByEventId = new Map(
       timeBlockLinks.map((link) => [link.sourceRef, link.targetRef] as const),
     );
+    const linkedTaskIds = [...new Set([...taskIdByEventId.values()])];
+    const tasksById = await this.taskReferencesService.findTasksInWorkspace(workspaceId, linkedTaskIds);
 
     const occurrences = [];
     for (const master of masters) {
@@ -111,7 +113,7 @@ export class CalendarService {
           | { taskId: string; status: string | null; deleted: boolean; isDone: boolean }
           | undefined;
         if (taskId) {
-          const task = await this.taskReferencesService.findTaskInWorkspace(workspaceId, taskId);
+          const task = tasksById.get(taskId);
           taskAnnotation = task
             ? { taskId, status: task.status, deleted: false, isDone: task.isDone }
             : { taskId, status: null, deleted: true, isDone: false };
@@ -549,7 +551,7 @@ export class CalendarService {
   private async loadMastersInRange(workspaceId: string, from: Date, to: Date) {
     const fromDate = calendarDateKeyInTimeZone(from, 'UTC');
     const toDate = calendarDateKeyInTimeZone(to, 'UTC');
-    return this.db
+    const rows = await this.db
       .select()
       .from(calendarEvents)
       .where(
@@ -584,6 +586,17 @@ export class CalendarService {
           ),
         ),
       );
+    return rows.filter((event) => {
+      if (!event.rrule) return true;
+      if (event.isAllDay) {
+        if (event.startDate && event.startDate >= toDate) return false;
+      } else if (event.startAt && event.startAt.getTime() > to.getTime()) {
+        return false;
+      }
+      const until = this.recurrenceService.parseUntilUtc(event.rrule);
+      if (until && until.getTime() < from.getTime()) return false;
+      return true;
+    });
   }
 
   private async splitFollowing(
