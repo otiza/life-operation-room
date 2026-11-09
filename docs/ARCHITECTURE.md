@@ -283,7 +283,17 @@ Work surfaces (how a project, task, or the next list-shaped app should behave) l
 | `/w/[workspaceId]/[appKey]` | installed-app placeholder |
 | `/invites/[token]` | accept invite |
 
-Shell chrome: `features/shell/app-shell.tsx` (responsive sidebar/drawer, workspace switcher, bell).
+Shell chrome: `features/shell/app-shell.tsx` (responsive sidebar/drawer, workspace switcher, bell, global task quick-add when Tasks is installed, Cmd/Ctrl+K command palette).
+
+### 6.2.0 Shell command palette registry
+
+Installed apps register commands through `features/shell/command-registry.ts`:
+
+```ts
+registerAppCommands('tasks', () => [{ id, appKey, label, keywords?, run }])
+```
+
+`ShellCommandPalette` lists commands only for apps installed in the current workspace. Tasks registers navigation and capture; Calendar registers its planning actions. Future apps should register the same way instead of owning a private Cmd+K handler.
 
 ### 6.2.1 Responsive cornerstone (required for all new UI)
 
