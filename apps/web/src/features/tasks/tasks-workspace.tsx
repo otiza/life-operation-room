@@ -4,13 +4,14 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LayoutGrid, List as ListIcon, Plus, X } from 'lucide-react';
-import type { TaskSettings } from '@erp-tiza/shared';
+import type { TaskSettings, TaskView } from '@erp-tiza/shared';
 import {
   createTask,
   getTaskSettings,
   listTasks,
   reorderTasks,
   restoreTask,
+  taskCounts,
   updateTask,
   type Task,
 } from './tasks-api';
@@ -19,13 +20,13 @@ import {
   enabledStatuses,
   formatDueAtShort,
   isDoneStatus,
-  isDueToday,
   isOverdue,
   priorityColor,
   statusLabel,
 } from './task-status';
 import { TasksBoard, type TaskBoardMove } from './tasks-board';
 import { TaskEditForm } from './task-edit-form';
+import { emptyStateCopy, TasksNav } from './tasks-nav';
 import { listProjects, type Project } from '../projects/projects-api';
 import { listInstalledApps } from '../apps/apps-api';
 import { listMembers, getWorkspace } from '../workspaces/workspaces-api';
@@ -38,8 +39,8 @@ import { PageContainer, PageHeader } from '../../components/layout/page-containe
 import { ApiError } from '../../lib/api';
 import { cn } from '../../lib/utils';
 
-type Scope = 'all' | 'today';
 type LayoutMode = 'list' | 'board';
+const SMART_VIEWS = new Set<TaskView>(['inbox', 'today', 'upcoming', 'anytime', 'someday', 'logbook']);
 
 type UndoAction =
   | { kind: 'delete'; task: Task; label: string }
@@ -72,16 +73,22 @@ export function TasksWorkspace({
     ? `/w/${workspaceId}/projects/${lockedProjectId}`
     : `/w/${workspaceId}/tasks`;
 
-  const scope: Scope = searchParams.get('scope') === 'today' ? 'today' : 'all';
-  const layout: LayoutMode = searchParams.get('view') === 'board' ? 'board' : 'list';
+  const viewParam = searchParams.get('view');
+  const smartView: TaskView | null = lockedProjectId
+    ? null
+    : SMART_VIEWS.has(viewParam as TaskView)
+      ? (viewParam as TaskView)
+      : 'today';
+  const layout: LayoutMode =
+    searchParams.get('layout') === 'board' || searchParams.get('view') === 'board' ? 'board' : 'list';
   const filterProjectId = lockedProjectId || searchParams.get('projectId') || undefined;
   const assignee = searchParams.get('assignee') === 'me' ? 'me' : undefined;
   const showDone = searchParams.get('done') === '1';
-  const selectedTaskId = searchParams.get('taskId');
+  const selectedTaskId = searchParams.get('task') ?? searchParams.get('taskId');
   const urlQuery = searchParams.get('q') ?? '';
 
   const [composerTitle, setComposerTitle] = useState('');
-  const [composerProjectId, setComposerProjectId] = useState('');
+  const [composerProjectId, setComposerProjectId] = useState<string | 'inbox'>('inbox');
   const [searchText, setSearchText] = useState(urlQuery);
   const [completedOpen, setCompletedOpen] = useState(false);
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
@@ -116,8 +123,21 @@ export function TasksWorkspace({
     enabled: Boolean(tasksInstalled),
   });
   const tasksQuery = useQuery({
-    queryKey: ['tasks', workspaceId, { projectId: lockedProjectId }],
-    queryFn: () => listTasks(workspaceId, lockedProjectId ? { projectId: lockedProjectId } : {}),
+    queryKey: ['tasks', workspaceId, { projectId: lockedProjectId, view: smartView }],
+    queryFn: () =>
+      listTasks(
+        workspaceId,
+        lockedProjectId
+          ? { projectId: lockedProjectId }
+          : smartView
+            ? { view: smartView }
+            : {},
+      ),
+    enabled: Boolean(tasksInstalled),
+  });
+  const countsQuery = useQuery({
+    queryKey: ['task-counts', workspaceId],
+    queryFn: () => taskCounts(workspaceId),
     enabled: Boolean(tasksInstalled),
   });
 
@@ -125,8 +145,9 @@ export function TasksWorkspace({
   const statusOptions = enabledStatuses(settings);
   const projects = projectsQuery.data?.projects ?? [];
   const activeProjects = projects.filter((project) => project.status === 'active');
-  const inboxProject = activeProjects.find((project) => project.name === 'Inbox') ?? activeProjects[0];
-  const defaultComposerProject = lockedProjectId || composerProjectId || inboxProject?.id || '';
+  const defaultComposerProjectId =
+    lockedProjectId || (composerProjectId === 'inbox' ? null : composerProjectId || null);
+  const defaultWhenDate = smartView === 'today' ? new Date().toISOString().slice(0, 10) : undefined;
 
   useEffect(() => {
     if (tasksInstalled) composerRef.current?.focus();
@@ -155,8 +176,12 @@ export function TasksWorkspace({
   }, [undo]);
 
   const createMutation = useMutation({
-    mutationFn: (input: { title: string; projectId: string; status?: string }) =>
-      createTask(workspaceId, input),
+    mutationFn: (input: {
+      title: string;
+      projectId?: string | null;
+      status?: string;
+      whenDate?: string | null;
+    }) => createTask(workspaceId, input),
     onSuccess: async (_task, variables) => {
       if (!variables.status) {
         setComposerTitle('');
@@ -226,26 +251,28 @@ export function TasksWorkspace({
     router.replace(query ? `${basePath}?${query}` : basePath);
   }
 
-  function setScope(nextScope: Scope) {
-    replaceParams((params) => {
-      if (nextScope === 'all') params.delete('scope');
-      else params.set('scope', nextScope);
-    });
-  }
-
   function setLayout(nextLayout: LayoutMode) {
     replaceParams((params) => {
-      if (nextLayout === 'list') params.delete('view');
-      else params.set('view', nextLayout);
+      params.delete('view');
+      if (smartView) params.set('view', smartView);
+      if (nextLayout === 'list') params.delete('layout');
+      else params.set('layout', nextLayout);
+      if (params.get('view') === 'board') params.delete('view');
     });
   }
 
   function openTask(taskId: string) {
-    replaceParams((params) => params.set('taskId', taskId));
+    replaceParams((params) => {
+      params.set('task', taskId);
+      params.delete('taskId');
+    });
   }
 
   function closeTask() {
-    replaceParams((params) => params.delete('taskId'));
+    replaceParams((params) => {
+      params.delete('task');
+      params.delete('taskId');
+    });
   }
 
   function memberLabel(userId: string | null) {
@@ -255,7 +282,8 @@ export function TasksWorkspace({
     return member?.name?.trim() || member?.email || 'Member';
   }
 
-  function projectName(id: string) {
+  function projectName(id: string | null) {
+    if (!id) return 'Inbox';
     return projects.find((project) => project.id === id)?.name ?? 'Project';
   }
 
@@ -270,29 +298,44 @@ export function TasksWorkspace({
     });
   }, [assignee, filterProjectId, meQuery.data?.user.id, searchText, tasksQuery.data?.tasks]);
 
-  const todayTasks = visibleTasks.filter(
-    (task) => !isDoneStatus(settings, task.status) && (isOverdue(task.dueAt, task.status, settings) || isDueToday(task.dueAt)),
-  );
-  const scopedTasks = scope === 'today' ? todayTasks : visibleTasks;
-  const isProjectList = Boolean(lockedProjectId) && scope === 'all';
+  const isProjectList = Boolean(lockedProjectId);
   const listedTasks = isProjectList
-    ? scopedTasks.filter((task) => !isDoneStatus(settings, task.status))
-    : scope === 'all' && !showDone
-      ? scopedTasks.filter((task) => !isDoneStatus(settings, task.status))
-      : scopedTasks;
+    ? visibleTasks.filter((task) => !isDoneStatus(settings, task.status))
+    : smartView === 'logbook'
+      ? visibleTasks
+      : !showDone && !smartView
+        ? visibleTasks.filter((task) => !isDoneStatus(settings, task.status))
+        : visibleTasks;
   const completedTasks = isProjectList
-    ? scopedTasks.filter((task) => isDoneStatus(settings, task.status))
+    ? visibleTasks.filter((task) => isDoneStatus(settings, task.status))
     : [];
-  const boardTasks = scope === 'today' ? todayTasks : visibleTasks;
-  const groups = groupTasks(listedTasks, {
-    by: lockedProjectId ? 'status' : 'project',
-    projects,
-    settings,
-  });
-  const openCount = visibleTasks.filter((task) => !isDoneStatus(settings, task.status)).length;
-  const isBoard = layout === 'board';
+  const boardTasks = listedTasks;
+  const groups =
+    smartView === 'today'
+      ? [
+          {
+            key: 'today',
+            label: 'Today',
+            tasks: listedTasks.filter((task) => task.section !== 'evening'),
+          },
+          {
+            key: 'evening',
+            label: 'This Evening',
+            tasks: listedTasks.filter((task) => task.section === 'evening'),
+          },
+        ].filter((group) => group.tasks.length > 0)
+      : smartView === 'upcoming'
+        ? groupByKey(listedTasks)
+        : groupTasks(listedTasks, {
+            by: lockedProjectId ? 'status' : 'project',
+            projects,
+            settings,
+          });
+  const openCount = listedTasks.filter((task) => !isDoneStatus(settings, task.status)).length;
+  const isBoard = layout === 'board' && smartView !== 'logbook' && smartView !== 'upcoming';
   const hasSearch = searchText.trim().length > 0;
   const navigableTaskIds = useMemo(() => listedTasks.map((task) => task.id), [listedTasks]);
+  const emptyCopy = emptyStateCopy(smartView ?? 'project');
 
   useEffect(() => {
     if (!focusedTaskId) return;
@@ -373,8 +416,12 @@ export function TasksWorkspace({
 
   function onCreate(event: FormEvent) {
     event.preventDefault();
-    if (!composerTitle.trim() || !defaultComposerProject) return;
-    createMutation.mutate({ title: composerTitle.trim(), projectId: defaultComposerProject });
+    if (!composerTitle.trim()) return;
+    createMutation.mutate({
+      title: composerTitle.trim(),
+      projectId: defaultComposerProjectId,
+      whenDate: defaultWhenDate ?? null,
+    });
   }
 
   if (installedQuery.isLoading) {
@@ -398,11 +445,26 @@ export function TasksWorkspace({
     );
   }
 
+  const viewTitle =
+    smartView === 'inbox'
+      ? 'Inbox'
+      : smartView === 'today'
+        ? 'Today'
+        : smartView === 'upcoming'
+          ? 'Upcoming'
+          : smartView === 'anytime'
+            ? 'Anytime'
+            : smartView === 'someday'
+              ? 'Someday'
+              : smartView === 'logbook'
+                ? 'Logbook'
+                : 'Tasks';
+
   return (
     <PageContainer size="full" className={cn(isBoard && 'max-w-none')}>
       {header ?? (
         <PageHeader
-          title="Tasks"
+          title={viewTitle}
           description={
             workspaceQuery.data?.workspace.kind === 'personal'
               ? 'Open work across your projects.'
@@ -411,6 +473,17 @@ export function TasksWorkspace({
         />
       )}
 
+      <div className="flex flex-col gap-6 md:flex-row">
+        {!lockedProjectId ? (
+          <TasksNav
+            workspaceId={workspaceId}
+            activeView={smartView}
+            views={countsQuery.data?.counts.views}
+            projects={projects}
+            projectCounts={countsQuery.data?.counts.projects}
+          />
+        ) : null}
+        <div className="min-w-0 flex-1 space-y-4">
       <form
         className="flex flex-col gap-2 rounded-xl border border-border bg-card px-2 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring sm:flex-row sm:items-center"
         onSubmit={onCreate}
@@ -428,11 +501,11 @@ export function TasksWorkspace({
         {lockedProjectId ? null : (
           <select
             className={cn(selectClass, 'sm:min-w-36')}
-            value={defaultComposerProject}
-            onChange={(event) => setComposerProjectId(event.target.value)}
+            value={composerProjectId}
+            onChange={(event) => setComposerProjectId(event.target.value as string | 'inbox')}
             aria-label="Project for new task"
           >
-            {activeProjects.length === 0 ? <option value="">No projects</option> : null}
+            <option value="inbox">Inbox</option>
             {activeProjects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.name}
@@ -443,7 +516,7 @@ export function TasksWorkspace({
         <Button
           size="sm"
           className="h-11 shrink-0 sm:h-9"
-          disabled={createMutation.isPending || !defaultComposerProject || !composerTitle.trim()}
+          disabled={createMutation.isPending || !composerTitle.trim()}
         >
           Add
         </Button>
@@ -451,24 +524,18 @@ export function TasksWorkspace({
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-lg border border-border bg-muted p-0.5">
-          <ScopeButton active={scope === 'all'} onClick={() => setScope('all')}>
-            All
-          </ScopeButton>
-          <ScopeButton active={scope === 'today'} onClick={() => setScope('today')}>
-            Today
-          </ScopeButton>
-        </div>
-        <div className="inline-flex rounded-lg border border-border bg-muted p-0.5">
-          <ScopeButton active={!isBoard} onClick={() => setLayout('list')}>
-            <ListIcon className="h-3.5 w-3.5" />
-            List
-          </ScopeButton>
-          <ScopeButton active={isBoard} onClick={() => setLayout('board')}>
-            <LayoutGrid className="h-3.5 w-3.5" />
-            Board
-          </ScopeButton>
-        </div>
+        {smartView !== 'logbook' && smartView !== 'upcoming' ? (
+          <div className="inline-flex rounded-lg border border-border bg-muted p-0.5">
+            <ScopeButton active={!isBoard} onClick={() => setLayout('list')}>
+              <ListIcon className="h-3.5 w-3.5" />
+              List
+            </ScopeButton>
+            <ScopeButton active={isBoard} onClick={() => setLayout('board')}>
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Board
+            </ScopeButton>
+          </div>
+        ) : null}
         <Input
           ref={searchRef}
           className="h-11 w-full sm:h-9 sm:w-44"
@@ -477,26 +544,6 @@ export function TasksWorkspace({
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
         />
-        {lockedProjectId ? null : (
-          <select
-            className={selectClass}
-            value={searchParams.get('projectId') ?? ''}
-            onChange={(event) =>
-              replaceParams((params) => {
-                if (!event.target.value) params.delete('projectId');
-                else params.set('projectId', event.target.value);
-              })
-            }
-            aria-label="Filter by project"
-          >
-            <option value="">All projects</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        )}
         <select
           className={selectClass}
           value={assignee ?? ''}
@@ -511,21 +558,7 @@ export function TasksWorkspace({
           <option value="">Anyone</option>
           <option value="me">Assigned to me</option>
         </select>
-        {!lockedProjectId && scope === 'all' && !isBoard ? (
-          <button
-            type="button"
-            className="h-11 px-2 text-sm text-muted-foreground hover:text-foreground sm:h-9"
-            onClick={() =>
-              replaceParams((params) => {
-                if (showDone) params.delete('done');
-                else params.set('done', '1');
-              })
-            }
-          >
-            {showDone ? 'Hide done' : 'Show done'}
-          </button>
-        ) : null}
-        {!tasksQuery.isLoading && visibleTasks.length > 0 ? (
+        {!tasksQuery.isLoading && listedTasks.length > 0 ? (
           <span className="ml-auto text-xs tabular-nums text-muted-foreground">{openCount} open</span>
         ) : null}
       </div>
@@ -540,14 +573,10 @@ export function TasksWorkspace({
         <Card>
           <CardContent className="space-y-2 py-10 text-center">
             <p className="text-base font-semibold text-foreground">
-              {hasSearch
-                ? 'No matches'
-                : scope === 'today'
-                  ? 'Nothing due today'
-                  : 'Your list is clear'}
+              {hasSearch ? 'No matches' : emptyCopy.title}
             </p>
             <p className="text-sm text-muted-foreground">
-              {hasSearch ? 'Try another title.' : 'Type above and press Enter.'}
+              {hasSearch ? 'Try another title.' : emptyCopy.body}
             </p>
           </CardContent>
         </Card>
@@ -559,11 +588,13 @@ export function TasksWorkspace({
           memberLabel={memberLabel}
           onMove={moveTasks}
           onOpenTask={openTask}
-          onCreate={
-            defaultComposerProject
-              ? (status, title) =>
-                  createMutation.mutate({ title, projectId: defaultComposerProject, status })
-              : undefined
+          onCreate={(status, title) =>
+            createMutation.mutate({
+              title,
+              projectId: defaultComposerProjectId,
+              status,
+              whenDate: defaultWhenDate ?? null,
+            })
           }
         />
       ) : (
@@ -622,6 +653,8 @@ export function TasksWorkspace({
           ) : null}
         </div>
       )}
+        </div>
+      </div>
 
       <Dialog open={Boolean(selectedTaskId)} onClose={closeTask} className="sm:max-w-xl">
         <div className="flex items-center justify-end border-b border-border px-3 py-2">
@@ -697,7 +730,7 @@ function TaskRows({
   settings: TaskSettings;
   showProject: boolean;
   focusedTaskId: string | null;
-  projectName: (id: string) => string;
+  projectName: (id: string | null) => string;
   memberLabel: (userId: string | null) => string;
   onOpen: (taskId: string) => void;
   onFocusTask: (taskId: string) => void;
@@ -798,13 +831,32 @@ function groupTasks(
   }
   const byProject = new Map<string, Task[]>();
   for (const task of tasks) {
-    const list = byProject.get(task.projectId) ?? [];
+    const key = task.projectId ?? 'inbox';
+    const list = byProject.get(key) ?? [];
     list.push(task);
-    byProject.set(task.projectId, list);
+    byProject.set(key, list);
   }
   return [...byProject.entries()].map(([projectId, projectTasks]) => ({
     key: projectId,
-    label: options.projects.find((project) => project.id === projectId)?.name ?? 'Project',
+    label:
+      projectId === 'inbox'
+        ? 'Inbox'
+        : options.projects.find((project) => project.id === projectId)?.name ?? 'Project',
     tasks: projectTasks,
+  }));
+}
+
+function groupByKey(tasks: Task[]) {
+  const map = new Map<string, Task[]>();
+  for (const task of tasks) {
+    const key = task.groupKey ?? task.whenDate ?? 'later';
+    const list = map.get(key) ?? [];
+    list.push(task);
+    map.set(key, list);
+  }
+  return [...map.entries()].map(([key, groupTasks]) => ({
+    key,
+    label: key,
+    tasks: groupTasks,
   }));
 }

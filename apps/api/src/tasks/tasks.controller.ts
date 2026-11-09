@@ -47,6 +47,17 @@ export class TasksController {
     return { counts };
   }
 
+  @Get('workspaces/:id/tasks/counts')
+  @WorkspaceRoles(WORKSPACE_READ_ROLES)
+  async counts(
+    @Param('id') workspaceId: string,
+    @Query() query: Record<string, string | undefined>,
+  ) {
+    const tz = listTasksQuerySchema.parse({ tz: query.tz || undefined }).tz;
+    const counts = await this.tasksService.counts(workspaceId, tz);
+    return { counts };
+  }
+
   @Get('workspaces/:id/tasks')
   @WorkspaceRoles(WORKSPACE_READ_ROLES)
   async list(

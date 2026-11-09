@@ -8,7 +8,7 @@ export default function TaskDetailRedirectPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(`/w/${params.workspaceId}/tasks?taskId=${params.taskId}`);
+    router.replace(`/w/${params.workspaceId}/tasks?view=today&task=${params.taskId}`);
   }, [params.taskId, params.workspaceId, router]);
 
   return (

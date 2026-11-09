@@ -37,7 +37,7 @@ type Draft = {
 function draftFromTask(task: {
   title: string;
   description: string | null;
-  projectId: string;
+  projectId: string | null;
   status: string;
   priority: string;
   dueAt: string | null;
@@ -46,7 +46,7 @@ function draftFromTask(task: {
   return {
     title: task.title,
     description: task.description ?? '',
-    projectId: task.projectId,
+    projectId: task.projectId ?? '',
     status: task.status,
     priority: task.priority,
     dueLocal: toDatetimeLocalValue(task.dueAt),
@@ -113,7 +113,7 @@ export function TaskEditForm({
       updateTask(workspaceId, taskId, {
         title: next.title.trim(),
         description: next.description.trim() || null,
-        projectId: next.projectId,
+        projectId: next.projectId || null,
         status: next.status,
         priority: next.priority,
         dueAt: fromDatetimeLocalValue(next.dueLocal),
@@ -138,11 +138,11 @@ export function TaskEditForm({
       hydratedDraftRef.current = null;
       return;
     }
-    if (!draft.title.trim() || !draft.projectId) return;
+    if (!draft.title.trim()) return;
     dirtyRef.current = true;
     const handle = window.setTimeout(() => {
       const next = draftRef.current;
-      if (!next?.title.trim() || !next.projectId) return;
+      if (!next?.title.trim()) return;
       saveMutation.mutate(next);
     }, 400);
     return () => window.clearTimeout(handle);
@@ -187,7 +187,9 @@ export function TaskEditForm({
     priorityOptions.push(currentPriority);
   }
   const projects = projectsQuery.data?.projects ?? [];
-  const projectName = projects.find((project) => project.id === draft.projectId)?.name ?? 'Project';
+  const projectName = draft.projectId
+    ? projects.find((project) => project.id === draft.projectId)?.name ?? 'Project'
+    : 'Inbox';
   const assigneeLabel =
     activeMembers.find((member) => member.userId === draft.assigneeUserId)?.name?.trim() ||
     activeMembers.find((member) => member.userId === draft.assigneeUserId)?.email ||
@@ -238,10 +240,13 @@ export function TaskEditForm({
             openKey={openMenu}
             setOpenKey={setOpenMenu}
             label={projectName}
-            options={projects.map((project) => ({
-              value: project.id,
-              label: project.status === 'archived' ? `${project.name} (archived)` : project.name,
-            }))}
+            options={[
+              { value: '', label: 'Inbox' },
+              ...projects.map((project) => ({
+                value: project.id,
+                label: project.status === 'archived' ? `${project.name} (archived)` : project.name,
+              })),
+            ]}
             onSelect={(value) => patch({ projectId: value })}
           />
           <PropertyMenu

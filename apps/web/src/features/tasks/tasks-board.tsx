@@ -72,7 +72,7 @@ export function TasksBoard({
 }: {
   tasks: Task[];
   settings: TaskSettings;
-  projectName: (projectId: string) => string;
+  projectName: (projectId: string | null) => string;
   memberLabel: (userId: string | null) => string;
   onMove: (moves: TaskBoardMove[]) => void;
   onOpenTask: (taskId: string) => void;
@@ -246,7 +246,7 @@ function BoardColumn({
   color: string;
   tasks: Task[];
   settings: TaskSettings;
-  projectName: (projectId: string) => string;
+  projectName: (projectId: string | null) => string;
   memberLabel: (userId: string | null) => string;
   onOpenTask: (taskId: string) => void;
   onCreate?: (status: string, title: string) => void;

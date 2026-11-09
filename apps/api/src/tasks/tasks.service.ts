@@ -280,6 +280,21 @@ export class TasksService {
     return counts;
   }
 
+  async counts(workspaceId: string, tz: string) {
+    const settings = await this.getSettings(workspaceId);
+    const doneKeys = settings.statuses.filter((item) => item.isDone).map((item) => item.key);
+    const projects = await this.countsByProject(workspaceId);
+    const views = {
+      inbox: (await this.listByView(workspaceId, '', { view: 'inbox', tz }, doneKeys)).length,
+      today: (await this.listByView(workspaceId, '', { view: 'today', tz }, doneKeys)).length,
+      upcoming: (await this.listByView(workspaceId, '', { view: 'upcoming', tz }, doneKeys)).length,
+      anytime: (await this.listByView(workspaceId, '', { view: 'anytime', tz }, doneKeys)).length,
+      someday: (await this.listByView(workspaceId, '', { view: 'someday', tz }, doneKeys)).length,
+      logbook: 0,
+    };
+    return { views, projects };
+  }
+
   async create(workspaceId: string, user: User, input: CreateTaskInput) {
     const projectId = input.projectId ?? null;
     if (projectId) {

@@ -38,9 +38,26 @@ export async function listTasks(workspaceId: string, query: ListTasksQueryInput 
 
 export type ProjectTaskCount = { total: number; open: number };
 
+export type TaskViewCounts = {
+  inbox: number;
+  today: number;
+  upcoming: number;
+  anytime: number;
+  someday: number;
+  logbook: number;
+};
+
 export async function countsByProject(workspaceId: string) {
   return api<{ counts: Record<string, ProjectTaskCount> }>(
     `/workspaces/${workspaceId}/tasks/counts-by-project`,
+  );
+}
+
+export async function taskCounts(workspaceId: string, tz?: string) {
+  const params = new URLSearchParams();
+  params.set('tz', tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return api<{ counts: { views: TaskViewCounts; projects: Record<string, ProjectTaskCount> } }>(
+    `/workspaces/${workspaceId}/tasks/counts?${params.toString()}`,
   );
 }
 
