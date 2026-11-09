@@ -20,11 +20,18 @@ import { listNotifications, markNotificationRead } from '../notifications/notifi
 import { useNotificationsSocket } from '../notifications/use-notifications-socket';
 import { createWorkspace, listWorkspaces } from '../workspaces/workspaces-api';
 import { useShellStore } from './shell-store';
+import { TaskQuickAddDialog } from '../tasks/task-quick-add-dialog';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { cn } from '../../lib/utils';
 import { useEffect, useMemo, useState } from 'react';
 import * as lucideIcons from 'lucide-react';
+
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -37,6 +44,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setMobileNavOpen,
     notificationsOpen,
     setNotificationsOpen,
+    quickAddOpen,
+    quickAddDefaults,
+    openQuickAdd,
+    closeQuickAdd,
     hasHydrated,
   } = useShellStore();
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
@@ -93,6 +104,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     queryFn: () => listInstalledApps(currentWorkspaceId!),
     enabled: Boolean(currentWorkspaceId) && hasHydrated,
   });
+
+  const tasksInstalled = (appsQuery.data?.apps ?? []).some((app) => app.appKey === 'tasks');
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key !== 'q' && event.key !== 'Q') return;
+      if (isTypingTarget(event.target)) return;
+      if (!tasksInstalled || !currentWorkspaceId) return;
+      event.preventDefault();
+      openQuickAdd(quickAddDefaultsFromPath(pathname));
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [currentWorkspaceId, openQuickAdd, pathname, tasksInstalled]);
 
   const notificationsQuery = useQuery({
     queryKey: ['notifications'],
@@ -292,7 +318,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </div>
-          <div className="relative shrink-0">
+          <div className="relative flex shrink-0 items-center gap-1">
+            {tasksInstalled && currentWorkspaceId ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11"
+                aria-label="New task"
+                onClick={() => openQuickAdd(quickAddDefaultsFromPath(pathname))}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"
@@ -341,8 +378,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         <main className="flex-1 overflow-auto px-3 py-4 sm:px-4 sm:py-5 md:p-6">{children}</main>
       </div>
+      {tasksInstalled && currentWorkspaceId ? (
+        <TaskQuickAddDialog
+          workspaceId={currentWorkspaceId}
+          open={quickAddOpen}
+          onClose={closeQuickAdd}
+          defaults={quickAddDefaults}
+        />
+      ) : null}
     </div>
   );
+}
+
+function quickAddDefaultsFromPath(pathname: string) {
+  const projectMatch = pathname.match(/\/projects\/([^/]+)/);
+  if (projectMatch?.[1]) return { projectId: projectMatch[1] };
+  if (typeof window !== 'undefined' && pathname.includes('/tasks')) {
+    const view = new URLSearchParams(window.location.search).get('view') ?? 'today';
+    if (view === 'today') return { whenDate: new Date().toISOString().slice(0, 10) };
+  }
+  return {};
 }
 
 function ManifestIcon({ name }: { name: string }) {
