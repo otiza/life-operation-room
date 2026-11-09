@@ -85,7 +85,9 @@ export function TaskEditForm({
   const dirtyRef = useRef(false);
   const draftRef = useRef<Draft | null>(null);
   const hydratedDraftRef = useRef<string | null>(null);
-  draftRef.current = draft;
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
 
   const taskQuery = useQuery({
     queryKey: ['task', workspaceId, taskId],
@@ -276,7 +278,7 @@ export function TaskEditForm({
         </div>
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <p className="text-xs text-muted-foreground">
-          {saveMutation.isPending || dirtyRef.current ? 'Saving…' : 'Saved'}
+          {saveMutation.isPending ? 'Saving…' : 'Saved'}
         </p>
       </div>
       <div className={cn('flex items-center justify-between gap-2 border-t border-border px-5 py-4')}>

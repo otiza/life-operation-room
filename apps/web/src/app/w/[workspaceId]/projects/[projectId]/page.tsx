@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -31,8 +31,8 @@ function ProjectDetailContent() {
   const { workspaceId, projectId } = params;
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState<string | null>(null);
+  const [description, setDescription] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,13 +41,6 @@ function ProjectDetailContent() {
     queryKey: ['project', workspaceId, projectId],
     queryFn: () => getProject(workspaceId, projectId),
   });
-
-  useEffect(() => {
-    const project = projectQuery.data?.project;
-    if (!project) return;
-    setName(project.name);
-    setDescription(project.description ?? '');
-  }, [projectQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: (input: { name?: string; description?: string | null; status?: 'active' | 'archived' }) =>
@@ -96,6 +89,8 @@ function ProjectDetailContent() {
   }
 
   const project = projectQuery.data.project;
+  const displayName = name ?? project.name;
+  const displayDescription = description ?? project.description ?? '';
 
   return (
     <>
@@ -107,24 +102,24 @@ function ProjectDetailContent() {
             <div className="min-w-0 flex-1">
               <input
                 className="w-full bg-transparent text-xl font-semibold tracking-tight text-foreground outline-none sm:text-2xl"
-                value={name}
+                value={displayName}
                 aria-label="Project name"
                 onChange={(event) => setName(event.target.value)}
                 onBlur={() => {
-                  const next = name.trim();
+                  const next = displayName.trim();
                   if (!next || next === project.name) return;
                   saveMutation.mutate({ name: next });
                 }}
               />
               <textarea
                 className="mt-1 w-full resize-none bg-transparent text-sm text-muted-foreground outline-none placeholder:text-muted-foreground"
-                rows={description ? 2 : 1}
+                rows={displayDescription ? 2 : 1}
                 placeholder="Add a description"
-                value={description}
+                value={displayDescription}
                 aria-label="Project description"
                 onChange={(event) => setDescription(event.target.value)}
                 onBlur={() => {
-                  const next = description.trim();
+                  const next = displayDescription.trim();
                   if (next === (project.description ?? '')) return;
                   saveMutation.mutate({ description: next || null });
                 }}

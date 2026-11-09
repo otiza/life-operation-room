@@ -27,7 +27,9 @@ export default function TasksSettingsPage() {
   const hydratedRef = useRef<string | null>(null);
   const dirtyRef = useRef(false);
   const draftRef = useRef(draft);
-  draftRef.current = draft;
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
 
   const meQuery = useQuery({ queryKey: ['me'], queryFn: me });
   const membersQuery = useQuery({
@@ -201,7 +203,7 @@ export default function TasksSettingsPage() {
           <p className="mt-1 text-sm text-muted-foreground">Board columns and priority colors for this workspace.</p>
         </div>
         <p className="shrink-0 pt-1 text-xs text-muted-foreground">
-          {saveMutation.isPending || dirtyRef.current ? 'Saving…' : 'Saved'}
+          {saveMutation.isPending ? 'Saving…' : 'Saved'}
         </p>
       </div>
       {error ? (

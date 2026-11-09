@@ -21,6 +21,35 @@ export function TaskActionPicker({
   onClose: () => void;
   allowFreeText?: boolean;
 }) {
+  return (
+    <Dialog open={open} onClose={onClose} className="sm:max-w-sm">
+      {open ? (
+        <PickerBody
+          key={title}
+          title={title}
+          options={options}
+          allowFreeText={allowFreeText}
+          onSelect={onSelect}
+          onClose={onClose}
+        />
+      ) : null}
+    </Dialog>
+  );
+}
+
+function PickerBody({
+  title,
+  options,
+  allowFreeText,
+  onSelect,
+  onClose,
+}: {
+  title: string;
+  options: PickerOption[];
+  allowFreeText?: boolean;
+  onSelect: (value: string) => void;
+  onClose: () => void;
+}) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const filtered = useMemo(() => {
@@ -30,52 +59,46 @@ export function TaskActionPicker({
   }, [options, query]);
 
   useEffect(() => {
-    if (!open) {
-      setQuery('');
-      return;
-    }
     const handle = window.setTimeout(() => inputRef.current?.focus(), 20);
     return () => window.clearTimeout(handle);
-  }, [open]);
+  }, []);
 
   return (
-    <Dialog open={open} onClose={onClose} className="sm:max-w-sm">
-      <div className="space-y-3 p-4">
-        <h2 className="text-sm font-medium">{title}</h2>
-        <Input
-          ref={inputRef}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Type to filter…"
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              if (filtered[0]) {
-                onSelect(filtered[0].value);
-                onClose();
-              } else if (allowFreeText && query.trim()) {
-                onSelect(query.trim());
-                onClose();
-              }
+    <div className="space-y-3 p-4">
+      <h2 className="text-sm font-medium">{title}</h2>
+      <Input
+        ref={inputRef}
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Type to filter…"
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            if (filtered[0]) {
+              onSelect(filtered[0].value);
+              onClose();
+            } else if (allowFreeText && query.trim()) {
+              onSelect(query.trim());
+              onClose();
             }
-          }}
-        />
-        <ul className="max-h-56 space-y-1 overflow-auto">
-          {filtered.map((item) => (
-            <li key={item.value}>
-              <button
-                type="button"
-                className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
-                onClick={() => {
-                  onSelect(item.value);
-                  onClose();
-                }}
-              >
-                {item.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </Dialog>
+          }
+        }}
+      />
+      <ul className="max-h-56 space-y-1 overflow-auto">
+        {filtered.map((item) => (
+          <li key={item.value}>
+            <button
+              type="button"
+              className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+              onClick={() => {
+                onSelect(item.value);
+                onClose();
+              }}
+            >
+              {item.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

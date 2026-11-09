@@ -104,14 +104,10 @@ export function TasksWorkspace({
   const [pendingCompleteIds, setPendingCompleteIds] = useState<Set<string>>(new Set());
   const pendingTimers = useRef<Map<string, number>>(new Map());
   const openQuickAdd = useShellStore((state) => state.openQuickAdd);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  useEffect(() => {
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(media.matches);
-    const onChange = () => setPrefersReducedMotion(media.matches);
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  }, []);
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const installedQuery = useQuery({
     queryKey: ['installed-apps', workspaceId],
@@ -170,10 +166,6 @@ export function TasksWorkspace({
   useEffect(() => {
     if (tasksInstalled) composerRef.current?.focus();
   }, [tasksInstalled]);
-
-  useEffect(() => {
-    setSearchText(urlQuery);
-  }, [urlQuery]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -395,17 +387,15 @@ export function TasksWorkspace({
   const navigableTaskIds = useMemo(() => listedTasks.map((task) => task.id), [listedTasks]);
   const emptyCopy = emptyStateCopy(smartView ?? 'project');
 
-  useEffect(() => {
-    if (!focusedTaskId) return;
-    if (!navigableTaskIds.includes(focusedTaskId)) setFocusedTaskId(null);
-  }, [focusedTaskId, navigableTaskIds]);
+  const safeFocusedTaskId =
+    focusedTaskId && navigableTaskIds.includes(focusedTaskId) ? focusedTaskId : null;
 
   useEffect(() => {
-    if (!focusedTaskId) return;
-    document.querySelector(`[data-task-id="${focusedTaskId}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [focusedTaskId]);
+    if (!safeFocusedTaskId) return;
+    document.querySelector(`[data-task-id="${safeFocusedTaskId}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [safeFocusedTaskId]);
 
-  const selectedOrFocusedId = selectedTaskId ?? focusedTaskId;
+  const selectedOrFocusedId = selectedTaskId ?? safeFocusedTaskId;
   const activeTask = listedTasks.find((task) => task.id === selectedOrFocusedId) ?? null;
 
   useEffect(() => {
@@ -452,7 +442,7 @@ export function TasksWorkspace({
       if (event.key === 'j' || event.key === 'k') {
         if (isBoard || navigableTaskIds.length === 0) return;
         event.preventDefault();
-        const currentIndex = focusedTaskId ? navigableTaskIds.indexOf(focusedTaskId) : -1;
+        const currentIndex = safeFocusedTaskId ? navigableTaskIds.indexOf(safeFocusedTaskId) : -1;
         const nextIndex =
           currentIndex < 0
             ? event.key === 'j'
@@ -464,9 +454,9 @@ export function TasksWorkspace({
         if (selectedTaskId && nextId) openTask(nextId);
         return;
       }
-      if (event.key === 'Enter' && focusedTaskId && !selectedTaskId) {
+      if (event.key === 'Enter' && safeFocusedTaskId && !selectedTaskId) {
         event.preventDefault();
-        openTask(focusedTaskId);
+        openTask(safeFocusedTaskId);
         return;
       }
       if (!activeTask) return;
@@ -503,13 +493,11 @@ export function TasksWorkspace({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     activeTask,
-    focusedTaskId,
+    safeFocusedTaskId,
     isBoard,
     navigableTaskIds,
     selectedTaskId,
     settings,
-    statusMutation,
-    statusOptions,
   ]);
 
   async function deleteTaskAndUndo(task: Task) {
@@ -810,7 +798,7 @@ export function TasksWorkspace({
                 tasks={group.tasks}
                 settings={settings}
                 showProject={!lockedProjectId && (group.key.startsWith('status:') || Boolean(smartView))}
-                focusedTaskId={focusedTaskId}
+                focusedTaskId={safeFocusedTaskId}
                 pendingCompleteIds={pendingCompleteIds}
                 projectName={projectName}
                 memberLabel={memberLabel}
@@ -835,7 +823,7 @@ export function TasksWorkspace({
                   tasks={completedTasks}
                   settings={settings}
                   showProject={false}
-                  focusedTaskId={focusedTaskId}
+                  focusedTaskId={safeFocusedTaskId}
                   pendingCompleteIds={pendingCompleteIds}
                   projectName={projectName}
                   memberLabel={memberLabel}

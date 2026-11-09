@@ -380,8 +380,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         <main className="flex-1 overflow-auto px-3 py-4 sm:px-4 sm:py-5 md:p-6">{children}</main>
       </div>
-      {tasksInstalled && currentWorkspaceId ? (
+      {tasksInstalled && currentWorkspaceId && quickAddOpen ? (
         <TaskQuickAddDialog
+          key="quick-add"
           workspaceId={currentWorkspaceId}
           open={quickAddOpen}
           onClose={closeQuickAdd}

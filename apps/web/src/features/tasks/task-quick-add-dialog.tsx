@@ -64,12 +64,7 @@ export function TaskQuickAddDialog({
   );
 
   useEffect(() => {
-    if (!open) {
-      setText('');
-      setError(null);
-      setKeepOpen(false);
-      return;
-    }
+    if (!open) return;
     const handle = window.setTimeout(() => inputRef.current?.focus(), 20);
     return () => window.clearTimeout(handle);
   }, [open]);

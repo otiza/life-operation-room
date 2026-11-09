@@ -78,20 +78,20 @@ export function TasksBoard({
   onOpenTask: (taskId: string) => void;
   onCreate?: (status: string, title: string) => void;
 }) {
-  const statusOptions = enabledStatuses(settings);
-  const statusKeys = statusOptions.map((item) => item.key);
-  const [columns, setColumns] = useState(() => buildColumns(tasks, statusKeys));
+  const statusOptions = useMemo(() => enabledStatuses(settings), [settings]);
+  const statusKeys = useMemo(() => statusOptions.map((item) => item.key), [statusOptions]);
+  const serverColumns = useMemo(() => buildColumns(tasks, statusKeys), [tasks, statusKeys]);
+  const [draftColumns, setDraftColumns] = useState<BoardColumns | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const columns = draftColumns ?? serverColumns;
   const columnsRef = useRef(columns);
-  columnsRef.current = columns;
   const suppressClickRef = useRef(false);
-
   useEffect(() => {
-    setColumns(buildColumns(tasks, statusKeys));
-  }, [tasks, statusKeys.join('|')]);
+    columnsRef.current = columns;
+  }, [columns]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
-  const statusKeySet = useMemo(() => new Set(statusKeys), [statusKeys.join('|')]);
+  const statusKeySet = useMemo(() => new Set(statusKeys), [statusKeys]);
   const collisionDetection = useCallback<CollisionDetection>((args) => {
     const pointerHits = pointerWithin(args);
     const hits = pointerHits.length > 0 ? pointerHits : rectIntersection(args);
@@ -112,6 +112,7 @@ export function TasksBoard({
 
   function handleDragStart(event: DragStartEvent) {
     suppressClickRef.current = true;
+    setDraftColumns(serverColumns);
     setActiveId(String(event.active.id));
   }
 
@@ -119,20 +120,21 @@ export function TasksBoard({
     const { active, over } = event;
     if (!over) return;
 
-    setColumns((current) => {
-      const activeContainer = findContainer(current, String(active.id), statusKeys);
-      const overContainer = findContainer(current, String(over.id), statusKeys);
-      if (!activeContainer || !overContainer || activeContainer === overContainer) return current;
-      const sourceItems = [...current[activeContainer]];
-      const targetItems = [...(current[overContainer] ?? [])];
+    setDraftColumns((current) => {
+      const base = current ?? serverColumns;
+      const activeContainer = findContainer(base, String(active.id), statusKeys);
+      const overContainer = findContainer(base, String(over.id), statusKeys);
+      if (!activeContainer || !overContainer || activeContainer === overContainer) return base;
+      const sourceItems = [...base[activeContainer]];
+      const targetItems = [...(base[overContainer] ?? [])];
       const activeIndex = sourceItems.findIndex((task) => task.id === active.id);
-      if (activeIndex < 0) return current;
+      if (activeIndex < 0) return base;
       const [moved] = sourceItems.splice(activeIndex, 1);
       const overIndex = targetItems.findIndex((task) => task.id === over.id);
       const insertIndex = overIndex >= 0 ? overIndex : targetItems.length;
       targetItems.splice(insertIndex, 0, { ...moved, status: overContainer });
       return {
-        ...current,
+        ...base,
         [activeContainer]: sourceItems,
         [overContainer]: targetItems,
       };
@@ -146,7 +148,7 @@ export function TasksBoard({
       suppressClickRef.current = false;
     }, 0);
     if (!over) {
-      setColumns(buildColumns(tasks, statusKeys));
+      setDraftColumns(null);
       return;
     }
 
@@ -154,7 +156,7 @@ export function TasksBoard({
     const activeContainer = findContainer(nextColumns, String(active.id), statusKeys);
     const overContainer = findContainer(nextColumns, String(over.id), statusKeys);
     if (!activeContainer || !overContainer) {
-      setColumns(buildColumns(tasks, statusKeys));
+      setDraftColumns(null);
       return;
     }
 
@@ -162,11 +164,14 @@ export function TasksBoard({
       const items = nextColumns[activeContainer];
       const oldIndex = items.findIndex((task) => task.id === active.id);
       const newIndex = items.findIndex((task) => task.id === over.id);
-      if (oldIndex < 0) return;
+      if (oldIndex < 0) {
+        setDraftColumns(null);
+        return;
+      }
       const reordered =
         newIndex < 0 || oldIndex === newIndex ? items : arrayMove(items, oldIndex, newIndex);
       nextColumns = { ...nextColumns, [activeContainer]: reordered };
-      setColumns(nextColumns);
+      setDraftColumns(nextColumns);
     }
 
     const statusesToSync =
@@ -180,12 +185,13 @@ export function TasksBoard({
         moves.push({ taskId: task.id, status, position });
       });
     }
+    setDraftColumns(null);
     if (moves.length > 0) onMove(moves);
   }
 
   function handleDragCancel() {
     setActiveId(null);
-    setColumns(buildColumns(tasks, statusKeys));
+    setDraftColumns(null);
   }
 
   return (

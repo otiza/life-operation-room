@@ -153,7 +153,7 @@ export class TasksService {
 
   async listByView(workspaceId: string, userId: string, query: ListTasksQuery, doneKeys: string[]) {
     const now = new Date();
-    const { startOfToday, startOfTomorrow } = getDayBoundsInTimeZone(now, query.tz);
+    const { startOfTomorrow } = getDayBoundsInTimeZone(now, query.tz);
     const todayKey = calendarDateKeyInTimeZone(now, query.tz);
     const openConditions = [
       eq(tasks.workspaceId, workspaceId),
