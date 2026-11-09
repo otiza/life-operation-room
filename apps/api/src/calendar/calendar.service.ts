@@ -107,12 +107,14 @@ export class CalendarService {
       for (const item of expanded) {
         if (item.cancelled) continue;
         const taskId = taskIdByEventId.get(item.eventId);
-        let taskAnnotation: { taskId: string; status: string | null; deleted: boolean } | undefined;
+        let taskAnnotation:
+          | { taskId: string; status: string | null; deleted: boolean; isDone: boolean }
+          | undefined;
         if (taskId) {
           const task = await this.taskReferencesService.findTaskInWorkspace(workspaceId, taskId);
           taskAnnotation = task
-            ? { taskId, status: task.status, deleted: false }
-            : { taskId, status: null, deleted: true };
+            ? { taskId, status: task.status, deleted: false, isDone: task.isDone }
+            : { taskId, status: null, deleted: true, isDone: false };
         }
         occurrences.push({
           eventId: item.eventId,
@@ -165,7 +167,7 @@ export class CalendarService {
           source: 'tasks',
           externalId: null,
           createdByUserId: null,
-          task: { taskId: task.id, status: task.status, deleted: false },
+          task: { taskId: task.id, status: task.status, deleted: false, isDone: task.isDone },
         });
       }
     }

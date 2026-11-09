@@ -149,6 +149,7 @@ export const calendarEventTaskAnnotationSchema = z.object({
   taskId: z.string().uuid(),
   status: z.string().nullable(),
   deleted: z.boolean(),
+  isDone: z.boolean(),
 });
 
 export const calendarOccurrenceSchema = z.object({

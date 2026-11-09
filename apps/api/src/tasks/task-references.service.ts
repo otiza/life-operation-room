@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, count, eq, gte, isNull, lt } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { tasks } from '../db/schema.js';
+import { DEFAULT_TASK_SETTINGS, taskSettingsSchema } from '@erp-tiza/shared';
+import { tasks, workspaceApps } from '../db/schema.js';
 import { toIso } from '../common/utils/crypto.js';
 
 export type TaskReference = {
@@ -11,6 +12,7 @@ export type TaskReference = {
   status: string;
   projectId: string;
   dueAt: string | null;
+  isDone: boolean;
 };
 
 /** Narrow tasks-owned queries other apps may call without importing the tasks table. */
@@ -33,34 +35,25 @@ export class TaskReferencesService {
   }
 
   async assertTaskInWorkspace(workspaceId: string, taskId: string): Promise<TaskReference> {
-    const [row] = await this.db
-      .select({
-        id: tasks.id,
-        title: tasks.title,
-        status: tasks.status,
-        projectId: tasks.projectId,
-        dueAt: tasks.dueAt,
-      })
-      .from(tasks)
-      .where(
-        and(
-          eq(tasks.id, taskId),
-          eq(tasks.workspaceId, workspaceId),
-          isNull(tasks.deletedAt),
-        ),
-      );
-    if (!row) throw new NotFoundException('Task not found in workspace');
-    return {
-      id: row.id,
-      title: row.title,
-      status: row.status,
-      projectId: row.projectId,
-      dueAt: toIso(row.dueAt),
-    };
+    const task = await this.findTaskInWorkspace(workspaceId, taskId);
+    if (!task) throw new NotFoundException('Task not found in workspace');
+    return task;
   }
 
   async findTaskInWorkspace(workspaceId: string, taskId: string): Promise<TaskReference | null> {
-    const [row] = await this.db
+    const map = await this.findTasksInWorkspace(workspaceId, [taskId]);
+    return map.get(taskId) ?? null;
+  }
+
+  async findTasksInWorkspace(
+    workspaceId: string,
+    taskIds: string[],
+  ): Promise<Map<string, TaskReference>> {
+    const uniqueIds = [...new Set(taskIds.filter(Boolean))];
+    const result = new Map<string, TaskReference>();
+    if (!uniqueIds.length) return result;
+    const doneKeys = await this.doneStatusKeys(workspaceId);
+    const rows = await this.db
       .select({
         id: tasks.id,
         title: tasks.title,
@@ -69,18 +62,22 @@ export class TaskReferencesService {
         dueAt: tasks.dueAt,
       })
       .from(tasks)
-      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt)));
-    if (!row) return null;
-    return {
-      id: row.id,
-      title: row.title,
-      status: row.status,
-      projectId: row.projectId,
-      dueAt: toIso(row.dueAt),
-    };
+      .where(and(eq(tasks.workspaceId, workspaceId), inArray(tasks.id, uniqueIds), isNull(tasks.deletedAt)));
+    for (const row of rows) {
+      result.set(row.id, {
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        projectId: row.projectId,
+        dueAt: toIso(row.dueAt),
+        isDone: doneKeys.has(row.status),
+      });
+    }
+    return result;
   }
 
   async listDueInRange(workspaceId: string, from: Date, to: Date): Promise<TaskReference[]> {
+    const doneKeys = await this.doneStatusKeys(workspaceId);
     const rows = await this.db
       .select({
         id: tasks.id,
@@ -104,6 +101,19 @@ export class TaskReferencesService {
       status: row.status,
       projectId: row.projectId,
       dueAt: toIso(row.dueAt),
+      isDone: doneKeys.has(row.status),
     }));
+  }
+
+  private async doneStatusKeys(workspaceId: string): Promise<Set<string>> {
+    const [installed] = await this.db
+      .select({ config: workspaceApps.config })
+      .from(workspaceApps)
+      .where(and(eq(workspaceApps.workspaceId, workspaceId), eq(workspaceApps.appKey, 'tasks')));
+    const parsed = taskSettingsSchema.safeParse(installed?.config ?? {});
+    const statuses = parsed.success
+      ? parsed.data.statuses
+      : taskSettingsSchema.parse(structuredClone(DEFAULT_TASK_SETTINGS)).statuses;
+    return new Set(statuses.filter((item) => item.isDone).map((item) => item.key));
   }
 }

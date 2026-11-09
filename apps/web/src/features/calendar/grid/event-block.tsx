@@ -26,7 +26,7 @@ export function EventBlock({
   onResizePointerDown,
 }: EventBlockProps) {
   const isDueChip = occurrence.kind === 'due_chip';
-  const isDone = occurrence.task?.status === 'done';
+  const isDone = Boolean(occurrence.task?.isDone);
   const isDeleted = occurrence.task?.deleted;
   const canInteract = occurrence.kind !== 'due_chip';
   const drag = useDraggable({
