@@ -157,4 +157,112 @@ describe('RecurrenceService', () => {
     expect(until).toContain('UNTIL=');
     expect(until).not.toContain('COUNT=');
   });
+
+  it('keeps daily 01:30 Europe/Paris across spring and autumn DST', () => {
+    const event = makeEvent({
+      title: 'Nightly',
+      startAt: zonedWallTimeToUtc(2026, 3, 28, 1, 30, 0, 0, 'Europe/Paris'),
+      endAt: zonedWallTimeToUtc(2026, 3, 28, 2, 0, 0, 0, 'Europe/Paris'),
+      rrule: 'FREQ=DAILY',
+      timezone: 'Europe/Paris',
+    });
+    const spring = service.expandEvent(event, [], new Date('2026-03-28T00:00:00Z'), new Date('2026-03-31T00:00:00Z'));
+    const autumn = service.expandEvent(event, [], new Date('2026-10-24T00:00:00Z'), new Date('2026-10-27T00:00:00Z'));
+    for (const occurrence of [...spring, ...autumn]) {
+      const hour = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Europe/Paris',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).format(occurrence.startAt!);
+      expect(hour).toBe('01:30');
+    }
+    expect(spring.some((item) => item.startAt!.toISOString().startsWith('2026-03-29'))).toBe(true);
+    expect(autumn.some((item) => item.startAt!.toISOString().startsWith('2026-10-25') || item.startAt!.toISOString().startsWith('2026-10-24'))).toBe(true);
+  });
+
+  it('keeps daily 03:00 America/New_York across 2026-11-01', () => {
+    const event = makeEvent({
+      title: 'US nightly',
+      startAt: zonedWallTimeToUtc(2026, 10, 31, 3, 0, 0, 0, 'America/New_York'),
+      endAt: zonedWallTimeToUtc(2026, 10, 31, 3, 30, 0, 0, 'America/New_York'),
+      rrule: 'FREQ=DAILY',
+      timezone: 'America/New_York',
+    });
+    const occurrences = service.expandEvent(
+      event,
+      [],
+      new Date('2026-10-31T00:00:00Z'),
+      new Date('2026-11-03T00:00:00Z'),
+    );
+    for (const occurrence of occurrences) {
+      const hour = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).format(occurrence.startAt!);
+      expect(hour).toBe('03:00');
+    }
+    expect(occurrences.some((item) => {
+      const local = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(item.startAt!);
+      return local === '2026-11-01';
+    })).toBe(true);
+  });
+
+  it('keeps daily 01:00 Pacific/Auckland across April and September transitions', () => {
+    const event = makeEvent({
+      title: 'NZ nightly',
+      startAt: zonedWallTimeToUtc(2026, 4, 4, 1, 0, 0, 0, 'Pacific/Auckland'),
+      endAt: zonedWallTimeToUtc(2026, 4, 4, 1, 30, 0, 0, 'Pacific/Auckland'),
+      rrule: 'FREQ=DAILY',
+      timezone: 'Pacific/Auckland',
+    });
+    const april = service.expandEvent(event, [], new Date('2026-04-03T00:00:00Z'), new Date('2026-04-07T00:00:00Z'));
+    const septemberEvent = makeEvent({
+      title: 'NZ nightly',
+      startAt: zonedWallTimeToUtc(2026, 9, 26, 1, 0, 0, 0, 'Pacific/Auckland'),
+      endAt: zonedWallTimeToUtc(2026, 9, 26, 1, 30, 0, 0, 'Pacific/Auckland'),
+      rrule: 'FREQ=DAILY',
+      timezone: 'Pacific/Auckland',
+    });
+    const september = service.expandEvent(
+      septemberEvent,
+      [],
+      new Date('2026-09-25T00:00:00Z'),
+      new Date('2026-09-29T00:00:00Z'),
+    );
+    for (const occurrence of [...april, ...september]) {
+      const hour = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Pacific/Auckland',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).format(occurrence.startAt!);
+      expect(hour).toBe('01:00');
+    }
+    expect(april.some((item) => {
+      const local = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Pacific/Auckland',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(item.startAt!);
+      return local === '2026-04-05';
+    })).toBe(true);
+    expect(september.some((item) => {
+      const local = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Pacific/Auckland',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(item.startAt!);
+      return local === '2026-09-27';
+    })).toBe(true);
+  });
 });

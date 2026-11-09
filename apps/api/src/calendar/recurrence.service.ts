@@ -1,13 +1,47 @@
 import { Injectable } from '@nestjs/common';
-import {
-  calendarDateKeyInTimeZone,
-  zonedWallTimeToUtc,
-} from '@erp-tiza/shared';
+import { calendarDateKeyInTimeZone } from '@erp-tiza/shared';
+import { DateTime } from 'luxon';
 import rrulePkg from 'rrule';
 import type { CalendarEvent, CalendarEventException } from '../db/schema.js';
 
 const { RRule, rrulestr } = rrulePkg;
 type RRuleInstance = InstanceType<typeof RRule>;
+
+function wallTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  millisecond: number,
+  timeZone: string,
+): Date {
+  let dt = DateTime.fromObject(
+    { year, month, day, hour, minute, second, millisecond },
+    { zone: timeZone },
+  );
+  if (!dt.isValid) {
+    dt = DateTime.fromObject(
+      { year, month, day, hour: 0, minute: 0, second: 0, millisecond: 0 },
+      { zone: timeZone },
+    ).plus({ hours: hour, minutes: minute, seconds: second, milliseconds: millisecond });
+    return dt.toJSDate();
+  }
+  const earlier = dt.minus({ hours: 1 });
+  const earlierLocal = earlier.setZone(timeZone);
+  if (
+    earlierLocal.year === year &&
+    earlierLocal.month === month &&
+    earlierLocal.day === day &&
+    earlierLocal.hour === hour &&
+    earlierLocal.minute === minute &&
+    earlierLocal.second === second
+  ) {
+    return earlier.toJSDate();
+  }
+  return dt.toJSDate();
+}
 
 export type ExpandedOccurrence = {
   eventId: string;
@@ -27,27 +61,14 @@ export type ExpandedOccurrence = {
 };
 
 function getZonedParts(date: Date, timeZone: string) {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  });
-  const values: Record<string, string> = {};
-  for (const part of formatter.formatToParts(date)) {
-    if (part.type !== 'literal') values[part.type] = part.value;
-  }
+  const dt = DateTime.fromJSDate(date, { zone: timeZone });
   return {
-    year: Number(values.year),
-    month: Number(values.month),
-    day: Number(values.day),
-    hour: Number(values.hour),
-    minute: Number(values.minute),
-    second: Number(values.second),
+    year: dt.year,
+    month: dt.month,
+    day: dt.day,
+    hour: dt.hour,
+    minute: dt.minute,
+    second: dt.second,
   };
 }
 
@@ -191,7 +212,7 @@ export class RecurrenceService {
     const results: ExpandedOccurrence[] = [];
 
     for (const floating of floatingOccurrences) {
-      const occurrenceUtc = zonedWallTimeToUtc(
+      const occurrenceUtc = wallTimeToUtc(
         floating.getUTCFullYear(),
         floating.getUTCMonth() + 1,
         floating.getUTCDate(),

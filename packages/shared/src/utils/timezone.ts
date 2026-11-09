@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+
 export function isValidIanaTimeZone(timeZone: string): boolean {
   try {
     Intl.DateTimeFormat(undefined, { timeZone });
@@ -17,31 +19,23 @@ type ZonedDateTimeParts = {
 };
 
 function getZonedParts(date: Date, timeZone: string): ZonedDateTimeParts {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  });
-  const values: Record<string, string> = {};
-  for (const part of formatter.formatToParts(date)) {
-    if (part.type !== 'literal') values[part.type] = part.value;
-  }
+  const dt = DateTime.fromJSDate(date, { zone: timeZone });
   return {
-    year: Number(values.year),
-    month: Number(values.month),
-    day: Number(values.day),
-    hour: Number(values.hour),
-    minute: Number(values.minute),
-    second: Number(values.second),
+    year: dt.year,
+    month: dt.month,
+    day: dt.day,
+    hour: dt.hour,
+    minute: dt.minute,
+    second: dt.second,
   };
 }
 
-/** UTC instant for a wall-clock time interpreted in `timeZone`. */
+/**
+ * UTC instant for a wall-clock time interpreted in `timeZone`.
+ * Nonexistent times (spring-forward gap) shift forward.
+ * Ambiguous times (fall-back) use the first (earlier) occurrence.
+ * A second correction pass refines the offset near transitions.
+ */
 export function zonedWallTimeToUtc(
   year: number,
   month: number,
@@ -52,18 +46,61 @@ export function zonedWallTimeToUtc(
   millisecond: number,
   timeZone: string,
 ): Date {
-  const utcGuessMs = Date.UTC(year, month - 1, day, hour, minute, second, millisecond);
-  const parts = getZonedParts(new Date(utcGuessMs), timeZone);
-  const asIfUtcMs = Date.UTC(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour,
-    parts.minute,
-    parts.second,
-    millisecond,
+  let dt = DateTime.fromObject(
+    { year, month, day, hour, minute, second, millisecond },
+    { zone: timeZone },
   );
-  return new Date(utcGuessMs - (asIfUtcMs - utcGuessMs));
+
+  if (!dt.isValid) {
+    // Gap: add wall duration from start of day so Luxon lands after the jump.
+    dt = DateTime.fromObject(
+      { year, month, day, hour: 0, minute: 0, second: 0, millisecond: 0 },
+      { zone: timeZone },
+    ).plus({ hours: hour, minutes: minute, seconds: second, milliseconds: millisecond });
+    return dt.toJSDate();
+  }
+
+  // Ambiguous fold: if one hour earlier still shows the same wall clock, prefer that (first) occurrence.
+  const earlier = dt.minus({ hours: 1 });
+  const earlierLocal = earlier.setZone(timeZone);
+  if (
+    earlierLocal.year === year &&
+    earlierLocal.month === month &&
+    earlierLocal.day === day &&
+    earlierLocal.hour === hour &&
+    earlierLocal.minute === minute &&
+    earlierLocal.second === second
+  ) {
+    dt = earlier;
+  }
+
+  // Second correction pass against observed wall-clock parts.
+  let utcMs = dt.toMillis();
+  for (let pass = 0; pass < 2; pass++) {
+    const parts = getZonedParts(new Date(utcMs), timeZone);
+    if (
+      parts.year === year &&
+      parts.month === month &&
+      parts.day === day &&
+      parts.hour === hour &&
+      parts.minute === minute &&
+      parts.second === second
+    ) {
+      break;
+    }
+    const asIfUtcMs = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+      millisecond,
+    );
+    const wallAsUtcMs = Date.UTC(year, month - 1, day, hour, minute, second, millisecond);
+    utcMs -= asIfUtcMs - wallAsUtcMs;
+  }
+  return new Date(utcMs);
 }
 
 export type DayBounds = {
@@ -93,4 +130,18 @@ export function getDayBoundsInTimeZone(now: Date, timeZone: string): DayBounds {
 export function calendarDateKeyInTimeZone(date: Date, timeZone: string): string {
   const parts = getZonedParts(date, timeZone);
   return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
+
+/** Wall-clock → UTC using Luxon `DateTime.fromObject` (gap → forward, fold → earlier). */
+export function luxonWallTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  millisecond: number,
+  timeZone: string,
+): Date {
+  return zonedWallTimeToUtc(year, month, day, hour, minute, second, millisecond, timeZone);
 }

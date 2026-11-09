@@ -214,6 +214,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(@electric-sql/pglite@0.5.15)(@types/pg@8.23.1)(pg@8.23.1)
+      luxon:
+        specifier: ^3.7.2
+        version: 3.7.2
       pg:
         specifier: ^8.23.1
         version: 8.23.1
@@ -254,6 +257,9 @@ importers:
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.6
+      '@types/luxon':
+        specifier: ^3.7.6
+        version: 3.7.6
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.2
@@ -375,10 +381,16 @@ importers:
       chrono-node:
         specifier: ^2.8.0
         version: 2.10.3
+      luxon:
+        specifier: ^3.7.2
+        version: 3.7.2
       zod:
         specifier: ^4.1.5
         version: 4.6.7
     devDependencies:
+      '@types/luxon':
+        specifier: ^3.7.6
+        version: 3.7.6
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -2045,6 +2057,9 @@ packages:
   '@types/json5@0.0.29':
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
 
+  '@types/luxon@3.7.6':
+    resolution: {integrity: sha512-6KSjliQAXK8ZLgFQO4B7iE4Rpf/B3rItzCFuXezBY/XIAGxOdLd7vRNK9/StRPwiS/yJsVbB7HKpW46B8tcEuQ==}
+
   '@types/methods@1.1.4':
     resolution: {integrity: sha512-ymXWVrDiCxTBE3+RIrrP533E70eA+9qu7zdWoHuOmGujkYtzf4HQF96b8nwHLqhuf4ykX61IGRIB38CC6/sImQ==}
 
@@ -3656,6 +3671,10 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -5959,6 +5978,8 @@ snapshots:
 
   '@types/json5@0.0.29': {}
 
+  '@types/luxon@3.7.6': {}
+
   '@types/methods@1.1.4': {}
 
   '@types/node@20.19.43':
@@ -7721,6 +7742,8 @@ snapshots:
       react: 19.3.0
     optionalDependencies:
       '@types/react': 19.3.0
+
+  luxon@3.7.2: {}
 
   magic-string@0.30.21:
     dependencies:
