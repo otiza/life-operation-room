@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { CalendarMutationScope, CalendarView } from '@erp-tiza/shared';
+import { minuteFromDropPosition, type CalendarMutationScope, type CalendarView } from '@erp-tiza/shared';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { Button } from '../../components/ui/button';
 import { listInstalledApps } from '../apps/apps-api';
@@ -22,6 +22,7 @@ import {
 } from './calendar-api';
 import {
   addDays,
+  CALENDAR_HOUR_HEIGHT,
   rangeForView,
   shiftDateKey,
   shiftIsoByDays,
@@ -353,13 +354,17 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
     const [, dateKey, minuteRaw] = overId.split(':');
     const gridStartMinute = Number(minuteRaw);
     const [year, month, day] = dateKey.split('-').map(Number);
-    const pointerY = event.activatorEvent && 'clientY' in event.activatorEvent
-      ? Number((event.activatorEvent as PointerEvent).clientY)
-      : undefined;
-    const overRect = event.over.rect;
-    const offsetY = pointerY != null ? pointerY - overRect.top : 0;
-    const minuteFromTop = Math.round(offsetY / (56 / 60) / 15) * 15;
-    const minute = Math.max(gridStartMinute, gridStartMinute + minuteFromTop);
+    const translatedTop =
+      event.active.rect.current.translated?.top ??
+      (event.active.rect.current.initial
+        ? event.active.rect.current.initial.top + event.delta.y
+        : event.over.rect.top);
+    const minute = minuteFromDropPosition({
+      translatedTop,
+      columnTop: event.over.rect.top,
+      gridStartMinute,
+      hourHeight: CALENDAR_HOUR_HEIGHT,
+    });
     const start = snapToQuarterHour(new Date(year, month - 1, day, Math.floor(minute / 60), minute % 60));
     const duration = (settings?.defaultEventDurationMinutes ?? 60) * 60_000;
     const end = new Date(start.getTime() + duration);

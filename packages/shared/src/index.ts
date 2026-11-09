@@ -8,4 +8,6 @@ export * from './schemas/projects.js';
 export * from './schemas/tasks.js';
 export * from './schemas/calendar.js';
 export * from './calendar/quick-add.js';
+export * from './calendar/drop-time.js';
 export * from './utils/timezone.js';
+
