@@ -1,6 +1,7 @@
 import type {
   CreateTaskInput,
   ListTasksQuery,
+  ReorderTasksInput,
   TaskDto,
   TaskSettings,
   UpdateTaskInput,
@@ -54,6 +55,13 @@ export async function createTask(workspaceId: string, input: CreateTaskInput) {
 export async function updateTask(workspaceId: string, taskId: string, input: UpdateTaskInput) {
   return api<{ task: Task }>(`/workspaces/${workspaceId}/tasks/${taskId}`, {
     method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function reorderTasks(workspaceId: string, input: ReorderTasksInput) {
+  return api<{ tasks: Task[] }>(`/workspaces/${workspaceId}/tasks/reorder`, {
+    method: 'POST',
     body: JSON.stringify(input),
   });
 }

@@ -1,5 +1,11 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { createTaskSchema, listTasksQuerySchema, updateTaskSchema, updateTaskSettingsSchema } from '@erp-tiza/shared';
+import {
+  createTaskSchema,
+  listTasksQuerySchema,
+  reorderTasksSchema,
+  updateTaskSchema,
+  updateTaskSettingsSchema,
+} from '@erp-tiza/shared';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AppInstalledGuard, InstalledApp } from '../common/guards/app-installed.guard.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -64,6 +70,14 @@ export class TasksController {
     const input = createTaskSchema.parse(body);
     const task = await this.tasksService.create(workspaceId, user, input);
     return { task };
+  }
+
+  @Post('workspaces/:id/tasks/reorder')
+  @WorkspaceRoles(WORKSPACE_WRITE_ROLES)
+  async reorder(@CurrentUser() user: User, @Param('id') workspaceId: string, @Body() body: unknown) {
+    const input = reorderTasksSchema.parse(body);
+    const tasks = await this.tasksService.reorder(workspaceId, user, input);
+    return { tasks };
   }
 
   @Get('workspaces/:id/tasks/:taskId')

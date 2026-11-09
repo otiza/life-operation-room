@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LayoutGrid, List as ListIcon, Plus, X } from 'lucide-react';
 import type { TaskSettings } from '@erp-tiza/shared';
-import { createTask, getTaskSettings, listTasks, updateTask, type Task } from './tasks-api';
+import { createTask, getTaskSettings, listTasks, reorderTasks, updateTask, type Task } from './tasks-api';
 import {
   defaultTaskSettings,
   enabledStatuses,
@@ -187,10 +187,7 @@ export function TasksWorkspace({
   });
 
   const moveMutation = useMutation({
-    mutationFn: (moves: TaskBoardMove[]) =>
-      Promise.all(
-        moves.map((move) => updateTask(workspaceId, move.taskId, { status: move.status, position: move.position })),
-      ),
+    mutationFn: (moves: TaskBoardMove[]) => reorderTasks(workspaceId, { moves }),
     onMutate: async (moves) => {
       await queryClient.cancelQueries({ queryKey: ['tasks', workspaceId] });
       const previous = queryClient.getQueriesData<{ tasks: Task[] }>({ queryKey: ['tasks', workspaceId] });
@@ -362,11 +359,13 @@ export function TasksWorkspace({
         assigneeUserId: action.task.assigneeUserId,
       });
     } else {
-      await Promise.all(
-        action.previous.map((item) =>
-          updateTask(workspaceId, item.id, { status: item.status, position: item.position }),
-        ),
-      );
+      await reorderTasks(workspaceId, {
+        moves: action.previous.map((item) => ({
+          taskId: item.id,
+          status: item.status,
+          position: item.position,
+        })),
+      });
     }
     await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
     await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });

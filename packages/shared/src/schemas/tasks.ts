@@ -83,6 +83,16 @@ export const updateTaskSchema = z.object({
   position: z.number().int().optional(),
 });
 
+export const reorderTaskMoveSchema = z.object({
+  taskId: z.string().uuid(),
+  status: taskStatusSchema,
+  position: z.number().int().min(0),
+});
+
+export const reorderTasksSchema = z.object({
+  moves: z.array(reorderTaskMoveSchema).min(1).max(500),
+});
+
 export const listTasksQuerySchema = z.object({
   projectId: z.string().uuid().optional(),
   status: taskStatusSchema.optional(),
@@ -117,5 +127,6 @@ export type TaskSettings = z.infer<typeof taskSettingsSchema>;
 export type UpdateTaskSettingsInput = z.infer<typeof updateTaskSettingsSchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+export type ReorderTasksInput = z.infer<typeof reorderTasksSchema>;
 export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>;
 export type TaskDto = z.infer<typeof taskSchema>;

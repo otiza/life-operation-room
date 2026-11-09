@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, asc, count, eq, gte, inArray, isNull, lt, max, notInArray } from 'drizzle-orm';
+import { and, asc, count, eq, gte, inArray, isNull, lt, max, notInArray, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   DEFAULT_TASK_SETTINGS,
@@ -14,6 +14,7 @@ import {
   taskSettingsSchema,
   type CreateTaskInput,
   type ListTasksQuery,
+  type ReorderTasksInput,
   type TaskSettings,
   type UpdateTaskInput,
   type UpdateTaskSettingsInput,
@@ -184,26 +185,26 @@ export class TasksService {
       await this.workspacesService.requireMembership(workspaceId, assigneeUserId, [...READ_ROLES]);
     }
     const dueAt = input.dueAt ? new Date(input.dueAt) : null;
-    const [positionRow] = await this.db
-      .select({ maxPosition: max(tasks.position) })
-      .from(tasks)
-      .where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.projectId, input.projectId)));
-    const nextPosition = (positionRow?.maxPosition ?? -1) + 1;
-    const [row] = await this.db
-      .insert(tasks)
-      .values({
-        workspaceId,
-        projectId: input.projectId,
-        title: input.title.trim(),
-        description: input.description?.trim() || null,
-        status,
-        priority,
-        dueAt,
-        assigneeUserId,
-        createdByUserId: user.id,
-        position: nextPosition,
-      })
-      .returning();
+    const row = await this.db.transaction(async (tx) => {
+      await this.lockProjectPositions(tx, workspaceId, input.projectId);
+      const nextPosition = await this.nextPositionInProject(tx, workspaceId, input.projectId);
+      const [created] = await tx
+        .insert(tasks)
+        .values({
+          workspaceId,
+          projectId: input.projectId,
+          title: input.title.trim(),
+          description: input.description?.trim() || null,
+          status,
+          priority,
+          dueAt,
+          assigneeUserId,
+          createdByUserId: user.id,
+          position: nextPosition,
+        })
+        .returning();
+      return created;
+    });
     const dto = this.toDto(row);
     this.emitTaskEvent(DOMAIN_EVENTS.taskUpdated, dto, user.id);
     if (dueAt) this.emitTaskEvent(DOMAIN_EVENTS.taskScheduled, dto, user.id);
@@ -238,24 +239,34 @@ export class TasksService {
         : input.dueAt === null
           ? null
           : new Date(input.dueAt);
-    const [row] = await this.db
-      .update(tasks)
-      .set({
-        ...(input.title !== undefined ? { title: input.title.trim() } : {}),
-        ...(input.description !== undefined
-          ? { description: input.description?.trim() || null }
-          : {}),
-        ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
-        ...(input.status !== undefined ? { status: input.status } : {}),
-        ...(input.priority !== undefined ? { priority: input.priority } : {}),
-        ...(input.dueAt !== undefined ? { dueAt: nextDueAt } : {}),
-        ...(input.assigneeUserId !== undefined ? { assigneeUserId: input.assigneeUserId } : {}),
-        ...(input.position !== undefined ? { position: input.position } : {}),
-        updatedAt: new Date(),
-      })
-      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)))
-      .returning();
-    if (!row) throw new NotFoundException('Task not found');
+    const projectChanged =
+      input.projectId !== undefined && input.projectId !== existing.projectId;
+    const row = await this.db.transaction(async (tx) => {
+      let nextPosition = input.position;
+      if (projectChanged) {
+        await this.lockProjectPositions(tx, workspaceId, input.projectId!);
+        nextPosition = await this.nextPositionInProject(tx, workspaceId, input.projectId!);
+      }
+      const [updated] = await tx
+        .update(tasks)
+        .set({
+          ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+          ...(input.description !== undefined
+            ? { description: input.description?.trim() || null }
+            : {}),
+          ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.priority !== undefined ? { priority: input.priority } : {}),
+          ...(input.dueAt !== undefined ? { dueAt: nextDueAt } : {}),
+          ...(input.assigneeUserId !== undefined ? { assigneeUserId: input.assigneeUserId } : {}),
+          ...(projectChanged || input.position !== undefined ? { position: nextPosition } : {}),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)))
+        .returning();
+      if (!updated) throw new NotFoundException('Task not found');
+      return updated;
+    });
     const dto = this.toDto(row);
     this.emitTaskEvent(DOMAIN_EVENTS.taskUpdated, dto, user.id, {
       previousAssigneeUserId,
@@ -296,6 +307,63 @@ export class TasksService {
       .delete(tasks)
       .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
     return { ok: true };
+  }
+
+  async reorder(workspaceId: string, user: User, input: ReorderTasksInput) {
+    const settings = await this.getSettings(workspaceId);
+    const taskIds = input.moves.map((move) => move.taskId);
+    if (new Set(taskIds).size !== taskIds.length) {
+      throw new BadRequestException('Duplicate task ids in moves');
+    }
+    const existingRows = await this.db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.workspaceId, workspaceId), inArray(tasks.id, taskIds)));
+    if (existingRows.length !== taskIds.length) {
+      throw new NotFoundException('One or more tasks were not found');
+    }
+    const byId = new Map(existingRows.map((row) => [row.id, row]));
+    for (const move of input.moves) {
+      const existing = byId.get(move.taskId)!;
+      this.assertAssignableStatus(settings, move.status, existing.status);
+    }
+
+    const changed = await this.db.transaction(async (tx) => {
+      const results: Array<{ before: Task; after: Task }> = [];
+      for (const move of input.moves) {
+        const before = byId.get(move.taskId)!;
+        if (before.status === move.status && before.position === move.position) continue;
+        const [after] = await tx
+          .update(tasks)
+          .set({
+            status: move.status,
+            position: move.position,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(tasks.id, move.taskId), eq(tasks.workspaceId, workspaceId)))
+          .returning();
+        if (!after) throw new NotFoundException('Task not found');
+        results.push({ before, after });
+      }
+      return results;
+    });
+
+    const dtos = changed.map(({ before, after }) => {
+      const dto = this.toDto(after);
+      this.emitTaskEvent(DOMAIN_EVENTS.taskUpdated, dto, user.id, {
+        previousAssigneeUserId: before.assigneeUserId,
+        previousDueAt: toIso(before.dueAt),
+      });
+      const nextIsDone = Boolean(settings.statuses.find((item) => item.key === after.status)?.isDone);
+      const previousIsDone = Boolean(
+        settings.statuses.find((item) => item.key === before.status)?.isDone,
+      );
+      if (nextIsDone && !previousIsDone) {
+        this.emitTaskEvent(DOMAIN_EVENTS.taskCompleted, dto, user.id);
+      }
+      return dto;
+    });
+    return dtos;
   }
 
   @OnEvent(DOMAIN_EVENTS.appInstalled)
@@ -377,6 +445,28 @@ export class TasksService {
       .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
     if (!task) throw new NotFoundException('Task not found');
     return task;
+  }
+
+  private async lockProjectPositions(
+    tx: NodePgDatabase,
+    workspaceId: string,
+    projectId: string,
+  ) {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`task-pos:${workspaceId}:${projectId}`}))`,
+    );
+  }
+
+  private async nextPositionInProject(
+    tx: NodePgDatabase,
+    workspaceId: string,
+    projectId: string,
+  ) {
+    const [positionRow] = await tx
+      .select({ maxPosition: max(tasks.position) })
+      .from(tasks)
+      .where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.projectId, projectId)));
+    return (positionRow?.maxPosition ?? -1) + 1;
   }
 
   private emitTaskEvent(
