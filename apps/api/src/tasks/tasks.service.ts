@@ -23,7 +23,6 @@ import { tasks, type Task, type User } from '../db/schema.js';
 import {
   DOMAIN_EVENTS,
   type AppInstalledEvent,
-  type AppUninstalledEvent,
   type TaskDomainEvent,
 } from '../common/events/domain-events.js';
 import { toIso } from '../common/utils/crypto.js';
@@ -411,11 +410,8 @@ export class TasksService {
     });
   }
 
-  @OnEvent(DOMAIN_EVENTS.appUninstalled)
-  async onAppUninstalled(event: AppUninstalledEvent) {
-    if (event.appKey !== 'tasks') return;
-    await this.db.delete(tasks).where(eq(tasks.workspaceId, event.workspaceId));
-  }
+  // Tasks intentionally keep rows on app.uninstalled so reinstall restores data.
+  // AppInstalledGuard still blocks all task routes while the app is uninstalled.
 
   @OnEvent(DOMAIN_EVENTS.taskScheduled)
   onTaskScheduled(event: TaskDomainEvent) {

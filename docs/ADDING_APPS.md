@@ -66,6 +66,6 @@ Emit typed events through Nest `EventEmitter2` (see `DOMAIN_EVENTS`). Notificati
 ## 6. Patterns used by Projects / Tasks
 
 - **Install seed:** listen for `app.installed` in the app service (Projects creates an Inbox when none exists; Tasks writes default status and priority settings).
-- **Uninstall cleanup:** listen for `app.uninstalled` and delete that workspace’s app rows (do not leave orphan data after uninstall).
+- **Uninstall keeps data (default):** on `app.uninstalled`, leave that workspace’s app rows in place. Reinstalling the app should make the data available again. `AppInstalledGuard` still blocks all app routes while uninstalled. Only hard-delete on uninstall when there is a strong reason (and document it).
 - **Hard dependency without cross-app FK:** when `dependsOn` is required (Tasks → Projects), store the foreign id as a UUID column **without** a DB FK, and validate through the other app’s exported service. Reads such as “how many tasks point at this project” go through a port (`TaskReferencesService`), not a direct table import.
 - Soft coupling to optional apps (e.g. Calendar): emit domain events only; do not write `cross_app_links` until a real target exists.

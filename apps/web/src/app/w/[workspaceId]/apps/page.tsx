@@ -6,8 +6,9 @@ import { getCatalog, installApp, listInstalledApps, uninstallApp } from '../../.
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { Dialog } from '../../../../components/ui/dialog';
 import { PageContainer, PageHeader } from '../../../../components/layout/page-container';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ApiError } from '../../../../lib/api';
 
 const CATEGORY_ORDER = [
@@ -24,6 +25,7 @@ export default function MarketplacePage() {
   const params = useParams<{ workspaceId: string }>();
   const workspaceId = params.workspaceId;
   const queryClient = useQueryClient();
+  const [uninstallTarget, setUninstallTarget] = useState<{ key: string; name: string } | null>(null);
 
   const catalogQuery = useQuery({ queryKey: ['catalog'], queryFn: getCatalog });
   const installedQuery = useQuery({
@@ -47,6 +49,7 @@ export default function MarketplacePage() {
   const uninstallMutation = useMutation({
     mutationFn: (appKey: string) => uninstallApp(workspaceId, appKey),
     onSuccess: async () => {
+      setUninstallTarget(null);
       await queryClient.invalidateQueries({ queryKey: ['installed-apps', workspaceId] });
     },
   });
@@ -104,7 +107,7 @@ export default function MarketplacePage() {
                         variant="outline"
                         className="h-11 w-full sm:h-9 sm:w-auto"
                         disabled={uninstallMutation.isPending}
-                        onClick={() => uninstallMutation.mutate(app.key)}
+                        onClick={() => setUninstallTarget({ key: app.key, name: app.name })}
                       >
                         Uninstall
                       </Button>
@@ -124,6 +127,28 @@ export default function MarketplacePage() {
           </div>
         </section>
       ))}
+      <Dialog open={Boolean(uninstallTarget)} onClose={() => setUninstallTarget(null)}>
+        <div className="space-y-4 p-5">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold">Uninstall {uninstallTarget?.name}?</h2>
+            <p className="text-sm text-muted-foreground">
+              Your data is kept. Reinstalling this app will restore access to it.
+            </p>
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" className="h-11 sm:h-9" onClick={() => setUninstallTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              className="h-11 sm:h-9"
+              disabled={!uninstallTarget || uninstallMutation.isPending}
+              onClick={() => uninstallTarget && uninstallMutation.mutate(uninstallTarget.key)}
+            >
+              Uninstall
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </PageContainer>
   );
 }

@@ -26,7 +26,7 @@ Install order is enforced by `dependsOn`. You cannot install Tasks without Proje
 1. Manifest dependency already blocks uninstalling `projects` while `tasks` is installed.
 2. On `app.installed` for `projects`, seed an **Inbox** project when the workspace has none.
 3. On install of `tasks`, seed default statuses/priorities into app config.
-4. On `app.uninstalled` for `tasks`, delete that workspace’s task rows.
+4. On `app.uninstalled` for `tasks`, keep task rows (data reappears on reinstall). Routes stay blocked while uninstalled.
 5. On `app.uninstalled` for `projects`, delete that workspace’s project rows (only reachable after Tasks is uninstalled).
 6. **Deleting a project is blocked** while any tasks still soft-reference it. Archive instead, or move/delete tasks first.
 7. Deleting a status/priority from settings is blocked while tasks still use that key; disable instead to hide from board.
