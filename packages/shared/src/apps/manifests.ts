@@ -1,0 +1,133 @@
+import type { AppManifest } from './types.js';
+
+export const APP_MANIFESTS: AppManifest[] = [
+  {
+    key: 'tasks',
+    name: 'Tasks',
+    description: 'Track to-dos and project work across your life.',
+    version: '0.1.0',
+    category: 'productivity',
+    dependsOn: [],
+    permissions: ['tasks.read', 'tasks.write'],
+    capabilities: [],
+    nav: { label: 'Tasks', href: '/tasks', icon: 'CheckSquare' },
+    backendModule: 'TasksModule',
+    status: 'coming_soon',
+  },
+  {
+    key: 'calendar',
+    name: 'Calendar',
+    description: 'Plan days, events, and deadlines in one place.',
+    version: '0.1.0',
+    category: 'productivity',
+    dependsOn: [],
+    permissions: ['calendar.read', 'calendar.write'],
+    capabilities: [],
+    nav: { label: 'Calendar', href: '/calendar', icon: 'Calendar' },
+    backendModule: 'CalendarModule',
+    status: 'coming_soon',
+  },
+  {
+    key: 'notes',
+    name: 'Notes',
+    description: 'Capture ideas and mention collaborators.',
+    version: '0.1.0',
+    category: 'productivity',
+    dependsOn: [],
+    permissions: ['notes.read', 'notes.write'],
+    capabilities: ['files'],
+    nav: { label: 'Notes', href: '/notes', icon: 'NotebookPen' },
+    backendModule: 'NotesModule',
+    status: 'coming_soon',
+  },
+  {
+    key: 'costs',
+    name: 'Costs',
+    description: 'Track spending and split shared expenses.',
+    version: '0.1.0',
+    category: 'finance',
+    dependsOn: [],
+    permissions: ['costs.read', 'costs.write'],
+    capabilities: [],
+    nav: { label: 'Costs', href: '/costs', icon: 'Wallet' },
+    backendModule: 'CostsModule',
+    status: 'coming_soon',
+  },
+  {
+    key: 'chat',
+    name: 'Chat',
+    description: 'Message people in your shared workspaces.',
+    version: '0.1.0',
+    category: 'social',
+    dependsOn: [],
+    permissions: ['chat.read', 'chat.write'],
+    capabilities: [],
+    nav: { label: 'Chat', href: '/chat', icon: 'MessageSquare' },
+    backendModule: 'ChatModule',
+    status: 'coming_soon',
+  },
+  {
+    key: 'learning',
+    name: 'Learning',
+    description: 'Courses, progress, and study paths.',
+    version: '0.1.0',
+    category: 'learning',
+    dependsOn: [],
+    permissions: ['learning.read', 'learning.write'],
+    capabilities: ['ai', 'goals', 'files'],
+    nav: { label: 'Learning', href: '/learning', icon: 'GraduationCap' },
+    backendModule: 'LearningModule',
+    status: 'coming_soon',
+  },
+  {
+    key: 'work_finder',
+    name: 'Work finder',
+    description: 'Track applications, CVs, and job search progress.',
+    version: '0.1.0',
+    category: 'career',
+    dependsOn: [],
+    permissions: ['work_finder.read', 'work_finder.write'],
+    capabilities: ['ai', 'files', 'goals'],
+    nav: { label: 'Work finder', href: '/work-finder', icon: 'Briefcase' },
+    backendModule: 'WorkFinderModule',
+    status: 'coming_soon',
+  },
+  {
+    key: 'goals',
+    name: 'Goals',
+    description: 'Milestones and plans any app can attach to.',
+    version: '0.1.0',
+    category: 'ai',
+    dependsOn: [],
+    permissions: ['goals.read', 'goals.write'],
+    capabilities: ['ai', 'goals'],
+    nav: { label: 'Goals', href: '/goals', icon: 'Target' },
+    backendModule: 'GoalsModule',
+    status: 'coming_soon',
+  },
+  {
+    key: 'fitness',
+    name: 'Fitness',
+    description: 'Workouts, health targets, and wearable sync.',
+    version: '0.1.0',
+    category: 'health',
+    dependsOn: [],
+    permissions: ['fitness.read', 'fitness.write'],
+    capabilities: ['integrations', 'goals'],
+    nav: { label: 'Fitness', href: '/fitness', icon: 'HeartPulse' },
+    backendModule: 'FitnessModule',
+    status: 'coming_soon',
+  },
+];
+
+export function getAppManifest(key: string): AppManifest | undefined {
+  return APP_MANIFESTS.find((manifest) => manifest.key === key);
+}
+
+export function getAppManifestOrThrow(key: string): AppManifest {
+  const manifest = getAppManifest(key);
+  if (!manifest) {
+    throw new Error(`Unknown app: ${key}`);
+  }
+  return manifest;
+}

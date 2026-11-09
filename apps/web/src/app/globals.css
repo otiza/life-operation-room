@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  --background: #eef2f7;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --muted: #71717a;
+  --border: #e4e4e7;
+  --accent: #27272a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Prefer dynamic viewport on mobile browsers with toolbars */
+.min-h-dvh {
+  min-height: 100dvh;
+}
