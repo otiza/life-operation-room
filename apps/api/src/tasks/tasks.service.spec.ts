@@ -273,10 +273,16 @@ describe('TasksService', () => {
       const other = makeTask({ id: otherId, status: 'todo', position: 1 });
       dbMock.state.selectRows = [todo, other];
 
-      let transactionEntered = false;
+      let updateCalled = false;
       dbMock.db.transaction = vi.fn(async (fn: (tx: typeof dbMock.db) => Promise<unknown>) => {
-        transactionEntered = true;
-        return fn(dbMock.db);
+        const tx = {
+          ...dbMock.db,
+          update: vi.fn(() => {
+            updateCalled = true;
+            return dbMock.updateBuilder;
+          }),
+        };
+        return fn(tx as never);
       });
 
       await expect(
@@ -288,7 +294,7 @@ describe('TasksService', () => {
         }),
       ).rejects.toThrow(/disabled/);
 
-      expect(transactionEntered).toBe(false);
+      expect(updateCalled).toBe(false);
       expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
 
@@ -300,7 +306,16 @@ describe('TasksService', () => {
 
       const applied: string[] = [];
       dbMock.db.transaction = vi.fn(async (fn: (tx: typeof dbMock.db) => Promise<unknown>) => {
+        const selectBuilder = {
+          from: vi.fn(() => selectBuilder),
+          where: vi.fn(() => selectBuilder),
+          for: vi.fn(() => selectBuilder),
+          then(resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) {
+            return Promise.resolve([todo, other]).then(resolve, reject);
+          },
+        };
         const tx = {
+          select: vi.fn(() => selectBuilder),
           update: vi.fn(() => ({
             set: vi.fn(() => ({
               where: vi.fn(() => ({
@@ -343,7 +358,16 @@ describe('TasksService', () => {
       const updated = { ...todo, status: 'in_progress', position: 2, updatedAt: new Date() };
 
       dbMock.db.transaction = vi.fn(async (fn: (tx: typeof dbMock.db) => Promise<unknown>) => {
+        const selectBuilder = {
+          from: vi.fn(() => selectBuilder),
+          where: vi.fn(() => selectBuilder),
+          for: vi.fn(() => selectBuilder),
+          then(resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) {
+            return Promise.resolve([todo]).then(resolve, reject);
+          },
+        };
         const tx = {
+          select: vi.fn(() => selectBuilder),
           update: vi.fn(() => ({
             set: vi.fn(() => ({
               where: vi.fn(() => ({

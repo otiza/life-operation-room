@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -113,7 +114,7 @@ export class AppsService {
       .from(workspaceApps)
       .where(and(eq(workspaceApps.workspaceId, workspaceId), eq(workspaceApps.appKey, appKey)));
     if (!row) {
-      throw new BadRequestException(`App ${appKey} is not installed in this workspace`);
+      throw new ForbiddenException(`App ${appKey} is not installed in this workspace`);
     }
     return row;
   }

@@ -89,7 +89,7 @@ describe('Calendar e2e', () => {
       .expect(403);
   });
 
-  it('returns 400 when Calendar is not installed', async () => {
+  it('returns 403 when Calendar is not installed', async () => {
     await request(app.getHttpServer())
       .get(`/workspaces/${workspaceId}/calendar/events`)
       .query({
@@ -98,7 +98,7 @@ describe('Calendar e2e', () => {
         tz: 'UTC',
       })
       .set('Cookie', ownerCookie)
-      .expect(400);
+      .expect(403);
   });
 
   it('installs calendar, blocks guest writes, allows reads, and hides due chips without tasks', async () => {
@@ -178,11 +178,28 @@ describe('Calendar e2e', () => {
   });
 
   it('returns 404 for ICS when calendar is uninstalled or member is removed', async () => {
-    const guestToken = await request(app.getHttpServer())
-      .post(`/workspaces/${workspaceId}/calendar/ics-token/regenerate`)
-      .set('Cookie', guestCookie)
+    const memberEmail = uniqueEmail('member');
+    const memberSignup = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send({ email: memberEmail, name: 'Member', password: 'password12345' })
       .expect(201);
-    const token = guestToken.body.token.token as string;
+    const memberCookie = cookieFrom(memberSignup);
+
+    const invite = await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/invites`)
+      .set('Cookie', ownerCookie)
+      .send({ email: memberEmail, role: 'member' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/invites/${invite.body.member.inviteToken}/accept`)
+      .set('Cookie', memberCookie)
+      .expect(201);
+
+    const memberToken = await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/calendar/ics-token/regenerate`)
+      .set('Cookie', memberCookie)
+      .expect(201);
+    const token = memberToken.body.token.token as string;
     await request(app.getHttpServer()).get(`/calendar/ics/${token}.ics`).expect(200);
 
     await request(app.getHttpServer())
@@ -203,13 +220,13 @@ describe('Calendar e2e', () => {
       .get(`/workspaces/${workspaceId}/members`)
       .set('Cookie', ownerCookie)
       .expect(200);
-    const guestMember = members.body.members.find(
-      (item: { email: string; role: string }) => item.role === 'guest',
+    const memberRow = members.body.members.find(
+      (item: { email: string; role: string }) => item.email === memberEmail && item.role === 'member',
     );
-    expect(guestMember?.id).toBeTruthy();
+    expect(memberRow?.id).toBeTruthy();
 
     await request(app.getHttpServer())
-      .delete(`/workspaces/${workspaceId}/members/${guestMember.id}`)
+      .delete(`/workspaces/${workspaceId}/members/${memberRow.id}`)
       .set('Cookie', ownerCookie)
       .expect(200);
 

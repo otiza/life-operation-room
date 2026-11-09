@@ -163,7 +163,7 @@ export class WorkspacesService {
       removedByUserId: actor.id,
       memberId: member.id,
     };
-    this.eventEmitter.emit(DOMAIN_EVENTS.memberRemoved, event);
+    await this.eventEmitter.emitAsync(DOMAIN_EVENTS.memberRemoved, event);
     return { ok: true };
   }
 

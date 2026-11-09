@@ -354,26 +354,28 @@ export class TasksService {
     if (new Set(taskIds).size !== taskIds.length) {
       throw new BadRequestException('Duplicate task ids in moves');
     }
-    const existingRows = await this.db
-      .select()
-      .from(tasks)
-      .where(
-        and(
-          eq(tasks.workspaceId, workspaceId),
-          inArray(tasks.id, taskIds),
-          isNull(tasks.deletedAt),
-        ),
-      );
-    if (existingRows.length !== taskIds.length) {
-      throw new NotFoundException('One or more tasks were not found');
-    }
-    const byId = new Map(existingRows.map((row) => [row.id, row]));
-    for (const move of input.moves) {
-      const existing = byId.get(move.taskId)!;
-      this.assertAssignableStatus(settings, move.status, existing.status);
-    }
 
     const changed = await this.db.transaction(async (tx) => {
+      const existingRows = await tx
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.workspaceId, workspaceId),
+            inArray(tasks.id, taskIds),
+            isNull(tasks.deletedAt),
+          ),
+        )
+        .for('update');
+      if (existingRows.length !== taskIds.length) {
+        throw new NotFoundException('One or more tasks were not found');
+      }
+      const byId = new Map(existingRows.map((row) => [row.id, row]));
+      for (const move of input.moves) {
+        const existing = byId.get(move.taskId)!;
+        this.assertAssignableStatus(settings, move.status, existing.status);
+      }
+
       const results: Array<{ before: Task; after: Task }> = [];
       for (const move of input.moves) {
         const before = byId.get(move.taskId)!;
@@ -385,7 +387,13 @@ export class TasksService {
             position: move.position,
             updatedAt: new Date(),
           })
-          .where(and(eq(tasks.id, move.taskId), eq(tasks.workspaceId, workspaceId)))
+          .where(
+            and(
+              eq(tasks.id, move.taskId),
+              eq(tasks.workspaceId, workspaceId),
+              isNull(tasks.deletedAt),
+            ),
+          )
           .returning();
         if (!after) throw new NotFoundException('Task not found');
         results.push({ before, after });

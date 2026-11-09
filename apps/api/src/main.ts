@@ -5,6 +5,10 @@ import { AppModule } from './app.module.js';
 async function bootstrap() {
   const port = Number(process.env.PORT ?? 3001);
   const app = await NestFactory.create(AppModule);
+  if (process.env.TRUST_PROXY) {
+    const httpAdapter = app.getHttpAdapter();
+    httpAdapter.getInstance().set('trust proxy', process.env.TRUST_PROXY);
+  }
   app.use(cookieParser());
   app.enableCors({
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
