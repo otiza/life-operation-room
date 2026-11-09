@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import type { CalendarEvent, CalendarEventException } from '../db/schema.js';
 
 function foldLine(line: string): string {
@@ -29,10 +30,55 @@ function formatDateKey(dateKey: string): string {
   return dateKey.replace(/-/g, '');
 }
 
-function eventLines(
-  event: CalendarEvent,
-  exceptions: CalendarEventException[],
-): string[] {
+function formatLocalStamp(date: Date, timeZone: string): string {
+  return DateTime.fromJSDate(date, { zone: timeZone }).toFormat("yyyyMMdd'T'HHmmss");
+}
+
+function formatOffset(minutes: number): string {
+  const sign = minutes >= 0 ? '+' : '-';
+  const abs = Math.abs(minutes);
+  return `${sign}${String(Math.floor(abs / 60)).padStart(2, '0')}${String(abs % 60).padStart(2, '0')}`;
+}
+
+function vtimeZoneBlock(timeZone: string): string[] {
+  const now = DateTime.now().setZone(timeZone);
+  const winter = DateTime.fromObject({ year: now.year, month: 1, day: 15 }, { zone: timeZone });
+  const summer = DateTime.fromObject({ year: now.year, month: 7, day: 15 }, { zone: timeZone });
+  const standardOffset = winter.offset;
+  const daylightOffset = summer.offset;
+  const lines = ['BEGIN:VTIMEZONE', `TZID:${timeZone}`, `X-LIC-LOCATION:${timeZone}`];
+  if (standardOffset === daylightOffset) {
+    lines.push(
+      'BEGIN:STANDARD',
+      'DTSTART:19700101T000000',
+      `TZOFFSETFROM:${formatOffset(standardOffset)}`,
+      `TZOFFSETTO:${formatOffset(standardOffset)}`,
+      'TZNAME:STD',
+      'END:STANDARD',
+    );
+  } else {
+    lines.push(
+      'BEGIN:DAYLIGHT',
+      'DTSTART:19700329T020000',
+      `TZOFFSETFROM:${formatOffset(standardOffset)}`,
+      `TZOFFSETTO:${formatOffset(daylightOffset)}`,
+      'TZNAME:DAYLIGHT',
+      'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+      'END:DAYLIGHT',
+      'BEGIN:STANDARD',
+      'DTSTART:19701025T030000',
+      `TZOFFSETFROM:${formatOffset(daylightOffset)}`,
+      `TZOFFSETTO:${formatOffset(standardOffset)}`,
+      'TZNAME:STANDARD',
+      'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+      'END:STANDARD',
+    );
+  }
+  lines.push('END:VTIMEZONE');
+  return lines;
+}
+
+function masterEventLines(event: CalendarEvent, exceptions: CalendarEventException[]): string[] {
   const lines: string[] = ['BEGIN:VEVENT', `UID:${event.id}@tiza-calendar`];
   lines.push(`DTSTAMP:${formatUtcStamp(event.updatedAt)}`);
   lines.push(`SUMMARY:${escapeText(event.title)}`);
@@ -43,8 +89,8 @@ function eventLines(
     lines.push(`DTSTART;VALUE=DATE:${formatDateKey(event.startDate)}`);
     lines.push(`DTEND;VALUE=DATE:${formatDateKey(event.endDate)}`);
   } else if (event.startAt && event.endAt) {
-    lines.push(`DTSTART:${formatUtcStamp(event.startAt)}`);
-    lines.push(`DTEND:${formatUtcStamp(event.endAt)}`);
+    lines.push(`DTSTART;TZID=${event.timezone}:${formatLocalStamp(event.startAt, event.timezone)}`);
+    lines.push(`DTEND;TZID=${event.timezone}:${formatLocalStamp(event.endAt, event.timezone)}`);
   }
 
   if (event.rrule) {
@@ -52,10 +98,52 @@ function eventLines(
     lines.push(`RRULE:${rule}`);
   }
 
-  for (const exception of exceptions) {
-    if (exception.cancelled) {
-      lines.push(`EXDATE:${formatUtcStamp(exception.originalOccurrenceStart)}`);
+  const cancelled = exceptions.filter((item) => item.cancelled);
+  for (const exception of cancelled) {
+    if (event.isAllDay) {
+      const dateKey = DateTime.fromJSDate(exception.originalOccurrenceStart, { zone: 'utc' }).toFormat('yyyyMMdd');
+      lines.push(`EXDATE;VALUE=DATE:${dateKey}`);
+    } else {
+      lines.push(
+        `EXDATE;TZID=${event.timezone}:${formatLocalStamp(exception.originalOccurrenceStart, event.timezone)}`,
+      );
     }
+  }
+
+  lines.push('END:VEVENT');
+  return lines;
+}
+
+function overrideEventLines(event: CalendarEvent, exception: CalendarEventException): string[] {
+  const lines: string[] = [
+    'BEGIN:VEVENT',
+    `UID:${event.id}@tiza-calendar`,
+    `DTSTAMP:${formatUtcStamp(exception.updatedAt)}`,
+    `SUMMARY:${escapeText(exception.title ?? event.title)}`,
+  ];
+  if ((exception.description ?? event.description) != null) {
+    lines.push(`DESCRIPTION:${escapeText((exception.description ?? event.description) as string)}`);
+  }
+  if ((exception.location ?? event.location) != null) {
+    lines.push(`LOCATION:${escapeText((exception.location ?? event.location) as string)}`);
+  }
+
+  const isAllDay = exception.isAllDay ?? event.isAllDay;
+  if (isAllDay) {
+    lines.push(
+      `RECURRENCE-ID;VALUE=DATE:${DateTime.fromJSDate(exception.originalOccurrenceStart, { zone: 'utc' }).toFormat('yyyyMMdd')}`,
+    );
+    const startDate = exception.startDate ?? event.startDate;
+    const endDate = exception.endDate ?? event.endDate;
+    if (startDate) lines.push(`DTSTART;VALUE=DATE:${formatDateKey(startDate)}`);
+    if (endDate) lines.push(`DTEND;VALUE=DATE:${formatDateKey(endDate)}`);
+  } else {
+    const tz = exception.timezone ?? event.timezone;
+    lines.push(`RECURRENCE-ID;TZID=${tz}:${formatLocalStamp(exception.originalOccurrenceStart, tz)}`);
+    const startAt = exception.startAt ?? event.startAt;
+    const endAt = exception.endAt ?? event.endAt;
+    if (startAt) lines.push(`DTSTART;TZID=${tz}:${formatLocalStamp(startAt, tz)}`);
+    if (endAt) lines.push(`DTEND;TZID=${tz}:${formatLocalStamp(endAt, tz)}`);
   }
 
   lines.push('END:VEVENT');
@@ -66,6 +154,12 @@ export function serializeIcsCalendar(
   events: Array<{ event: CalendarEvent; exceptions: CalendarEventException[] }>,
   calendarName: string,
 ): string {
+  const zones = new Set(
+    events
+      .filter((item) => !item.event.isAllDay)
+      .map((item) => item.event.timezone)
+      .filter(Boolean),
+  );
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -74,8 +168,14 @@ export function serializeIcsCalendar(
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeText(calendarName)}`,
   ];
+  for (const zone of zones) {
+    lines.push(...vtimeZoneBlock(zone));
+  }
   for (const item of events) {
-    lines.push(...eventLines(item.event, item.exceptions));
+    lines.push(...masterEventLines(item.event, item.exceptions));
+    for (const exception of item.exceptions.filter((row) => !row.cancelled)) {
+      lines.push(...overrideEventLines(item.event, exception));
+    }
   }
   lines.push('END:VCALENDAR');
   return `${lines.map(foldLine).join('\r\n')}\r\n`;
