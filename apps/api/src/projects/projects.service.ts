@@ -87,20 +87,8 @@ export class ProjectsService {
 
   @OnEvent(DOMAIN_EVENTS.appInstalled)
   async onAppInstalled(event: AppInstalledEvent) {
+    // Inbox is tasks with project_id null — do not seed a project named Inbox.
     if (event.appKey !== 'projects') return;
-    const existing = await this.db
-      .select()
-      .from(projects)
-      .where(eq(projects.workspaceId, event.workspaceId))
-      .limit(1);
-    if (existing.length) return;
-    await this.db.insert(projects).values({
-      workspaceId: event.workspaceId,
-      name: 'Inbox',
-      description: 'Default project for uncategorized work.',
-      status: 'active',
-      createdByUserId: event.installedByUserId,
-    });
   }
 
   @OnEvent(DOMAIN_EVENTS.appUninstalled)

@@ -101,19 +101,24 @@ export const projects = pgTable('projects', {
   index('projects_workspace_id_idx').on(table.workspaceId),
 ]);
 
-/** project_id is a soft UUID ref to projects (no cross-app FK). */
+/** project_id is a soft UUID ref to projects (no cross-app FK). Null = Inbox. */
 export const tasks = pgTable('tasks', {
   id: uuid('id').defaultRandom().primaryKey(),
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
-  projectId: uuid('project_id').notNull(),
+  projectId: uuid('project_id'),
   title: text('title').notNull(),
   description: text('description'),
   status: text('status').notNull().default('todo'),
   priority: text('priority').notNull().default('none'),
   dueAt: timestamp('due_at', { withTimezone: true }),
+  whenDate: date('when_date'),
+  whenEvening: boolean('when_evening').notNull().default(false),
+  isSomeday: boolean('is_someday').notNull().default(false),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
   assigneeUserId: uuid('assignee_user_id').references(() => users.id, { onDelete: 'set null' }),
   createdByUserId: uuid('created_by_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   position: integer('position').notNull().default(0),
+  todayPosition: integer('today_position'),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -121,6 +126,10 @@ export const tasks = pgTable('tasks', {
   index('tasks_workspace_id_idx').on(table.workspaceId),
   index('tasks_workspace_project_idx').on(table.workspaceId, table.projectId),
   index('tasks_workspace_status_idx').on(table.workspaceId, table.status),
+  index('tasks_workspace_when_date_idx').on(table.workspaceId, table.whenDate),
+  index('tasks_workspace_is_someday_idx').on(table.workspaceId, table.isSomeday),
+  index('tasks_workspace_completed_at_idx').on(table.workspaceId, table.completedAt),
+  index('tasks_workspace_today_position_idx').on(table.workspaceId, table.todayPosition),
 ]);
 
 /** Timed events use start_at/end_at; all-day uses start_date/end_date (exclusive end). */

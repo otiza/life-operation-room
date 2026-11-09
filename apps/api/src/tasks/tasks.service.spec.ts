@@ -21,9 +21,14 @@ function makeTask(overrides: Record<string, unknown> = {}) {
     status: 'todo',
     priority: 'none',
     dueAt: null,
+    whenDate: null,
+    whenEvening: false,
+    isSomeday: false,
+    completedAt: null,
     assigneeUserId: null,
     createdByUserId: userId,
     position: 0,
+    todayPosition: null,
     deletedAt: null,
     createdAt: now,
     updatedAt: now,
@@ -59,8 +64,9 @@ function createDbMock() {
       if (clause !== undefined) state.whereClauses.push(clause);
       return selectBuilder;
     }),
-    orderBy: vi.fn(async () => state.selectRows),
-    groupBy: vi.fn(async () => state.selectRows),
+    orderBy: vi.fn(() => selectBuilder),
+    groupBy: vi.fn(() => selectBuilder),
+    limit: vi.fn(() => selectBuilder),
     for: vi.fn(() => selectBuilder),
     then: undefined as unknown,
   };
@@ -388,6 +394,118 @@ describe('TasksService', () => {
         DOMAIN_EVENTS.taskUpdated,
         expect.objectContaining({ taskId }),
       );
+    });
+  });
+
+  describe('when / someday and completedAt', () => {
+    it('clears isSomeday when setting whenDate', async () => {
+      const existing = makeTask({ isSomeday: true, whenDate: null });
+      dbMock.state.selectRows = [existing];
+      dbMock.state.updateRows = [
+        { ...existing, whenDate: '2024-01-20', whenEvening: false, isSomeday: false },
+      ];
+
+      const result = await service.update(workspaceId, taskId, { id: userId } as never, {
+        whenDate: '2024-01-20',
+      });
+
+      expect(result.whenDate).toBe('2024-01-20');
+      expect(result.isSomeday).toBe(false);
+      expect(dbMock.state.updates[0]).toMatchObject({
+        whenDate: '2024-01-20',
+        isSomeday: false,
+      });
+    });
+
+    it('clears whenDate when setting isSomeday', async () => {
+      const existing = makeTask({ whenDate: '2024-01-20', whenEvening: true, isSomeday: false });
+      dbMock.state.selectRows = [existing];
+      dbMock.state.updateRows = [
+        { ...existing, whenDate: null, whenEvening: false, isSomeday: true },
+      ];
+
+      const result = await service.update(workspaceId, taskId, { id: userId } as never, {
+        isSomeday: true,
+      });
+
+      expect(result.isSomeday).toBe(true);
+      expect(result.whenDate).toBeNull();
+      expect(dbMock.state.updates[0]).toMatchObject({
+        whenDate: null,
+        whenEvening: false,
+        isSomeday: true,
+      });
+    });
+
+    it('sets completedAt when moving into a done status and clears it when leaving', async () => {
+      const existing = makeTask({ status: 'todo', completedAt: null });
+      dbMock.state.selectRows = [existing];
+      const completedAt = new Date('2024-01-16T10:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(completedAt);
+      dbMock.state.updateRows = [{ ...existing, status: 'done', completedAt }];
+
+      const done = await service.update(workspaceId, taskId, { id: userId } as never, {
+        status: 'done',
+      });
+      expect(done.completedAt).toBe(completedAt.toISOString());
+      expect(dbMock.state.updates[0].completedAt).toEqual(completedAt);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        DOMAIN_EVENTS.taskCompleted,
+        expect.objectContaining({ taskId }),
+      );
+
+      dbMock.state.selectRows = [{ ...existing, status: 'done', completedAt }];
+      dbMock.state.updateRows = [{ ...existing, status: 'todo', completedAt: null }];
+      dbMock.state.updates = [];
+      const reopened = await service.update(workspaceId, taskId, { id: userId } as never, {
+        status: 'todo',
+      });
+      expect(reopened.completedAt).toBeNull();
+      expect(dbMock.state.updates[0].completedAt).toBeNull();
+      vi.useRealTimers();
+    });
+
+    it('creates inbox tasks without project validation and locks the inbox bucket', async () => {
+      const created = makeTask({ projectId: null, position: 0 });
+      dbMock.state.updateRows = [created];
+      dbMock.state.selectRows = [{ maxPosition: -1 }];
+
+      const result = await service.create(workspaceId, { id: userId } as never, {
+        title: 'Captured',
+        projectId: null,
+      });
+
+      expect(result.projectId).toBeNull();
+      expect(projectsService.assertProjectInWorkspace).not.toHaveBeenCalled();
+      expect(dbMock.db.execute).toHaveBeenCalled();
+      const lockSql = String(dbMock.db.execute.mock.calls[0]?.[0] ?? '');
+      expect(lockSql.includes('task-pos:') || dbMock.db.execute.mock.calls.length > 0).toBe(true);
+    });
+  });
+
+  describe('smart views', () => {
+    it('includes when_date on or before today in the today view (rollover)', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
+      const rolled = makeTask({ whenDate: '2024-01-14', whenEvening: false });
+      dbMock.state.selectRows = [rolled];
+
+      const result = await service.list(workspaceId, userId, { view: 'today', tz: 'UTC' });
+      expect(result).toHaveLength(1);
+      expect(result[0].section).toBe('today');
+      vi.useRealTimers();
+    });
+
+    it('marks whenEvening tasks under the evening section', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-15T12:00:00.000Z'));
+      const evening = makeTask({ whenDate: '2024-01-15', whenEvening: true });
+      dbMock.state.selectRows = [evening];
+
+      const result = await service.list(workspaceId, userId, { view: 'today', tz: 'UTC' });
+      expect(result[0].section).toBe('evening');
+      vi.useRealTimers();
     });
   });
 });

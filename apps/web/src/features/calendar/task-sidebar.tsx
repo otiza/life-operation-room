@@ -40,9 +40,10 @@ export function TaskSidebar({ tasks, projectsById, blockedTaskIds }: TaskSidebar
     const filtered = open.filter((task) => task.title.toLowerCase().includes(query.trim().toLowerCase()));
     const map = new Map<string, Task[]>();
     for (const task of filtered) {
-      const list = map.get(task.projectId) ?? [];
+      const key = task.projectId ?? 'inbox';
+      const list = map.get(key) ?? [];
       list.push(task);
-      map.set(task.projectId, list);
+      map.set(key, list);
     }
     return [...map.entries()];
   }, [tasks, blockedTaskIds, query]);
@@ -58,16 +59,19 @@ export function TaskSidebar({ tasks, projectsById, blockedTaskIds }: TaskSidebar
         {groups.length === 0 ? (
           <p className="text-sm text-muted-foreground">No matches</p>
         ) : (
-          groups.map(([projectId, projectTasks]) => (
-            <div key={projectId} className="space-y-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {projectsById[projectId] ?? 'Project'}
+          groups.map(([projectId, projectTasks]) => {
+            const projectName = projectId === 'inbox' ? 'Inbox' : (projectsById[projectId] ?? 'Project');
+            return (
+              <div key={projectId} className="space-y-2">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {projectName}
+                </div>
+                {projectTasks.map((task) => (
+                  <DraggableTask key={task.id} task={task} projectName={projectName} />
+                ))}
               </div>
-              {projectTasks.map((task) => (
-                <DraggableTask key={task.id} task={task} projectName={projectsById[projectId] ?? 'Project'} />
-              ))}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </aside>

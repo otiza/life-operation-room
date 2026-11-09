@@ -46,7 +46,7 @@ export type AppUninstalledEvent = {
 export type TaskDomainEvent = {
   workspaceId: string;
   taskId: string;
-  projectId: string;
+  projectId: string | null;
   title: string;
   status: string;
   dueAt: string | null;

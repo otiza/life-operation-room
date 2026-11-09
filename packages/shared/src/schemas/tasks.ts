@@ -11,6 +11,8 @@ export const taskStatusSchema = z.string().min(1).max(64);
 export const taskPrioritySchema = z.string().min(1).max(64);
 export const taskDueFilterSchema = z.enum(['overdue', 'today', 'upcoming', 'none']);
 export const taskAssigneeFilterSchema = z.enum(['me', 'anyone']);
+export const taskViewSchema = z.enum(['inbox', 'today', 'upcoming', 'anytime', 'someday', 'logbook']);
+export const taskTodaySectionSchema = z.enum(['today', 'evening']);
 
 export const ianaTimeZoneSchema = z
   .string()
@@ -21,6 +23,8 @@ export const ianaTimeZoneSchema = z
 const hexColorSchema = z
   .string()
   .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, 'Invalid hex color');
+
+const calendarDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
 
 export const taskStatusOptionSchema = z.object({
   key: taskKeySchema,
@@ -62,31 +66,52 @@ export const DEFAULT_TASK_SETTINGS = {
   ],
 } as const satisfies z.infer<typeof taskSettingsSchema>;
 
-export const createTaskSchema = z.object({
-  title: z.string().min(1).max(500),
-  description: z.string().max(10000).optional().nullable(),
-  projectId: z.string().uuid(),
-  status: taskStatusSchema.optional(),
-  priority: taskPrioritySchema.optional(),
-  dueAt: z.string().datetime().optional().nullable(),
-  assigneeUserId: z.string().uuid().optional().nullable(),
-});
+function refineWhenSomeday<T extends { whenDate?: string | null; whenEvening?: boolean; isSomeday?: boolean }>(
+  value: T,
+  ctx: z.RefinementCtx,
+) {
+  if (value.whenDate && value.isSomeday) {
+    ctx.addIssue({ code: 'custom', message: 'whenDate and isSomeday are mutually exclusive', path: ['isSomeday'] });
+  }
+}
 
-export const updateTaskSchema = z.object({
-  title: z.string().min(1).max(500).optional(),
-  description: z.string().max(10000).optional().nullable(),
-  projectId: z.string().uuid().optional(),
-  status: taskStatusSchema.optional(),
-  priority: taskPrioritySchema.optional(),
-  dueAt: z.string().datetime().optional().nullable(),
-  assigneeUserId: z.string().uuid().optional().nullable(),
-  position: z.number().int().optional(),
-});
+export const createTaskSchema = z
+  .object({
+    title: z.string().min(1).max(500),
+    description: z.string().max(10000).optional().nullable(),
+    projectId: z.string().uuid().optional().nullable(),
+    status: taskStatusSchema.optional(),
+    priority: taskPrioritySchema.optional(),
+    dueAt: z.string().datetime().optional().nullable(),
+    whenDate: calendarDateSchema.optional().nullable(),
+    whenEvening: z.boolean().optional(),
+    isSomeday: z.boolean().optional(),
+    assigneeUserId: z.string().uuid().optional().nullable(),
+  })
+  .superRefine(refineWhenSomeday);
+
+export const updateTaskSchema = z
+  .object({
+    title: z.string().min(1).max(500).optional(),
+    description: z.string().max(10000).optional().nullable(),
+    projectId: z.string().uuid().optional().nullable(),
+    status: taskStatusSchema.optional(),
+    priority: taskPrioritySchema.optional(),
+    dueAt: z.string().datetime().optional().nullable(),
+    whenDate: calendarDateSchema.optional().nullable(),
+    whenEvening: z.boolean().optional(),
+    isSomeday: z.boolean().optional(),
+    assigneeUserId: z.string().uuid().optional().nullable(),
+    position: z.number().int().optional(),
+    todayPosition: z.number().int().optional().nullable(),
+  })
+  .superRefine(refineWhenSomeday);
 
 export const reorderTaskMoveSchema = z.object({
   taskId: z.string().uuid(),
-  status: taskStatusSchema,
-  position: z.number().int().min(0),
+  status: taskStatusSchema.optional(),
+  position: z.number().int().min(0).optional(),
+  todayPosition: z.number().int().min(0).optional(),
 });
 
 export const reorderTasksSchema = z.object({
@@ -98,21 +123,31 @@ export const listTasksQuerySchema = z.object({
   status: taskStatusSchema.optional(),
   assignee: taskAssigneeFilterSchema.optional(),
   due: taskDueFilterSchema.optional(),
+  view: taskViewSchema.optional(),
+  cursor: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
   tz: ianaTimeZoneSchema.default('UTC'),
 });
 
 export const taskSchema = z.object({
   id: z.string().uuid(),
   workspaceId: z.string().uuid(),
-  projectId: z.string().uuid(),
+  projectId: z.string().uuid().nullable(),
   title: z.string(),
   description: z.string().nullable(),
   status: taskStatusSchema,
   priority: taskPrioritySchema,
   dueAt: z.string().nullable(),
+  whenDate: calendarDateSchema.nullable(),
+  whenEvening: z.boolean(),
+  isSomeday: z.boolean(),
+  completedAt: z.string().nullable(),
   assigneeUserId: z.string().uuid().nullable(),
   createdByUserId: z.string().uuid(),
   position: z.number().int(),
+  todayPosition: z.number().int().nullable(),
+  section: taskTodaySectionSchema.optional(),
+  groupKey: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -121,6 +156,8 @@ export type TaskStatus = z.infer<typeof taskStatusSchema>;
 export type TaskPriority = z.infer<typeof taskPrioritySchema>;
 export type TaskDueFilter = z.infer<typeof taskDueFilterSchema>;
 export type TaskAssigneeFilter = z.infer<typeof taskAssigneeFilterSchema>;
+export type TaskView = z.infer<typeof taskViewSchema>;
+export type TaskTodaySection = z.infer<typeof taskTodaySectionSchema>;
 export type TaskStatusOption = z.infer<typeof taskStatusOptionSchema>;
 export type TaskPriorityOption = z.infer<typeof taskPriorityOptionSchema>;
 export type TaskSettings = z.infer<typeof taskSettingsSchema>;

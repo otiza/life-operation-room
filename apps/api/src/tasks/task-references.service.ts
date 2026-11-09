@@ -10,7 +10,7 @@ export type TaskReference = {
   id: string;
   title: string;
   status: string;
-  projectId: string;
+  projectId: string | null;
   dueAt: string | null;
   isDone: boolean;
 };

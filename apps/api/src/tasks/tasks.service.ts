@@ -6,10 +6,11 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, asc, count, eq, gte, inArray, isNotNull, isNull, lt, max, notInArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, max, notInArray, or, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   DEFAULT_TASK_SETTINGS,
+  calendarDateKeyInTimeZone,
   getDayBoundsInTimeZone,
   taskSettingsSchema,
   type CreateTaskInput,
@@ -119,6 +120,9 @@ export class TasksService {
   async list(workspaceId: string, userId: string, query: ListTasksQuery) {
     const settings = await this.getSettings(workspaceId);
     const doneKeys = settings.statuses.filter((item) => item.isDone).map((item) => item.key);
+    if (query.view) {
+      return this.listByView(workspaceId, userId, query, doneKeys);
+    }
     const conditions = [eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt)];
     if (query.projectId) conditions.push(eq(tasks.projectId, query.projectId));
     if (query.status) conditions.push(eq(tasks.status, query.status));
@@ -147,6 +151,106 @@ export class TasksService {
     return rows.map((row) => this.toDto(row));
   }
 
+  async listByView(workspaceId: string, userId: string, query: ListTasksQuery, doneKeys: string[]) {
+    const now = new Date();
+    const { startOfToday, startOfTomorrow } = getDayBoundsInTimeZone(now, query.tz);
+    const todayKey = calendarDateKeyInTimeZone(now, query.tz);
+    const openConditions = [
+      eq(tasks.workspaceId, workspaceId),
+      isNull(tasks.deletedAt),
+      ...(doneKeys.length ? [notInArray(tasks.status, doneKeys)] : []),
+    ];
+    if (query.assignee === 'me') openConditions.push(eq(tasks.assigneeUserId, userId));
+
+    if (query.view === 'inbox') {
+      const rows = await this.db
+        .select()
+        .from(tasks)
+        .where(and(...openConditions, isNull(tasks.projectId), isNull(tasks.whenDate), eq(tasks.isSomeday, false)))
+        .orderBy(asc(tasks.position), asc(tasks.createdAt));
+      return rows.map((row) => this.toDto(row));
+    }
+
+    if (query.view === 'today') {
+      const whenDueOrOverdue = or(
+        and(isNotNull(tasks.whenDate), lte(tasks.whenDate, todayKey)),
+        and(isNotNull(tasks.dueAt), lt(tasks.dueAt, startOfTomorrow)),
+      )!;
+      const rows = await this.db
+        .select()
+        .from(tasks)
+        .where(and(...openConditions, whenDueOrOverdue))
+        .orderBy(asc(tasks.todayPosition), asc(tasks.position), asc(tasks.createdAt));
+      return rows.map((row) => this.toDto(row, { section: row.whenEvening ? 'evening' : 'today' }));
+    }
+
+    if (query.view === 'upcoming') {
+      const rows = await this.db
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            ...openConditions,
+            or(
+              and(isNotNull(tasks.whenDate), sql`${tasks.whenDate} > ${todayKey}`),
+              and(isNull(tasks.whenDate), isNotNull(tasks.dueAt), gte(tasks.dueAt, startOfTomorrow)),
+            )!,
+          ),
+        )
+        .orderBy(asc(tasks.whenDate), asc(tasks.dueAt), asc(tasks.position));
+      return rows.map((row) => {
+        const groupKey = row.whenDate
+          ? String(row.whenDate)
+          : row.dueAt
+            ? calendarDateKeyInTimeZone(row.dueAt, query.tz)
+            : todayKey;
+        return this.toDto(row, { groupKey });
+      });
+    }
+
+    if (query.view === 'anytime') {
+      const rows = await this.db
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            ...openConditions,
+            isNotNull(tasks.projectId),
+            isNull(tasks.whenDate),
+            eq(tasks.isSomeday, false),
+          ),
+        )
+        .orderBy(asc(tasks.position), asc(tasks.createdAt));
+      return rows.map((row) => this.toDto(row));
+    }
+
+    if (query.view === 'someday') {
+      const rows = await this.db
+        .select()
+        .from(tasks)
+        .where(and(...openConditions, eq(tasks.isSomeday, true)))
+        .orderBy(asc(tasks.position), asc(tasks.createdAt));
+      return rows.map((row) => this.toDto(row));
+    }
+
+    // logbook
+    const limit = query.limit ?? 50;
+    const conditions = [
+      eq(tasks.workspaceId, workspaceId),
+      isNull(tasks.deletedAt),
+      isNotNull(tasks.completedAt),
+    ];
+    if (query.cursor) conditions.push(lt(tasks.completedAt, new Date(query.cursor)));
+    if (query.assignee === 'me') conditions.push(eq(tasks.assigneeUserId, userId));
+    const rows = await this.db
+      .select()
+      .from(tasks)
+      .where(and(...conditions))
+      .orderBy(desc(tasks.completedAt), desc(tasks.updatedAt))
+      .limit(limit);
+    return rows.map((row) => this.toDto(row));
+  }
+
   async get(workspaceId: string, taskId: string) {
     const task = await this.findInWorkspace(workspaceId, taskId);
     return this.toDto(task);
@@ -166,17 +270,21 @@ export class TasksService {
       .groupBy(tasks.projectId, tasks.status);
     const counts: Record<string, { total: number; open: number }> = {};
     for (const row of rows) {
-      const current = counts[row.projectId] ?? { total: 0, open: 0 };
+      const key = row.projectId ?? 'inbox';
+      const current = counts[key] ?? { total: 0, open: 0 };
       const value = Number(row.value);
       current.total += value;
       if (!doneKeys.has(row.status)) current.open += value;
-      counts[row.projectId] = current;
+      counts[key] = current;
     }
     return counts;
   }
 
   async create(workspaceId: string, user: User, input: CreateTaskInput) {
-    await this.projectsService.assertProjectInWorkspace(workspaceId, input.projectId);
+    const projectId = input.projectId ?? null;
+    if (projectId) {
+      await this.projectsService.assertProjectInWorkspace(workspaceId, projectId);
+    }
     const settings = await this.getSettings(workspaceId);
     const defaultStatus =
       settings.statuses.find((item) => item.enabled)?.key ?? settings.statuses[0]?.key ?? 'todo';
@@ -189,6 +297,11 @@ export class TasksService {
     const priority = input.priority ?? defaultPriority;
     this.assertAssignableStatus(settings, status);
     this.assertAssignablePriority(settings, priority);
+    const whenFields = this.resolveWhenFields({
+      whenDate: input.whenDate,
+      whenEvening: input.whenEvening,
+      isSomeday: input.isSomeday,
+    });
     const workspace = await this.workspacesService.findById(workspaceId);
     if (!workspace) throw new NotFoundException('Workspace not found');
     const assigneeUserId =
@@ -201,19 +314,24 @@ export class TasksService {
       await this.workspacesService.requireMembership(workspaceId, assigneeUserId, [...READ_ROLES]);
     }
     const dueAt = input.dueAt ? new Date(input.dueAt) : null;
+    const isDone = Boolean(settings.statuses.find((item) => item.key === status)?.isDone);
     const row = await this.db.transaction(async (tx) => {
-      await this.lockProjectPositions(tx, workspaceId, input.projectId);
-      const nextPosition = await this.nextPositionInProject(tx, workspaceId, input.projectId);
+      await this.lockProjectPositions(tx, workspaceId, projectId);
+      const nextPosition = await this.nextPositionInProject(tx, workspaceId, projectId);
       const [created] = await tx
         .insert(tasks)
         .values({
           workspaceId,
-          projectId: input.projectId,
+          projectId,
           title: input.title.trim(),
           description: input.description?.trim() || null,
           status,
           priority,
           dueAt,
+          whenDate: whenFields.whenDate,
+          whenEvening: whenFields.whenEvening,
+          isSomeday: whenFields.isSomeday,
+          completedAt: isDone ? new Date() : null,
           assigneeUserId,
           createdByUserId: user.id,
           position: nextPosition,
@@ -224,6 +342,7 @@ export class TasksService {
     const dto = this.toDto(row);
     this.emitTaskEvent(DOMAIN_EVENTS.taskUpdated, dto, user.id);
     if (dueAt) this.emitTaskEvent(DOMAIN_EVENTS.taskScheduled, dto, user.id);
+    if (isDone) this.emitTaskEvent(DOMAIN_EVENTS.taskCompleted, dto, user.id);
     if (assigneeUserId && assigneeUserId !== user.id) {
       this.emitTaskEvent(DOMAIN_EVENTS.taskAssigned, dto, user.id, {
         previousAssigneeUserId: null,
@@ -257,11 +376,28 @@ export class TasksService {
           : new Date(input.dueAt);
     const projectChanged =
       input.projectId !== undefined && input.projectId !== existing.projectId;
+    const whenTouched =
+      input.whenDate !== undefined || input.isSomeday !== undefined || input.whenEvening !== undefined;
+    const whenFields = this.resolveWhenFields({
+      whenDate: input.whenDate !== undefined ? input.whenDate : existing.whenDate,
+      whenEvening: input.whenEvening !== undefined ? input.whenEvening : existing.whenEvening,
+      isSomeday: input.isSomeday !== undefined ? input.isSomeday : existing.isSomeday,
+      preferWhen: input.whenDate !== undefined,
+      preferSomeday: input.isSomeday !== undefined && input.whenDate === undefined,
+    }, whenTouched);
+    const nextStatus = input.status ?? existing.status;
+    const nextIsDone = Boolean(settings.statuses.find((item) => item.key === nextStatus)?.isDone);
+    const previousIsDone = Boolean(
+      settings.statuses.find((item) => item.key === existing.status)?.isDone,
+    );
+    let completedAt = existing.completedAt;
+    if (nextIsDone && !previousIsDone) completedAt = new Date();
+    if (!nextIsDone && previousIsDone) completedAt = null;
     const row = await this.db.transaction(async (tx) => {
       let nextPosition = input.position;
       if (projectChanged) {
-        await this.lockProjectPositions(tx, workspaceId, input.projectId!);
-        nextPosition = await this.nextPositionInProject(tx, workspaceId, input.projectId!);
+        await this.lockProjectPositions(tx, workspaceId, input.projectId ?? null);
+        nextPosition = await this.nextPositionInProject(tx, workspaceId, input.projectId ?? null);
       }
       const [updated] = await tx
         .update(tasks)
@@ -275,6 +411,15 @@ export class TasksService {
           ...(input.priority !== undefined ? { priority: input.priority } : {}),
           ...(input.dueAt !== undefined ? { dueAt: nextDueAt } : {}),
           ...(input.assigneeUserId !== undefined ? { assigneeUserId: input.assigneeUserId } : {}),
+          ...(input.whenDate !== undefined || input.isSomeday !== undefined || input.whenEvening !== undefined
+            ? {
+                whenDate: whenFields.whenDate,
+                whenEvening: whenFields.whenEvening,
+                isSomeday: whenFields.isSomeday,
+              }
+            : {}),
+          ...(input.todayPosition !== undefined ? { todayPosition: input.todayPosition } : {}),
+          ...(input.status !== undefined || nextIsDone !== previousIsDone ? { completedAt } : {}),
           ...(projectChanged || input.position !== undefined ? { position: nextPosition } : {}),
           updatedAt: new Date(),
         })
@@ -288,10 +433,6 @@ export class TasksService {
       previousAssigneeUserId,
       previousDueAt: toIso(previousDueAt),
     });
-    const nextIsDone = Boolean(settings.statuses.find((item) => item.key === row.status)?.isDone);
-    const previousIsDone = Boolean(
-      settings.statuses.find((item) => item.key === existing.status)?.isDone,
-    );
     if (nextIsDone && !previousIsDone) {
       this.emitTaskEvent(DOMAIN_EVENTS.taskCompleted, dto, user.id);
     }
@@ -373,18 +514,39 @@ export class TasksService {
       const byId = new Map(existingRows.map((row) => [row.id, row]));
       for (const move of input.moves) {
         const existing = byId.get(move.taskId)!;
-        this.assertAssignableStatus(settings, move.status, existing.status);
+        if (move.status !== undefined) {
+          this.assertAssignableStatus(settings, move.status, existing.status);
+        }
       }
 
       const results: Array<{ before: Task; after: Task }> = [];
       for (const move of input.moves) {
         const before = byId.get(move.taskId)!;
-        if (before.status === move.status && before.position === move.position) continue;
+        const nextStatus = move.status ?? before.status;
+        const nextPosition = move.position ?? before.position;
+        const nextTodayPosition =
+          move.todayPosition !== undefined ? move.todayPosition : before.todayPosition;
+        if (
+          before.status === nextStatus &&
+          before.position === nextPosition &&
+          before.todayPosition === nextTodayPosition
+        ) {
+          continue;
+        }
+        const nextIsDone = Boolean(settings.statuses.find((item) => item.key === nextStatus)?.isDone);
+        const previousIsDone = Boolean(
+          settings.statuses.find((item) => item.key === before.status)?.isDone,
+        );
+        let completedAt = before.completedAt;
+        if (nextIsDone && !previousIsDone) completedAt = new Date();
+        if (!nextIsDone && previousIsDone) completedAt = null;
         const [after] = await tx
           .update(tasks)
           .set({
-            status: move.status,
-            position: move.position,
+            status: nextStatus,
+            position: nextPosition,
+            ...(move.todayPosition !== undefined ? { todayPosition: move.todayPosition } : {}),
+            completedAt,
             updatedAt: new Date(),
           })
           .where(
@@ -516,25 +678,62 @@ export class TasksService {
     return task;
   }
 
+  private resolveWhenFields(
+    input: {
+      whenDate?: string | null;
+      whenEvening?: boolean | null;
+      isSomeday?: boolean | null;
+      preferWhen?: boolean;
+      preferSomeday?: boolean;
+    },
+    apply = true,
+  ) {
+    if (!apply) {
+      return {
+        whenDate: input.whenDate ?? null,
+        whenEvening: Boolean(input.whenEvening),
+        isSomeday: Boolean(input.isSomeday),
+      };
+    }
+    if (input.preferSomeday || (input.isSomeday && !input.preferWhen)) {
+      return { whenDate: null, whenEvening: false, isSomeday: true };
+    }
+    if (input.preferWhen || input.whenDate) {
+      return {
+        whenDate: input.whenDate ?? null,
+        whenEvening: Boolean(input.whenEvening),
+        isSomeday: false,
+      };
+    }
+    return {
+      whenDate: null,
+      whenEvening: Boolean(input.whenEvening),
+      isSomeday: false,
+    };
+  }
+
   private async lockProjectPositions(
     tx: NodePgDatabase,
     workspaceId: string,
-    projectId: string,
+    projectId: string | null,
   ) {
+    const bucket = projectId ?? 'inbox';
     await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${`task-pos:${workspaceId}:${projectId}`}))`,
+      sql`select pg_advisory_xact_lock(hashtext(${`task-pos:${workspaceId}:${bucket}`}))`,
     );
   }
 
   private async nextPositionInProject(
     tx: NodePgDatabase,
     workspaceId: string,
-    projectId: string,
+    projectId: string | null,
   ) {
+    const projectCondition =
+      projectId === null ? isNull(tasks.projectId) : eq(tasks.projectId, projectId);
     const [positionRow] = await tx
       .select({ maxPosition: max(tasks.position) })
       .from(tasks)
-      .where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.projectId, projectId)));
+      .where(and(eq(tasks.workspaceId, workspaceId), projectCondition));
     return (positionRow?.maxPosition ?? -1) + 1;
   }
 
@@ -559,7 +758,7 @@ export class TasksService {
     this.eventEmitter.emit(eventName, payload);
   }
 
-  toDto(task: Task) {
+  toDto(task: Task, extra?: { section?: 'today' | 'evening'; groupKey?: string }) {
     return {
       id: task.id,
       workspaceId: task.workspaceId,
@@ -569,9 +768,16 @@ export class TasksService {
       status: task.status,
       priority: task.priority,
       dueAt: toIso(task.dueAt),
+      whenDate: task.whenDate ? String(task.whenDate) : null,
+      whenEvening: Boolean(task.whenEvening),
+      isSomeday: Boolean(task.isSomeday),
+      completedAt: toIso(task.completedAt),
       assigneeUserId: task.assigneeUserId,
       createdByUserId: task.createdByUserId,
       position: task.position,
+      todayPosition: task.todayPosition ?? null,
+      ...(extra?.section ? { section: extra.section } : {}),
+      ...(extra?.groupKey ? { groupKey: extra.groupKey } : {}),
       createdAt: toIso(task.createdAt)!,
       updatedAt: toIso(task.updatedAt)!,
     };

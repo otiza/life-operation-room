@@ -59,6 +59,9 @@ export class TasksController {
       status: query.status || undefined,
       assignee: query.assignee || undefined,
       due: query.due || undefined,
+      view: query.view || undefined,
+      cursor: query.cursor || undefined,
+      limit: query.limit || undefined,
       tz: query.tz || undefined,
     });
     const tasks = await this.tasksService.list(workspaceId, user.id, filters);
