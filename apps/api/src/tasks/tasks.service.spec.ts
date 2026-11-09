@@ -71,37 +71,34 @@ function createDbMock() {
     },
   });
 
-  const updateBuilder = {
+  const updateBuilder: {
+    set: ReturnType<typeof vi.fn>;
+    where: ReturnType<typeof vi.fn>;
+    returning: ReturnType<typeof vi.fn>;
+  } = {
     set: vi.fn((values: Record<string, unknown>) => {
       state.updates.push(values);
       return updateBuilder;
     }),
-    where: vi.fn(async () => {
-      if (state.failUpdateOnTaskId) {
-        const last = state.updates.at(-1);
-        void last;
-        const target = state.updateRows.find(
-          (row) => (row as { id?: string }).id === state.failUpdateOnTaskId,
-        );
-        if (target) throw new BadRequestException('Invalid status');
+    where: vi.fn(() => updateBuilder),
+    returning: vi.fn(async () => {
+      if (state.failUpdateOnTaskId && state.updateRows[0]) {
+        const row = state.updateRows[0] as { id: string };
+        if (row.id === state.failUpdateOnTaskId) {
+          throw new BadRequestException('Invalid status');
+        }
       }
       return state.updateRows;
     }),
-    returning: vi.fn(async () => state.updateRows),
   };
-  // Support .where().returning()
-  updateBuilder.where = vi.fn(() => updateBuilder);
-  updateBuilder.returning = vi.fn(async () => {
-    if (state.failUpdateOnTaskId && state.updateRows[0]) {
-      const row = state.updateRows[0] as { id: string };
-      if (row.id === state.failUpdateOnTaskId) {
-        throw new BadRequestException('Invalid status');
-      }
-    }
-    return state.updateRows;
-  });
 
-  const db = {
+  const db: {
+    select: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    insert: ReturnType<typeof vi.fn>;
+    execute: ReturnType<typeof vi.fn>;
+    transaction: ReturnType<typeof vi.fn>;
+  } = {
     select: vi.fn(() => selectBuilder),
     update: vi.fn(() => updateBuilder),
     insert: vi.fn(() => ({
@@ -230,8 +227,10 @@ describe('TasksService', () => {
         return builder;
       });
 
-      const next = structuredClone(DEFAULT_TASK_SETTINGS);
-      next.statuses = next.statuses.filter((item) => item.key !== 'todo');
+      const next = {
+        ...structuredClone(DEFAULT_TASK_SETTINGS),
+        statuses: DEFAULT_TASK_SETTINGS.statuses.filter((item) => item.key !== 'todo'),
+      };
 
       await expect(service.updateSettings(workspaceId, next)).rejects.toThrow(
         /Cannot delete statuses still used by tasks/,

@@ -129,4 +129,6 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type ReorderTasksInput = z.infer<typeof reorderTasksSchema>;
 export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>;
+/** Client-side list filters before Zod defaults (tz optional). */
+export type ListTasksQueryInput = z.input<typeof listTasksQuerySchema>;
 export type TaskDto = z.infer<typeof taskSchema>;

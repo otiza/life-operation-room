@@ -1,6 +1,6 @@
 import type {
   CreateTaskInput,
-  ListTasksQuery,
+  ListTasksQueryInput,
   ReorderTasksInput,
   TaskDto,
   TaskSettings,
@@ -22,7 +22,7 @@ export async function updateTaskSettings(workspaceId: string, input: UpdateTaskS
   });
 }
 
-export async function listTasks(workspaceId: string, query: ListTasksQuery = {}) {
+export async function listTasks(workspaceId: string, query: ListTasksQueryInput = {}) {
   const params = new URLSearchParams();
   if (query.projectId) params.set('projectId', query.projectId);
   if (query.status) params.set('status', query.status);
