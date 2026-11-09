@@ -31,6 +31,8 @@ Install order is enforced by `dependsOn`. You cannot install Tasks without Proje
 6. **Deleting a project is blocked** while any tasks still soft-reference it. Archive instead, or move/delete tasks first.
 7. Deleting a status/priority from settings is blocked while tasks still use that key; disable instead to hide from board.
 
+Task delete is soft (`deleted_at`). Undo calls restore so id, position, and links stay. TODO: add a purge job for soft-deleted tasks older than a retention window.
+
 ## Domain events (Calendar soft coupling)
 
 Tasks emit Nest domain events. Calendar is **not** required; if Calendar is not installed, events are simply unused. No `cross_app_links` are written until a real Calendar target exists.
@@ -51,10 +53,12 @@ Payload: `{ workspaceId, taskId, projectId, title, dueAt, assigneeUserIds, actor
 
 - `GET/POST /workspaces/:id/projects`
 - `GET/PATCH/DELETE /workspaces/:id/projects/:projectId`
-- `GET/POST /workspaces/:id/tasks` (GET supports `projectId`, `status`, `assignee=me|anyone`, `due=overdue|today|upcoming|none`)
+- `GET/POST /workspaces/:id/tasks` (GET supports `projectId`, `status`, `assignee=me|anyone`, `due=overdue|today|upcoming|none`, `tz`)
+- `POST /workspaces/:id/tasks/reorder`
 - `GET /workspaces/:id/tasks/counts-by-project`
 - `GET/PATCH /workspaces/:id/tasks/settings`
 - `GET/PATCH/DELETE /workspaces/:id/tasks/:taskId`
+- `POST /workspaces/:id/tasks/:taskId/restore`
 
 Every route: cookie auth → workspace membership → app installed.
 

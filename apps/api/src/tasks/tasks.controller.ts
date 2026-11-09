@@ -105,4 +105,11 @@ export class TasksController {
   async remove(@Param('id') workspaceId: string, @Param('taskId') taskId: string) {
     return this.tasksService.remove(workspaceId, taskId);
   }
+
+  @Post('workspaces/:id/tasks/:taskId/restore')
+  @WorkspaceRoles(WORKSPACE_WRITE_ROLES)
+  async restore(@Param('id') workspaceId: string, @Param('taskId') taskId: string) {
+    const task = await this.tasksService.restore(workspaceId, taskId);
+    return { task };
+  }
 }

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, asc, count, eq, gte, inArray, isNull, lt, max, notInArray, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gte, inArray, isNotNull, isNull, lt, max, notInArray, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   DEFAULT_TASK_SETTINGS,
@@ -72,7 +72,11 @@ export class TasksService {
         .select({ value: count() })
         .from(tasks)
         .where(
-          and(eq(tasks.workspaceId, workspaceId), inArray(tasks.status, removedStatusKeys)),
+          and(
+            eq(tasks.workspaceId, workspaceId),
+            inArray(tasks.status, removedStatusKeys),
+            isNull(tasks.deletedAt),
+          ),
         );
       if (Number(row?.value ?? 0) > 0) {
         throw new BadRequestException(
@@ -85,7 +89,11 @@ export class TasksService {
         .select({ value: count() })
         .from(tasks)
         .where(
-          and(eq(tasks.workspaceId, workspaceId), inArray(tasks.priority, removedPriorityKeys)),
+          and(
+            eq(tasks.workspaceId, workspaceId),
+            inArray(tasks.priority, removedPriorityKeys),
+            isNull(tasks.deletedAt),
+          ),
         );
       if (Number(row?.value ?? 0) > 0) {
         throw new BadRequestException(
@@ -103,7 +111,7 @@ export class TasksService {
   async list(workspaceId: string, userId: string, query: ListTasksQuery) {
     const settings = await this.getSettings(workspaceId);
     const doneKeys = settings.statuses.filter((item) => item.isDone).map((item) => item.key);
-    const conditions = [eq(tasks.workspaceId, workspaceId)];
+    const conditions = [eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt)];
     if (query.projectId) conditions.push(eq(tasks.projectId, query.projectId));
     if (query.status) conditions.push(eq(tasks.status, query.status));
     if (query.assignee === 'me') conditions.push(eq(tasks.assigneeUserId, userId));
@@ -146,7 +154,7 @@ export class TasksService {
     const rows = await this.db
       .select({ projectId: tasks.projectId, status: tasks.status, value: count() })
       .from(tasks)
-      .where(eq(tasks.workspaceId, workspaceId))
+      .where(and(eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt)))
       .groupBy(tasks.projectId, tasks.status);
     const counts: Record<string, { total: number; open: number }> = {};
     for (const row of rows) {
@@ -304,9 +312,29 @@ export class TasksService {
   async remove(workspaceId: string, taskId: string) {
     await this.findInWorkspace(workspaceId, taskId);
     await this.db
-      .delete(tasks)
-      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+      .update(tasks)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt)),
+      );
     return { ok: true };
+  }
+
+  async restore(workspaceId: string, taskId: string) {
+    const [task] = await this.db
+      .select()
+      .from(tasks)
+      .where(
+        and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId), isNotNull(tasks.deletedAt)),
+      );
+    if (!task) throw new NotFoundException('Task not found');
+    const [row] = await this.db
+      .update(tasks)
+      .set({ deletedAt: null, updatedAt: new Date() })
+      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)))
+      .returning();
+    if (!row) throw new NotFoundException('Task not found');
+    return this.toDto(row);
   }
 
   async reorder(workspaceId: string, user: User, input: ReorderTasksInput) {
@@ -318,7 +346,13 @@ export class TasksService {
     const existingRows = await this.db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.workspaceId, workspaceId), inArray(tasks.id, taskIds)));
+      .where(
+        and(
+          eq(tasks.workspaceId, workspaceId),
+          inArray(tasks.id, taskIds),
+          isNull(tasks.deletedAt),
+        ),
+      );
     if (existingRows.length !== taskIds.length) {
       throw new NotFoundException('One or more tasks were not found');
     }
@@ -442,7 +476,9 @@ export class TasksService {
     const [task] = await this.db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+      .where(
+        and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt)),
+      );
     if (!task) throw new NotFoundException('Task not found');
     return task;
   }

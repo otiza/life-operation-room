@@ -5,7 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LayoutGrid, List as ListIcon, Plus, X } from 'lucide-react';
 import type { TaskSettings } from '@erp-tiza/shared';
-import { createTask, getTaskSettings, listTasks, reorderTasks, updateTask, type Task } from './tasks-api';
+import {
+  createTask,
+  getTaskSettings,
+  listTasks,
+  reorderTasks,
+  restoreTask,
+  updateTask,
+  type Task,
+} from './tasks-api';
 import {
   defaultTaskSettings,
   enabledStatuses,
@@ -349,15 +357,7 @@ export function TasksWorkspace({
     const action = undo;
     setUndo(null);
     if (action.kind === 'delete') {
-      await createTask(workspaceId, {
-        title: action.task.title,
-        description: action.task.description,
-        projectId: action.task.projectId,
-        status: action.task.status,
-        priority: action.task.priority,
-        dueAt: action.task.dueAt,
-        assigneeUserId: action.task.assigneeUserId,
-      });
+      await restoreTask(workspaceId, action.task.id);
     } else {
       await reorderTasks(workspaceId, {
         moves: action.previous.map((item) => ({

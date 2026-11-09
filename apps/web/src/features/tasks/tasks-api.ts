@@ -71,3 +71,9 @@ export async function deleteTask(workspaceId: string, taskId: string) {
     method: 'DELETE',
   });
 }
+
+export async function restoreTask(workspaceId: string, taskId: string) {
+  return api<{ task: Task }>(`/workspaces/${workspaceId}/tasks/${taskId}/restore`, {
+    method: 'POST',
+  });
+}

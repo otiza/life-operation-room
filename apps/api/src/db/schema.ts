@@ -114,6 +114,7 @@ export const tasks = pgTable('tasks', {
   assigneeUserId: uuid('assignee_user_id').references(() => users.id, { onDelete: 'set null' }),
   createdByUserId: uuid('created_by_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   position: integer('position').notNull().default(0),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
