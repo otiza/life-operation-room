@@ -150,12 +150,51 @@ describe('RecurrenceService', () => {
     expect(occurrences[0].endDate).toBe('2026-07-05');
   });
 
-  it('builds UNTIL before occurrence for following edits', () => {
+  it('stores UNTIL as a true UTC instant for following edits', () => {
     const occurrence = zonedWallTimeToUtc(2026, 3, 23, 9, 0, 0, 0, 'Europe/Paris');
-    const until = service.untilBeforeOccurrence('FREQ=WEEKLY;BYDAY=MO', occurrence, 'Europe/Paris', false);
+    const until = service.untilBeforeOccurrence('FREQ=WEEKLY;BYDAY=MO;COUNT=10', occurrence, 'Europe/Paris', false);
     expect(until).toContain('FREQ=WEEKLY');
-    expect(until).toContain('UNTIL=');
+    expect(until).toMatch(/UNTIL=\d{8}T\d{6}Z/);
     expect(until).not.toContain('COUNT=');
+    const untilDate = service.parseUntilUtc(until)!;
+    expect(untilDate.getTime()).toBe(occurrence.getTime() - 1000);
+  });
+
+  it('computes remaining COUNT for a following split', () => {
+    const seriesStart = zonedWallTimeToUtc(2026, 3, 2, 9, 0, 0, 0, 'Europe/Paris');
+    const occurrence = zonedWallTimeToUtc(2026, 3, 16, 9, 0, 0, 0, 'Europe/Paris');
+    const remaining = service.remainingCountAfterSplit(
+      'FREQ=WEEKLY;BYDAY=MO;COUNT=5',
+      seriesStart,
+      occurrence,
+      'Europe/Paris',
+      false,
+    );
+    expect(remaining).toBe(3);
+    expect(service.withCount('FREQ=WEEKLY;BYDAY=MO', remaining!)).toBe('FREQ=WEEKLY;BYDAY=MO;COUNT=3');
+  });
+
+  it('stops expansion after a UTC UNTIL while keeping floating wall times', () => {
+    const event = makeEvent({
+      startAt: zonedWallTimeToUtc(2026, 3, 2, 9, 0, 0, 0, 'Europe/Paris'),
+      endAt: zonedWallTimeToUtc(2026, 3, 2, 9, 30, 0, 0, 'Europe/Paris'),
+      rrule: service.untilBeforeOccurrence(
+        'FREQ=WEEKLY;BYDAY=MO',
+        zonedWallTimeToUtc(2026, 3, 23, 9, 0, 0, 0, 'Europe/Paris'),
+        'Europe/Paris',
+        false,
+      ),
+    });
+    const occurrences = service.expandEvent(
+      event,
+      [],
+      new Date('2026-03-01T00:00:00Z'),
+      new Date('2026-04-01T00:00:00Z'),
+    );
+    expect(occurrences).toHaveLength(3);
+    expect(
+      occurrences.every((item) => item.startAt!.getTime() < zonedWallTimeToUtc(2026, 3, 23, 9, 0, 0, 0, 'Europe/Paris').getTime()),
+    ).toBe(true);
   });
 
   it('keeps daily 01:30 Europe/Paris across spring and autumn DST', () => {

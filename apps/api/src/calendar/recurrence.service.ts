@@ -118,17 +118,75 @@ export class RecurrenceService {
     return this.expandTimed(event, exceptionByStart, rangeFrom, rangeTo);
   }
 
-  /** Build RRULE string with UNTIL just before occurrenceStart (exclusive). */
-  untilBeforeOccurrence(rrule: string, occurrenceStart: Date, timeZone: string, isAllDay: boolean): string {
-    const until = new Date(occurrenceStart.getTime() - 1000);
-    const untilUtc = isAllDay
-      ? this.formatUntilAllDay(until)
-      : this.formatUntilTimed(until, timeZone);
-    const cleaned = rrule
+  /**
+   * End a series just before `occurrenceStart`.
+   * Timed UNTIL is a true UTC instant (`YYYYMMDDTHHMMSSZ`).
+   * All-day UNTIL is a DATE value (day before the occurrence date).
+   * COUNT is stripped (replaced by UNTIL).
+   */
+  untilBeforeOccurrence(rrule: string, occurrenceStart: Date, _timeZone: string, isAllDay: boolean): string {
+    const untilValue = isAllDay
+      ? this.formatUntilAllDay(new Date(occurrenceStart.getTime() - 24 * 60 * 60 * 1000))
+      : this.formatUntilUtcInstant(new Date(occurrenceStart.getTime() - 1000));
+    const cleaned = this.stripRruleParts(rrule, ['UNTIL', 'COUNT']);
+    return `${cleaned};UNTIL=${untilValue}`;
+  }
+
+  /** Remaining COUNT for a series split at `occurrenceStart` (inclusive of that occurrence). */
+  remainingCountAfterSplit(
+    rrule: string,
+    seriesStart: Date,
+    occurrenceStart: Date,
+    timeZone: string,
+    isAllDay: boolean,
+  ): number | null {
+    const count = this.parseCount(rrule);
+    if (count == null) return null;
+    const elapsed = this.countOccurrencesBefore(
+      this.stripRruleParts(rrule, ['UNTIL']),
+      seriesStart,
+      occurrenceStart,
+      timeZone,
+      isAllDay,
+    );
+    return Math.max(count - elapsed, 1);
+  }
+
+  withCount(rrule: string, count: number): string {
+    const cleaned = this.stripRruleParts(rrule, ['UNTIL', 'COUNT']);
+    return `${cleaned};COUNT=${count}`;
+  }
+
+  parseCount(rrule: string): number | null {
+    const match = rrule.toUpperCase().match(/(?:^|;)COUNT=(\d+)/);
+    return match ? Number(match[1]) : null;
+  }
+
+  parseUntilUtc(rrule: string): Date | null {
+    const match = rrule.toUpperCase().match(/(?:^|;)UNTIL=([0-9TZX]+)/);
+    if (!match) return null;
+    const raw = match[1];
+    if (raw.length === 8) {
+      const year = Number(raw.slice(0, 4));
+      const month = Number(raw.slice(4, 6));
+      const day = Number(raw.slice(6, 8));
+      return new Date(Date.UTC(year, month - 1, day, 23, 59, 59));
+    }
+    const normalized = raw.endsWith('Z') ? raw : `${raw}Z`;
+    const iso = `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}T${normalized.slice(9, 11)}:${normalized.slice(11, 13)}:${normalized.slice(13, 15)}Z`;
+    return new Date(iso);
+  }
+
+  stripRruleParts(rrule: string, keys: string[]): string {
+    const upperKeys = new Set(keys.map((key) => key.toUpperCase()));
+    return rrule
+      .replace(/^RRULE:/i, '')
       .split(';')
-      .filter((part) => !part.toUpperCase().startsWith('UNTIL=') && !part.toUpperCase().startsWith('COUNT='))
+      .filter((part) => {
+        const key = part.split('=')[0]?.toUpperCase();
+        return key && !upperKeys.has(key);
+      })
       .join(';');
-    return `${cleaned};UNTIL=${untilUtc}`;
   }
 
   private singleOccurrence(
@@ -197,7 +255,6 @@ export class RecurrenceService {
       Date.UTC(startParts.year, startParts.month - 1, startParts.day, startParts.hour, startParts.minute, startParts.second),
     );
     const length = durationMs(event.startAt, event.endAt);
-    const rule = this.parseRule(event.rrule, dtstartFloating);
 
     const rangeStartParts = getZonedParts(rangeFrom, tz);
     const rangeEndParts = getZonedParts(rangeTo, tz);
@@ -208,7 +265,10 @@ export class RecurrenceService {
       Date.UTC(rangeEndParts.year, rangeEndParts.month - 1, rangeEndParts.day, 23, 59, 59),
     );
 
-    const floatingOccurrences = rule.between(betweenStart, betweenEnd, true);
+    const untilUtc = this.parseUntilUtc(event.rrule);
+    const ruleText = this.stripRruleParts(event.rrule, ['UNTIL']);
+    const expandRule = this.parseRule(ruleText, dtstartFloating);
+    const floatingOccurrences = expandRule.between(betweenStart, betweenEnd, true);
     const results: ExpandedOccurrence[] = [];
 
     for (const floating of floatingOccurrences) {
@@ -222,6 +282,7 @@ export class RecurrenceService {
         0,
         tz,
       );
+      if (untilUtc && occurrenceUtc.getTime() > untilUtc.getTime()) continue;
       const endUtc = new Date(occurrenceUtc.getTime() + length);
       if (endUtc <= rangeFrom || occurrenceUtc >= rangeTo) continue;
 
@@ -262,7 +323,8 @@ export class RecurrenceService {
     if (!event.startDate || !event.endDate || !event.rrule) return [];
     const days = allDayDurationDays(event.startDate, event.endDate);
     const dtstartFloating = dateKeyToFloatingDate(event.startDate);
-    const rule = this.parseRule(event.rrule, dtstartFloating);
+    const untilUtc = this.parseUntilUtc(event.rrule);
+    const rule = this.parseRule(this.stripRruleParts(event.rrule, ['UNTIL']), dtstartFloating);
 
     const rangeStartKey = calendarDateKeyInTimeZone(rangeFrom, event.timezone);
     const rangeEndKey = calendarDateKeyInTimeZone(rangeTo, event.timezone);
@@ -278,6 +340,7 @@ export class RecurrenceService {
       if (endKey <= rangeStartKey || startKey >= rangeEndKey) continue;
 
       const occurrenceStart = dateKeyToFloatingDate(startKey);
+      if (untilUtc && occurrenceStart.getTime() > untilUtc.getTime()) continue;
       const exception = exceptionByStart.get(occurrenceStart.toISOString());
       if (exception?.cancelled) continue;
 
@@ -331,6 +394,51 @@ export class RecurrenceService {
     };
   }
 
+  private countOccurrencesBefore(
+    rrule: string,
+    seriesStart: Date,
+    occurrenceStart: Date,
+    timeZone: string,
+    isAllDay: boolean,
+  ): number {
+    if (isAllDay) {
+      const startKey = calendarDateKeyInTimeZone(seriesStart, 'UTC');
+      const endKey = calendarDateKeyInTimeZone(occurrenceStart, 'UTC');
+      const dtstart = dateKeyToFloatingDate(startKey);
+      const rule = this.parseRule(this.stripRruleParts(rrule, ['UNTIL']), dtstart);
+      const untilFloating = dateKeyToFloatingDate(endKey);
+      return rule
+        .between(dtstart, untilFloating, true)
+        .filter((item) => item.getTime() < untilFloating.getTime()).length;
+    }
+    const startParts = getZonedParts(seriesStart, timeZone);
+    const dtstart = new Date(
+      Date.UTC(
+        startParts.year,
+        startParts.month - 1,
+        startParts.day,
+        startParts.hour,
+        startParts.minute,
+        startParts.second,
+      ),
+    );
+    const rule = this.parseRule(this.stripRruleParts(rrule, ['UNTIL']), dtstart);
+    const endParts = getZonedParts(occurrenceStart, timeZone);
+    const untilFloating = new Date(
+      Date.UTC(
+        endParts.year,
+        endParts.month - 1,
+        endParts.day,
+        endParts.hour,
+        endParts.minute,
+        endParts.second,
+      ),
+    );
+    return rule
+      .between(dtstart, untilFloating, true)
+      .filter((item) => item.getTime() < untilFloating.getTime()).length;
+  }
+
   private parseRule(rrule: string, dtstart: Date): RRuleInstance {
     const text = rrule.toUpperCase().startsWith('RRULE:') ? rrule : `RRULE:${rrule}`;
     const parsed = rrulestr(text, { dtstart }) as RRuleInstance | { rrules: () => RRuleInstance[] };
@@ -340,9 +448,8 @@ export class RecurrenceService {
     return first;
   }
 
-  private formatUntilTimed(until: Date, timeZone: string): string {
-    const parts = getZonedParts(until, timeZone);
-    return `${parts.year}${String(parts.month).padStart(2, '0')}${String(parts.day).padStart(2, '0')}T${String(parts.hour).padStart(2, '0')}${String(parts.minute).padStart(2, '0')}${String(parts.second).padStart(2, '0')}Z`;
+  private formatUntilUtcInstant(until: Date): string {
+    return until.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
   }
 
   private formatUntilAllDay(until: Date): string {

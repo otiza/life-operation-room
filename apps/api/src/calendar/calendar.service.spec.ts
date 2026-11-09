@@ -114,3 +114,173 @@ describe('CalendarService time blocks', () => {
     );
   });
 });
+
+describe('CalendarService recurrence mutations', () => {
+  const workspaceId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  const userId = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+  const eventId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const newEventId = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+
+  function masterEvent(overrides: Record<string, unknown> = {}) {
+    return {
+      id: eventId,
+      workspaceId,
+      title: 'Standup',
+      description: null,
+      location: null,
+      isAllDay: false,
+      startAt: new Date('2026-03-02T08:00:00.000Z'),
+      endAt: new Date('2026-03-02T08:30:00.000Z'),
+      startDate: null,
+      endDate: null,
+      timezone: 'Europe/Paris',
+      rrule: 'FREQ=WEEKLY;BYDAY=MO;COUNT=5',
+      kind: 'event',
+      color: null,
+      createdByUserId: userId,
+      source: 'local',
+      externalId: null,
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    };
+  }
+
+  it('splits following in one transaction, converts COUNT, and moves later exceptions', async () => {
+    const occurrenceStart = new Date('2026-03-16T08:00:00.000Z');
+    const movedException = {
+      id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+      eventId,
+      workspaceId,
+      originalOccurrenceStart: new Date('2026-03-23T08:00:00.000Z'),
+      cancelled: false,
+    };
+    const updates: Array<Record<string, unknown>> = [];
+    const tx = {
+      update: vi.fn((table: { name?: string } | unknown) => {
+        void table;
+        const builder = {
+          set: vi.fn((values: Record<string, unknown>) => {
+            updates.push(values);
+            return builder;
+          }),
+          where: vi.fn(async () => undefined),
+          returning: vi.fn(async () => [masterEvent({ id: newEventId, rrule: 'FREQ=WEEKLY;BYDAY=MO;COUNT=3' })]),
+        };
+        return builder;
+      }),
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          returning: vi.fn(async () => [
+            masterEvent({
+              id: newEventId,
+              startAt: occurrenceStart,
+              rrule: 'FREQ=WEEKLY;BYDAY=MO;COUNT=3',
+            }),
+          ]),
+        })),
+      })),
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(async () => [movedException]),
+        })),
+      })),
+    };
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(async () => [masterEvent()]),
+        })),
+      })),
+      transaction: vi.fn(async (fn: (inner: typeof tx) => Promise<unknown>) => fn(tx)),
+      insert: vi.fn(),
+      update: vi.fn(),
+    };
+    const service = new CalendarService(
+      db as never,
+      { assertInstalled: vi.fn(), updateConfig: vi.fn() } as never,
+      { create: vi.fn(), listBySource: vi.fn(), listByTarget: vi.fn() } as never,
+      { assertTaskInWorkspace: vi.fn(), findTaskInWorkspace: vi.fn(), listDueInRange: vi.fn() } as never,
+      new RecurrenceService(),
+    );
+
+    const result = await service.update(workspaceId, eventId, { id: userId } as never, {
+      scope: 'following',
+      occurrenceStart: occurrenceStart.toISOString(),
+      title: 'Standup continued',
+    });
+
+    expect(db.transaction).toHaveBeenCalledTimes(1);
+    expect(result.id).toBe(newEventId);
+    expect(result.rrule).toContain('COUNT=3');
+    expect(updates.some((item) => typeof item.rrule === 'string' && String(item.rrule).includes('UNTIL='))).toBe(
+      true,
+    );
+    expect(updates.some((item) => item.eventId === newEventId)).toBe(true);
+  });
+
+  it('shifts exception keys by the start delta on an all edit', async () => {
+    const oldStart = new Date('2026-03-02T08:00:00.000Z');
+    const newStart = new Date('2026-03-02T09:00:00.000Z');
+    const exception = {
+      id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+      eventId,
+      workspaceId,
+      originalOccurrenceStart: new Date('2026-03-09T08:00:00.000Z'),
+      startAt: new Date('2026-03-09T08:00:00.000Z'),
+      endAt: new Date('2026-03-09T08:30:00.000Z'),
+      cancelled: false,
+    };
+    const exceptionUpdates: Array<Record<string, unknown>> = [];
+    const tx = {
+      update: vi.fn(() => {
+        const builder = {
+          set: vi.fn((values: Record<string, unknown>) => {
+            exceptionUpdates.push(values);
+            return builder;
+          }),
+          where: vi.fn(() => builder),
+          returning: vi.fn(async () => [
+            masterEvent({ startAt: newStart, endAt: new Date('2026-03-02T09:30:00.000Z') }),
+          ]),
+        };
+        return builder;
+      }),
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(async () => [exception]),
+        })),
+      })),
+      insert: vi.fn(),
+    };
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(async () => [masterEvent({ startAt: oldStart })]),
+        })),
+      })),
+      transaction: vi.fn(async (fn: (inner: typeof tx) => Promise<unknown>) => fn(tx)),
+      insert: vi.fn(),
+      update: vi.fn(),
+    };
+    const service = new CalendarService(
+      db as never,
+      { assertInstalled: vi.fn(), updateConfig: vi.fn() } as never,
+      { create: vi.fn(), listBySource: vi.fn(), listByTarget: vi.fn() } as never,
+      { assertTaskInWorkspace: vi.fn(), findTaskInWorkspace: vi.fn(), listDueInRange: vi.fn() } as never,
+      new RecurrenceService(),
+    );
+
+    await service.update(workspaceId, eventId, { id: userId } as never, {
+      scope: 'all',
+      startAt: newStart.toISOString(),
+      endAt: new Date('2026-03-02T09:30:00.000Z').toISOString(),
+    });
+
+    expect(db.transaction).toHaveBeenCalledTimes(1);
+    const shifted = exceptionUpdates.find((item) => item.originalOccurrenceStart instanceof Date);
+    expect(shifted).toBeTruthy();
+    expect((shifted!.originalOccurrenceStart as Date).toISOString()).toBe('2026-03-09T09:00:00.000Z');
+  });
+});
