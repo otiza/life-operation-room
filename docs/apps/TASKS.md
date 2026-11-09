@@ -35,7 +35,7 @@ Task delete is soft (`deleted_at`). Undo calls restore so id, position, and link
 
 ## Domain events (Calendar soft coupling)
 
-Tasks emit Nest domain events. Calendar is **not** required; if Calendar is not installed, events are simply unused. No `cross_app_links` are written until a real Calendar target exists.
+Tasks emit Nest domain events. Calendar is **not** required; if Calendar is not installed, events are simply unused. When Calendar creates a time block it writes a `cross_app_links` row (`linkType=time_block`).
 
 | Event | When |
 |---|---|
@@ -44,10 +44,12 @@ Tasks emit Nest domain events. Calendar is **not** required; if Calendar is not 
 | `task.unscheduled` | Due date cleared |
 | `task.completed` | Status moves to a status marked `isDone` |
 | `task.assigned` | Assignee set/changed to someone else |
+| `task.deleted` | Soft delete |
+| `task.restored` | Restore after soft delete |
 
-Payload: `{ workspaceId, taskId, projectId, title, dueAt, assigneeUserIds, actorUserId, previousAssigneeUserId?, previousDueAt? }`.
+Payload: `{ workspaceId, taskId, projectId, title, status, dueAt, assigneeUserIds, actorUserId, previousAssigneeUserId?, previousDueAt? }`.
 
-`NotificationsService` notifies assignees (except the actor) on `task.assigned` and `task.scheduled`. A stub listener in `TasksService` also logs events for Calendar observability.
+`NotificationsService` notifies assignees (except the actor) on `task.assigned` and `task.scheduled`. Calendar listens for title sync and annotations — see [CALENDAR.md](./CALENDAR.md).
 
 ## API
 

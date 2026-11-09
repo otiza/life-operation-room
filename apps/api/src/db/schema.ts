@@ -1,4 +1,4 @@
-import { integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid, index } from 'drizzle-orm/pg-core';
+import { boolean, date, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid, index } from 'drizzle-orm/pg-core';
 
 export const workspaceKindEnum = pgEnum('workspace_kind', ['personal', 'shared']);
 export const memberRoleEnum = pgEnum('member_role', ['owner', 'admin', 'member', 'guest']);
@@ -123,6 +123,68 @@ export const tasks = pgTable('tasks', {
   index('tasks_workspace_status_idx').on(table.workspaceId, table.status),
 ]);
 
+/** Timed events use start_at/end_at; all-day uses start_date/end_date (exclusive end). */
+export const calendarEvents = pgTable('calendar_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  location: text('location'),
+  startAt: timestamp('start_at', { withTimezone: true }),
+  endAt: timestamp('end_at', { withTimezone: true }),
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+  isAllDay: boolean('is_all_day').notNull().default(false),
+  timezone: text('timezone').notNull().default('UTC'),
+  rrule: text('rrule'),
+  kind: text('kind').notNull().default('event'),
+  color: text('color'),
+  createdByUserId: uuid('created_by_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  source: text('source').notNull().default('local'),
+  externalId: text('external_id'),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('calendar_events_workspace_start_at_idx').on(table.workspaceId, table.startAt),
+  index('calendar_events_workspace_end_at_idx').on(table.workspaceId, table.endAt),
+  index('calendar_events_workspace_start_date_idx').on(table.workspaceId, table.startDate),
+  index('calendar_events_workspace_deleted_at_idx').on(table.workspaceId, table.deletedAt),
+]);
+
+export const calendarEventExceptions = pgTable('calendar_event_exceptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  eventId: uuid('event_id').notNull().references(() => calendarEvents.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  originalOccurrenceStart: timestamp('original_occurrence_start', { withTimezone: true }).notNull(),
+  cancelled: boolean('cancelled').notNull().default(false),
+  title: text('title'),
+  description: text('description'),
+  location: text('location'),
+  startAt: timestamp('start_at', { withTimezone: true }),
+  endAt: timestamp('end_at', { withTimezone: true }),
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+  isAllDay: boolean('is_all_day'),
+  timezone: text('timezone'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('calendar_event_exceptions_event_occurrence_idx').on(table.eventId, table.originalOccurrenceStart),
+  index('calendar_event_exceptions_workspace_idx').on(table.workspaceId),
+]);
+
+export const calendarFeedTokens = pgTable('calendar_feed_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: text('token_hash').notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+}, (table) => [
+  index('calendar_feed_tokens_workspace_user_idx').on(table.workspaceId, table.userId),
+]);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Workspace = typeof workspaces.$inferSelect;
@@ -132,3 +194,6 @@ export type Notification = typeof notifications.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type CalendarEventException = typeof calendarEventExceptions.$inferSelect;
+export type CalendarFeedToken = typeof calendarFeedTokens.$inferSelect;

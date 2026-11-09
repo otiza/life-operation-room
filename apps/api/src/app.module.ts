@@ -13,6 +13,7 @@ import { LinksModule } from './links/links.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
+import { CalendarModule } from './calendar/calendar.module.js';
 import { UsersModule } from './users/users.module.js';
 import { WorkspacesModule } from './workspaces/workspaces.module.js';
 import * as schema from './db/schema.js';
@@ -44,6 +45,7 @@ import * as schema from './db/schema.js';
     LinksModule,
     ProjectsModule,
     TasksModule,
+    CalendarModule,
   ],
   providers: [
     {

@@ -8,6 +8,9 @@ export const DOMAIN_EVENTS = {
   taskCompleted: 'task.completed',
   taskUnscheduled: 'task.unscheduled',
   taskAssigned: 'task.assigned',
+  taskDeleted: 'task.deleted',
+  taskRestored: 'task.restored',
+  calendarEventStarting: 'calendar.event_starting',
 } as const;
 
 export type MemberInvitedEvent = {
@@ -37,9 +40,19 @@ export type TaskDomainEvent = {
   taskId: string;
   projectId: string;
   title: string;
+  status: string;
   dueAt: string | null;
   assigneeUserIds: string[];
   actorUserId: string;
   previousAssigneeUserId?: string | null;
   previousDueAt?: string | null;
+};
+
+/** Wire-only reminder hook — no delivery in this phase. */
+export type CalendarEventStartingEvent = {
+  workspaceId: string;
+  eventId: string;
+  occurrenceStart: string;
+  title: string;
+  startAt: string | null;
 };

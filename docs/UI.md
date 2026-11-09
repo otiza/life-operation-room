@@ -46,4 +46,6 @@ The seeded project named Inbox is the default capture project. The All view is t
 
 ## Still out of scope
 
-Subtasks, comments, dependencies, custom fields, cycles, and a command palette. Do not add them unless the user asks.
+Subtasks, comments, dependencies, custom fields, and cycles. Do not add them unless the user asks.
+
+Exception: **Calendar** ships a Cmd/Ctrl+K command palette (view switching, today, new event, task sidebar). List-shaped apps like Tasks still omit a palette unless requested.

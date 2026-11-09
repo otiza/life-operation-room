@@ -317,18 +317,19 @@ export class TasksService {
     return dto;
   }
 
-  async remove(workspaceId: string, taskId: string) {
-    await this.findInWorkspace(workspaceId, taskId);
+  async remove(workspaceId: string, taskId: string, user: User) {
+    const existing = await this.findInWorkspace(workspaceId, taskId);
     await this.db
       .update(tasks)
       .set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(
         and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt)),
       );
+    this.emitTaskEvent(DOMAIN_EVENTS.taskDeleted, this.toDto(existing), user.id);
     return { ok: true };
   }
 
-  async restore(workspaceId: string, taskId: string) {
+  async restore(workspaceId: string, taskId: string, user: User) {
     const [task] = await this.db
       .select()
       .from(tasks)
@@ -342,7 +343,9 @@ export class TasksService {
       .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)))
       .returning();
     if (!row) throw new NotFoundException('Task not found');
-    return this.toDto(row);
+    const dto = this.toDto(row);
+    this.emitTaskEvent(DOMAIN_EVENTS.taskRestored, dto, user.id);
+    return dto;
   }
 
   async reorder(workspaceId: string, user: User, input: ReorderTasksInput) {
@@ -538,6 +541,7 @@ export class TasksService {
       taskId: dto.id,
       projectId: dto.projectId,
       title: dto.title,
+      status: dto.status,
       dueAt: dto.dueAt,
       assigneeUserIds: dto.assigneeUserId ? [dto.assigneeUserId] : [],
       actorUserId,

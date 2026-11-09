@@ -38,7 +38,7 @@ export const APP_MANIFESTS: AppManifest[] = [
     capabilities: [],
     nav: { label: 'Calendar', href: '/calendar', icon: 'Calendar' },
     backendModule: 'CalendarModule',
-    status: 'coming_soon',
+    status: 'available',
   },
   {
     key: 'notes',

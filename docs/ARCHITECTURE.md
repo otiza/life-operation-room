@@ -97,7 +97,8 @@ flowchart LR
 | `WorkspacesModule` | personal + shared workspaces, members, invites, role checks |
 | `AppsModule` | catalog from shared manifests; install/uninstall + dependency rules |
 | `NotificationsModule` | persist notifications; domain-event listeners; Socket.IO gateway |
-| `LinksModule` | list `cross_app_links` (write APIs come with real apps) |
+| `LinksModule` | list/create/delete `cross_app_links` (Calendar is the first writer) |
+| `CalendarModule` | events, recurrence expansion, ICS feed; Tasks via events + links only |
 | `HealthModule` | `GET /health` |
 
 Platform contracts (interfaces only): `apps/api/src/platform/platform.contracts.ts`.
@@ -340,6 +341,8 @@ Do not put Redux in unless there is a strong reason. Prefer a small Zustand stor
 5. Marketplace nav is driven by **installed manifests** for the current workspace only.
 6. Keep the shell thin: new domains are mini-apps + optional platform modules.
 
+**Reference integration:** Calendar ↔ Tasks. Calendar does not import the `tasks` table. Time blocks use `cross_app_links`; title/due/completion sync listens to `task.*` domain events and reads through `TaskReferencesService` only. See [apps/CALENDAR.md](./apps/CALENDAR.md).
+
 ---
 
 ## 8. How to add the next mini-app (summary)
@@ -355,7 +358,7 @@ Checklist:
 5. Emit domain events for anything notifications/AI/goals might care about
 6. If you need files/AI/integrations/goals, implement the matching platform module behind the existing contract
 
-First real apps: **Projects** + **Tasks** — see [apps/TASKS.md](./apps/TASKS.md).
+First real apps: **Projects** + **Tasks** — see [apps/TASKS.md](./apps/TASKS.md). Calendar is the reference for two apps integrating only via events and links — see [apps/CALENDAR.md](./apps/CALENDAR.md).
 
 ---
 
