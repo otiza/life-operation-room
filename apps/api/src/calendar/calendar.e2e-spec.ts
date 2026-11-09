@@ -176,4 +176,44 @@ describe('Calendar e2e', () => {
 
     await request(app.getHttpServer()).get(`/calendar/ics/${token}.ics`).expect(401);
   });
+
+  it('returns 404 for ICS when calendar is uninstalled or member is removed', async () => {
+    const guestToken = await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/calendar/ics-token/regenerate`)
+      .set('Cookie', guestCookie)
+      .expect(201);
+    const token = guestToken.body.token.token as string;
+    await request(app.getHttpServer()).get(`/calendar/ics/${token}.ics`).expect(200);
+
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}/apps/calendar`)
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    await request(app.getHttpServer()).get(`/calendar/ics/${token}.ics`).expect(404);
+
+    await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/apps/install`)
+      .set('Cookie', ownerCookie)
+      .send({ appKey: 'calendar' })
+      .expect(201);
+    // Token was not revoked by uninstall; membership + install still allow access.
+    await request(app.getHttpServer()).get(`/calendar/ics/${token}.ics`).expect(200);
+
+    const members = await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}/members`)
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    const guestMember = members.body.members.find(
+      (item: { email: string; role: string }) => item.role === 'guest',
+    );
+    expect(guestMember?.id).toBeTruthy();
+
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}/members/${guestMember.id}`)
+      .set('Cookie', ownerCookie)
+      .expect(200);
+
+    // Revoked on member removal → unauthorized (token no longer valid).
+    await request(app.getHttpServer()).get(`/calendar/ics/${token}.ics`).expect(401);
+  });
 });

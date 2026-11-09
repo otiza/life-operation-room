@@ -1,5 +1,6 @@
 export const DOMAIN_EVENTS = {
   memberInvited: 'member.invited',
+  memberRemoved: 'member.removed',
   appInstalled: 'app.installed',
   appUninstalled: 'app.uninstalled',
   workspaceCreated: 'workspace.created',
@@ -21,6 +22,13 @@ export type MemberInvitedEvent = {
   invitedByUserId: string;
   inviteToken: string;
   role: string;
+};
+
+export type MemberRemovedEvent = {
+  workspaceId: string;
+  userId: string;
+  removedByUserId: string;
+  memberId: string;
 };
 
 export type AppInstalledEvent = {

@@ -11,7 +11,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { CreateWorkspaceInput, InviteMemberInput, MemberRole } from '@erp-tiza/shared';
 import { users, workspaceMembers, workspaces, type User, type Workspace, type WorkspaceMember } from '../db/schema.js';
 import { createInviteToken, slugify, toIso } from '../common/utils/crypto.js';
-import { DOMAIN_EVENTS, type MemberInvitedEvent } from '../common/events/domain-events.js';
+import { DOMAIN_EVENTS, type MemberInvitedEvent, type MemberRemovedEvent } from '../common/events/domain-events.js';
 import { UsersService } from '../users/users.service.js';
 
 @Injectable()
@@ -139,6 +139,32 @@ export class WorkspacesService {
     };
     this.eventEmitter.emit(DOMAIN_EVENTS.memberInvited, event);
     return this.memberToDto(member, true);
+  }
+
+  async removeMember(workspaceId: string, memberId: string, actor: User) {
+    const workspace = await this.findById(workspaceId);
+    if (!workspace) throw new NotFoundException('Workspace not found');
+    const [member] = await this.db
+      .select()
+      .from(workspaceMembers)
+      .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.id, memberId)));
+    if (!member) throw new NotFoundException('Member not found');
+    if (member.role === 'owner' || member.userId === workspace.ownerUserId) {
+      throw new BadRequestException('Cannot remove the workspace owner');
+    }
+    if (!member.userId) {
+      await this.db.delete(workspaceMembers).where(eq(workspaceMembers.id, memberId));
+      return { ok: true };
+    }
+    await this.db.delete(workspaceMembers).where(eq(workspaceMembers.id, memberId));
+    const event: MemberRemovedEvent = {
+      workspaceId,
+      userId: member.userId,
+      removedByUserId: actor.id,
+      memberId: member.id,
+    };
+    this.eventEmitter.emit(DOMAIN_EVENTS.memberRemoved, event);
+    return { ok: true };
   }
 
   async acceptInvite(token: string, user: User) {

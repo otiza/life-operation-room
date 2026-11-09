@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { createWorkspaceSchema, inviteMemberSchema } from '@erp-tiza/shared';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import {
@@ -52,6 +52,17 @@ export class WorkspacesController {
     const input = inviteMemberSchema.parse(body);
     const member = await this.workspacesService.inviteMember(id, user, input);
     return { member };
+  }
+
+  @Delete('workspaces/:id/members/:memberId')
+  @UseGuards(WorkspaceAccessGuard)
+  @WorkspaceRoles(WORKSPACE_ADMIN_ROLES)
+  async removeMember(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+  ) {
+    return this.workspacesService.removeMember(id, memberId, user);
   }
 
   @Post('invites/:token/accept')

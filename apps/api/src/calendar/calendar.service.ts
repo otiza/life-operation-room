@@ -26,12 +26,14 @@ import {
   calendarEvents,
   calendarFeedTokens,
   workspaceApps,
+  workspaceMembers,
   type CalendarEvent,
   type User,
 } from '../db/schema.js';
 import {
   DOMAIN_EVENTS,
   type AppInstalledEvent,
+  type MemberRemovedEvent,
   type TaskDomainEvent,
 } from '../common/events/domain-events.js';
 import { createSessionToken, hashToken, toIso } from '../common/utils/crypto.js';
@@ -375,6 +377,22 @@ export class CalendarService {
       .where(and(eq(calendarFeedTokens.tokenHash, hashToken(token)), isNull(calendarFeedTokens.revokedAt)));
     if (!row) throw new UnauthorizedException('Invalid or revoked calendar feed token');
 
+    const [member] = await this.db
+      .select({ id: workspaceMembers.id })
+      .from(workspaceMembers)
+      .where(
+        and(
+          eq(workspaceMembers.workspaceId, row.workspaceId),
+          eq(workspaceMembers.userId, row.userId),
+          eq(workspaceMembers.status, 'active'),
+        ),
+      );
+    const [installed] = await this.db
+      .select({ id: workspaceApps.id })
+      .from(workspaceApps)
+      .where(and(eq(workspaceApps.workspaceId, row.workspaceId), eq(workspaceApps.appKey, 'calendar')));
+    if (!member || !installed) throw new NotFoundException();
+
     const now = new Date();
     const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const to = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
@@ -396,6 +414,20 @@ export class CalendarService {
       masters.map((event) => ({ event, exceptions: byEvent.get(event.id) ?? [] })),
       'Tiza Calendar',
     );
+  }
+
+  @OnEvent(DOMAIN_EVENTS.memberRemoved)
+  async onMemberRemoved(event: MemberRemovedEvent) {
+    await this.db
+      .update(calendarFeedTokens)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(
+          eq(calendarFeedTokens.workspaceId, event.workspaceId),
+          eq(calendarFeedTokens.userId, event.userId),
+          isNull(calendarFeedTokens.revokedAt),
+        ),
+      );
   }
 
   @OnEvent(DOMAIN_EVENTS.appInstalled)
