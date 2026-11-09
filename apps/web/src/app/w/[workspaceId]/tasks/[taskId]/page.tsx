@@ -12,6 +12,6 @@ export default function TaskDetailRedirectPage() {
   }, [params.taskId, params.workspaceId, router]);
 
   return (
-    <p className="text-sm text-zinc-500">Opening task…</p>
+    <p className="text-sm text-muted-foreground">Opening task…</p>
   );
 }

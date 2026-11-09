@@ -31,8 +31,10 @@ export async function listTasks(workspaceId: string, query: ListTasksQuery = {})
   return api<{ tasks: Task[] }>(`/workspaces/${workspaceId}/tasks${suffix}`);
 }
 
+export type ProjectTaskCount = { total: number; open: number };
+
 export async function countsByProject(workspaceId: string) {
-  return api<{ counts: Record<string, number> }>(
+  return api<{ counts: Record<string, ProjectTaskCount> }>(
     `/workspaces/${workspaceId}/tasks/counts-by-project`,
   );
 }

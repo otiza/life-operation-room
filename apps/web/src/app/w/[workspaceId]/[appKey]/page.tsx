@@ -35,21 +35,21 @@ export default function AppPlaceholderPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {!installed ? (
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-muted-foreground">
               This app is not installed in the current workspace.
             </p>
           ) : (
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-muted-foreground">
               Shell route is ready. Full feature UI ships when this mini-app is implemented.
             </p>
           )}
-          <div className="text-xs text-zinc-500">
+          <div className="text-xs text-muted-foreground">
             Category: {manifest?.category ?? '—'} · capabilities:{' '}
             {(manifest?.capabilities ?? []).join(', ') || 'none'}
           </div>
           <Link
             href={`/w/${workspaceId}/apps`}
-            className="inline-flex h-11 w-full items-center justify-center rounded-md bg-zinc-100 px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-200 sm:w-auto"
+            className="inline-flex h-11 w-full items-center justify-center rounded-md bg-muted px-4 text-sm font-medium text-foreground hover:bg-accent sm:w-auto"
           >
             Back to marketplace
           </Link>

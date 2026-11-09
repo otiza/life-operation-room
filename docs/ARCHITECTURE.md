@@ -123,19 +123,29 @@ Rules:
 
 ### 4.3 Authorization model
 
-There are no separate Nest guard classes yet named `WorkspaceGuard` / `AppInstalledGuard`. Enforcement is in services:
+Route access is enforced by guards. Services do not repeat those checks.
 
-- `WorkspacesService.requireMembership(workspaceId, userId, allowedRoles)`
-- `AppsService.assertInstalled(workspaceId, appKey)` (for future app routes)
+- `AuthGuard` resolves the session cookie onto `request.user`.
+- `WorkspaceAccessGuard` with `@WorkspaceRoles(...)` calls `WorkspacesService.requireMembership`. The workspace id is `params.id`. Missing role metadata fails closed.
+- `AppInstalledGuard` with `@InstalledApp(appKey)` calls `AppsService.assertInstalled` on app-scoped routes. Missing app metadata fails closed.
 
-Roles: `owner` | `admin` | `member` | `guest`  
+Role lists live in `apps/api/src/common/guards/workspace-access.guard.ts`:
+
+- `WORKSPACE_READ_ROLES`: `owner` | `admin` | `member` | `guest`
+- `WORKSPACE_WRITE_ROLES`: `owner` | `admin` | `member`
+- `WORKSPACE_ADMIN_ROLES`: `owner` | `admin`
+
 Member status: `invited` | `active`
 
-When adding a mini-app controller, always:
+Services still enforce rules that are not the caller's route access: an assignee must be a member, personal workspaces reject invites, and install still checks dependencies.
 
-1. `@UseGuards(AuthGuard)`
-2. `requireMembership(...)`
-3. `assertInstalled(...)` for app-scoped routes
+When adding a mini-app controller:
+
+1. `@UseGuards(AuthGuard, WorkspaceAccessGuard, AppInstalledGuard)`
+2. `@InstalledApp('<appKey>')` on the controller
+3. `@WorkspaceRoles(...)` on each route
+
+Apps do not import each other's tables. A cross-app read goes through a port the owning app exports (`TaskReferencesService` is the pattern). Install seeds listen for `app.installed` inside that app. `AppsService` does not special-case app keys. `install` and `uninstall` await `emitAsync` so those listeners finish before the response.
 
 ### 4.4 Domain events
 
@@ -246,11 +256,13 @@ pnpm --filter @erp-tiza/shared build
 
 ## 6. Frontend (`apps/web`)
 
+Work surfaces (how a project, task, or the next list-shaped app should behave) live in [UI.md](./UI.md). Copy `TasksWorkspace` instead of inventing a settings form for the main screen.
+
 ### 6.1 Stack
 
 - Next.js App Router
 - Tailwind v4
-- Local shadcn-style primitives in `src/components/ui`
+- Local shadcn-style primitives in `src/components/ui`, themed by the tokens in [DESIGN.md](./DESIGN.md)
 - TanStack Query for server state
 - Zustand (+ persist) for shell UI state only
 - Socket.IO client for notification invalidation
@@ -264,6 +276,9 @@ pnpm --filter @erp-tiza/shared build
 | `/w/[workspaceId]` | workspace home |
 | `/w/[workspaceId]/apps` | marketplace |
 | `/w/[workspaceId]/settings` | members / invites |
+| `/w/[workspaceId]/projects` | project index; a card opens that project's tasks |
+| `/w/[workspaceId]/projects/[projectId]` | that project's task list |
+| `/w/[workspaceId]/tasks` | All and Today across projects |
 | `/w/[workspaceId]/[appKey]` | installed-app placeholder |
 | `/invites/[token]` | accept invite |
 
@@ -334,7 +349,7 @@ Full steps: [ADDING_APPS.md](./ADDING_APPS.md).
 Checklist:
 
 1. Add/adjust manifest in `packages/shared` → rebuild shared
-2. Create Nest module under `apps/api/src/<app>/` with membership + installed checks
+2. Create Nest module under `apps/api/src/<app>/` with the workspace and app-installed guards, plus an `app.installed` listener for any seed data
 3. Add tables in `schema.ts` + migration
 4. Create `apps/web/src/features/<app>/` + real route under `/w/[workspaceId]/...`
 5. Emit domain events for anything notifications/AI/goals might care about
@@ -361,7 +376,6 @@ First real apps: **Projects** + **Tasks** — see [apps/TASKS.md](./apps/TASKS.m
 - Remaining domain UIs (calendar/notes/…); Projects + Tasks v1 are shipped — see [apps/TASKS.md](./apps/TASKS.md)
 - Real `FilesModule` / `AiModule` / `IntegrationsModule` / `GoalsModule` implementations
 - BullMQ workers on Redis
-- Dedicated Nest `WorkspaceGuard` / `AppInstalledGuard` classes (logic exists in services)
 - OAuth / SSO
 - Email delivery for invites (invite token returned in API for now)
 - Mobile clients

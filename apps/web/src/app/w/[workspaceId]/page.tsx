@@ -49,14 +49,14 @@ export default function WorkspaceHomePage() {
               <Link
                 key={app.appKey}
                 href={`/w/${workspaceId}/${app.appKey}`}
-                className="block min-h-11 rounded-lg border border-zinc-100 px-3 py-2.5 text-sm hover:bg-zinc-50"
+                className="block min-h-11 rounded-lg border border-border px-3 py-2.5 text-sm hover:bg-accent"
               >
                 {app.manifest.name}
               </Link>
             ))}
             <Link
               href={`/w/${workspaceId}/apps`}
-              className="inline-flex h-11 w-full items-center justify-center rounded-md bg-zinc-100 px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-200 sm:w-auto"
+              className="inline-flex h-11 w-full items-center justify-center rounded-md bg-muted px-4 text-sm font-medium text-foreground hover:bg-accent sm:w-auto"
             >
               Open marketplace
             </Link>
@@ -72,7 +72,7 @@ export default function WorkspaceHomePage() {
           <CardContent>
             <Link
               href={`/w/${workspaceId}/settings`}
-              className="inline-flex h-11 w-full items-center justify-center rounded-md border border-zinc-200 px-4 text-sm font-medium hover:bg-zinc-50 sm:w-auto"
+              className="inline-flex h-11 w-full items-center justify-center rounded-md border border-border px-4 text-sm font-medium hover:bg-accent sm:w-auto"
             >
               Members & invites
             </Link>

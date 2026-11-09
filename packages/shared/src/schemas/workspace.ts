@@ -26,6 +26,7 @@ export const workspaceMemberSchema = z.object({
   id: z.string().uuid(),
   workspaceId: z.string().uuid(),
   userId: z.string().uuid().nullable(),
+  name: z.string().nullable().optional(),
   email: z.string().email(),
   role: memberRoleSchema,
   status: memberStatusSchema,

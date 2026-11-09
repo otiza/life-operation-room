@@ -1,15 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { GripVertical } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  TouchSensor,
-  closestCorners,
+  closestCenter,
+  pointerWithin,
+  rectIntersection,
   useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -30,6 +33,7 @@ import {
   isDoneStatus,
   isOverdue,
   priorityColor,
+  priorityLabel,
   statusColor,
   statusLabel,
 } from './task-status';
@@ -64,6 +68,7 @@ export function TasksBoard({
   memberLabel,
   onMove,
   onOpenTask,
+  onCreate,
 }: {
   tasks: Task[];
   settings: TaskSettings;
@@ -71,6 +76,7 @@ export function TasksBoard({
   memberLabel: (userId: string | null) => string;
   onMove: (moves: TaskBoardMove[]) => void;
   onOpenTask: (taskId: string) => void;
+  onCreate?: (status: string, title: string) => void;
 }) {
   const statusOptions = enabledStatuses(settings);
   const statusKeys = statusOptions.map((item) => item.key);
@@ -84,10 +90,16 @@ export function TasksBoard({
     setColumns(buildColumns(tasks, statusKeys));
   }, [tasks, statusKeys.join('|')]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 160, tolerance: 8 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const statusKeySet = useMemo(() => new Set(statusKeys), [statusKeys.join('|')]);
+  const collisionDetection = useCallback<CollisionDetection>((args) => {
+    const pointerHits = pointerWithin(args);
+    const hits = pointerHits.length > 0 ? pointerHits : rectIntersection(args);
+    const cardHits = hits.filter((hit) => !statusKeySet.has(String(hit.id)));
+    if (cardHits.length > 0) return cardHits;
+    if (hits.length > 0) return hits;
+    return closestCenter(args);
+  }, [statusKeySet]);
 
   const activeTask = useMemo(() => {
     if (!activeId) return null;
@@ -179,7 +191,7 @@ export function TasksBoard({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -197,21 +209,20 @@ export function TasksBoard({
             projectName={projectName}
             memberLabel={memberLabel}
             onOpenTask={onOpenTask}
+            onCreate={onCreate}
             shouldSuppressClick={() => suppressClickRef.current}
           />
         ))}
       </div>
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={{ duration: 140, easing: 'ease-out' }}>
         {activeTask ? (
-          <div className="w-72 rotate-[1.5deg] opacity-95 shadow-xl">
-            <TaskCardContent
-              task={activeTask}
-              settings={settings}
-              projectLabel={projectName(activeTask.projectId)}
-              assigneeLabel={memberLabel(activeTask.assigneeUserId)}
-              dragging
-            />
-          </div>
+          <TaskCardContent
+            task={activeTask}
+            settings={settings}
+            projectLabel={projectName(activeTask.projectId)}
+            assigneeLabel={memberLabel(activeTask.assigneeUserId)}
+            dragging
+          />
         ) : null}
       </DragOverlay>
     </DndContext>
@@ -227,6 +238,7 @@ function BoardColumn({
   projectName,
   memberLabel,
   onOpenTask,
+  onCreate,
   shouldSuppressClick,
 }: {
   statusKey: string;
@@ -237,6 +249,7 @@ function BoardColumn({
   projectName: (projectId: string) => string;
   memberLabel: (userId: string | null) => string;
   onOpenTask: (taskId: string) => void;
+  onCreate?: (status: string, title: string) => void;
   shouldSuppressClick: () => boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: statusKey });
@@ -244,14 +257,14 @@ function BoardColumn({
     <section
       ref={setNodeRef}
       className={cn(
-        'flex w-[min(18.5rem,82vw)] shrink-0 flex-col rounded-2xl border bg-zinc-50/90 transition-colors',
-        isOver ? 'border-zinc-400 bg-zinc-100/90 ring-1 ring-zinc-300' : 'border-zinc-200/80',
+        'flex w-[min(18.5rem,82vw)] shrink-0 flex-col rounded-2xl border bg-muted/90 transition-colors',
+        isOver ? 'border-ring bg-muted/90 ring-1 ring-ring' : 'border-border/80',
       )}
     >
-      <header className="sticky top-0 z-10 flex items-center gap-2 rounded-t-2xl bg-zinc-50/95 px-3 py-3 backdrop-blur">
+      <header className="sticky top-0 z-10 flex items-center gap-2 rounded-t-2xl bg-muted/95 px-3 py-3 backdrop-blur">
         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-        <h2 className="text-sm font-semibold text-zinc-800">{label}</h2>
-        <span className="ml-auto rounded-md bg-zinc-200/70 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-zinc-600">
+        <h2 className="text-sm font-semibold text-foreground">{label}</h2>
+        <span className="ml-auto rounded-md bg-secondary/70 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
           {tasks.length}
         </span>
       </header>
@@ -271,13 +284,14 @@ function BoardColumn({
           {tasks.length === 0 ? (
             <div
               className={cn(
-                'flex flex-1 items-center justify-center rounded-xl border border-dashed px-3 py-10 text-center text-xs',
-                isOver ? 'border-zinc-400 text-zinc-600' : 'border-zinc-200 text-zinc-400',
+                'flex flex-1 items-center justify-center rounded-xl border border-dashed px-3 py-8 text-center text-xs',
+                isOver ? 'border-ring text-muted-foreground' : 'border-border text-muted-foreground',
               )}
             >
               Drop here
             </div>
           ) : null}
+          {onCreate ? <ColumnComposer onCreate={(title) => onCreate(statusKey, title)} /> : null}
         </div>
       </SortableContext>
     </section>
@@ -299,17 +313,18 @@ function SortableTaskCard({
   onOpenTask: (taskId: string) => void;
   shouldSuppressClick: () => boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isSorting } = useSortable({
     id: task.id,
+    animateLayoutChanges: ({ isSorting: sorting, wasDragging }) => (sorting || wasDragging ? false : true),
   });
   return (
     <div
       ref={setNodeRef}
       style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
+        transform: CSS.Translate.toString(transform),
+        transition: isSorting ? undefined : transition,
       }}
-      className={cn(isDragging && 'opacity-30')}
+      className={cn('touch-none', isDragging && 'opacity-40')}
       {...attributes}
       {...listeners}
       onClick={() => {
@@ -344,16 +359,17 @@ function TaskCardContent({
   const dueLabel = formatDueAtShort(task.dueAt);
   const initials = assigneeInitials(assigneeLabel);
   const accent = priorityColor(settings, task.priority);
+  const priorityName = priorityLabel(settings, task.priority);
   const showAccent = task.priority !== 'none';
   const done = isDoneStatus(settings, task.status);
 
   return (
     <article
       className={cn(
-        'group relative cursor-grab rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm active:cursor-grabbing',
-        'hover:border-zinc-300 hover:shadow-md',
+        'group relative cursor-grab rounded-xl border border-border/90 bg-card p-3 shadow-sm active:cursor-grabbing',
+        'hover:border-border hover:shadow-md',
         overdue && 'border-red-200 bg-red-50/40',
-        dragging && 'cursor-grabbing shadow-xl ring-2 ring-zinc-300',
+        dragging && 'shadow-xl ring-2 ring-ring',
         done && 'opacity-80',
       )}
     >
@@ -364,17 +380,28 @@ function TaskCardContent({
           aria-hidden
         />
       ) : null}
-      <p className={cn('break-words pl-1 text-sm font-medium leading-snug text-zinc-900', showAccent && 'pl-2')}>
-        {task.title}
-      </p>
+      <div className={cn('flex items-start gap-1.5', showAccent && 'pl-1.5')}>
+        <span className="mt-0.5 flex h-5 w-4 shrink-0 items-center justify-center text-border" aria-hidden>
+          <GripVertical className="h-4 w-4" />
+        </span>
+        <p className="min-w-0 flex-1 break-words text-sm font-medium leading-snug text-foreground">{task.title}</p>
+      </div>
       <div className={cn('mt-2.5 flex items-center gap-2', showAccent && 'pl-2')}>
-        <span className="min-w-0 truncate text-[11px] text-zinc-500">{projectLabel}</span>
+        <span className="min-w-0 truncate text-[11px] text-muted-foreground">{projectLabel}</span>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          {showAccent ? (
+            <span
+              className="rounded-md px-1.5 py-0.5 text-[11px] font-medium"
+              style={{ backgroundColor: `${accent}22`, color: accent }}
+            >
+              {priorityName}
+            </span>
+          ) : null}
           {dueLabel ? (
             <span
               className={cn(
                 'rounded-md px-1.5 py-0.5 text-[11px] font-medium',
-                overdue ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600',
+                overdue ? 'bg-red-100 text-red-700' : 'bg-muted text-muted-foreground',
               )}
             >
               {dueLabel}
@@ -385,8 +412,8 @@ function TaskCardContent({
             className={cn(
               'flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold',
               assigneeLabel === 'Unassigned'
-                ? 'bg-zinc-100 text-zinc-400'
-                : 'bg-zinc-900 text-white',
+                ? 'bg-muted text-muted-foreground'
+                : 'bg-primary text-primary-foreground',
             )}
           >
             {initials}
@@ -396,5 +423,29 @@ function TaskCardContent({
       <span className="sr-only">{statusLabel(settings, task.status)}</span>
       <span className="sr-only" style={{ color: statusColor(settings, task.status) }} />
     </article>
+  );
+}
+
+function ColumnComposer({ onCreate }: { onCreate: (title: string) => void }) {
+  const [title, setTitle] = useState('');
+  return (
+    <form
+      className="mt-1"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const next = title.trim();
+        if (!next) return;
+        onCreate(next);
+        setTitle('');
+      }}
+    >
+      <input
+        className="h-9 w-full rounded-lg border border-dashed border-border bg-card px-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-ring"
+        placeholder="Add task"
+        value={title}
+        aria-label="Add task"
+        onChange={(event) => setTitle(event.target.value)}
+      />
+    </form>
   );
 }

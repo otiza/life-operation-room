@@ -1,15 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import type { TaskPriorityOption, TaskSettings, TaskStatusOption } from '@erp-tiza/shared';
 import { getTaskSettings, updateTaskSettings } from '../../../../../features/tasks/tasks-api';
 import { defaultTaskSettings, slugifyKey, sortByOrder } from '../../../../../features/tasks/task-status';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
-import { PageContainer, PageHeader } from '../../../../../components/layout/page-container';
+import { PageContainer } from '../../../../../components/layout/page-container';
 import { ApiError } from '../../../../../lib/api';
 import { cn } from '../../../../../lib/utils';
 
@@ -19,6 +22,10 @@ export default function TasksSettingsPage() {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<TaskSettings>(defaultTaskSettings());
   const [error, setError] = useState<string | null>(null);
+  const hydratedRef = useRef<string | null>(null);
+  const dirtyRef = useRef(false);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   const settingsQuery = useQuery({
     queryKey: ['task-settings', workspaceId],
@@ -26,25 +33,48 @@ export default function TasksSettingsPage() {
   });
 
   useEffect(() => {
-    if (settingsQuery.data?.settings) setDraft(settingsQuery.data.settings);
+    if (!settingsQuery.data?.settings || dirtyRef.current) return;
+    const next = settingsQuery.data.settings;
+    hydratedRef.current = JSON.stringify(next);
+    setDraft(next);
   }, [settingsQuery.data]);
 
   const saveMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (next: TaskSettings) =>
       updateTaskSettings(workspaceId, {
-        statuses: sortByOrder(draft.statuses).map((item, order) => ({ ...item, order })),
-        priorities: sortByOrder(draft.priorities).map((item, order) => ({ ...item, order })),
+        statuses: sortByOrder(next.statuses).map((item, order) => ({ ...item, order })),
+        priorities: sortByOrder(next.priorities).map((item, order) => ({ ...item, order })),
       }),
     onSuccess: async (result) => {
+      dirtyRef.current = false;
       setError(null);
+      hydratedRef.current = JSON.stringify(result.settings);
       setDraft(result.settings);
-      await queryClient.invalidateQueries({ queryKey: ['task-settings', workspaceId] });
+      queryClient.setQueryData(['task-settings', workspaceId], result);
       await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
     },
     onError: (err: unknown) => {
+      dirtyRef.current = false;
+      const previous = settingsQuery.data?.settings;
+      if (previous) {
+        hydratedRef.current = JSON.stringify(previous);
+        setDraft(structuredClone(previous));
+      }
       setError(err instanceof ApiError ? err.message : 'Could not save settings');
     },
   });
+
+  useEffect(() => {
+    if (!settingsQuery.isSuccess) return;
+    const serialized = JSON.stringify(draft);
+    if (hydratedRef.current === serialized) {
+      hydratedRef.current = null;
+      return;
+    }
+    dirtyRef.current = true;
+    const handle = window.setTimeout(() => saveMutation.mutate(draftRef.current), 500);
+    return () => window.clearTimeout(handle);
+  }, [draft, settingsQuery.isSuccess]);
 
   function updateStatus(key: string, patch: Partial<TaskStatusOption>) {
     setDraft((current) => ({
@@ -59,20 +89,6 @@ export default function TasksSettingsPage() {
       priorities: current.priorities.map((item) =>
         item.key === key ? { ...item, ...patch } : item,
       ),
-    }));
-  }
-
-  function moveStatus(key: string, direction: -1 | 1) {
-    setDraft((current) => ({
-      ...current,
-      statuses: reorder(current.statuses, key, direction),
-    }));
-  }
-
-  function movePriority(key: string, direction: -1 | 1) {
-    setDraft((current) => ({
-      ...current,
-      priorities: reorder(current.priorities, key, direction),
     }));
   }
 
@@ -144,8 +160,9 @@ export default function TasksSettingsPage() {
 
   if (settingsQuery.isLoading) {
     return (
-      <PageContainer size="lg">
-        <PageHeader title="Settings" description="Loading…" />
+      <PageContainer size="full">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Settings</h1>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </PageContainer>
     );
   }
@@ -154,199 +171,263 @@ export default function TasksSettingsPage() {
   const priorities = sortByOrder(draft.priorities);
 
   return (
-    <PageContainer size="lg">
-      <PageHeader
-        title="Settings"
-        description="Customize statuses, priorities, and colors for this workspace. More options can land here later."
-        actions={
-          <Button
-            className="h-10"
-            disabled={saveMutation.isPending}
-            onClick={() => saveMutation.mutate()}
-          >
-            {saveMutation.isPending ? 'Saving…' : 'Save settings'}
-          </Button>
-        }
-      />
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+    <PageContainer size="full">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Settings</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Board columns and priority colors for this workspace.</p>
+        </div>
+        <p className="shrink-0 pt-1 text-xs text-muted-foreground">
+          {saveMutation.isPending || dirtyRef.current ? 'Saving…' : 'Saved'}
+        </p>
+      </div>
+      {error ? (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      ) : null}
 
-      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
-        <div className="flex items-center justify-between gap-2">
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-900">Statuses</h2>
-            <p className="text-xs text-zinc-500">Board columns follow enabled statuses in this order.</p>
+            <h2 className="text-sm font-semibold text-foreground">Statuses</h2>
+            <p className="text-xs text-muted-foreground">Drag to set the board order.</p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={addStatus}>
+          <Button type="button" variant="outline" size="sm" className="h-9" onClick={addStatus}>
             <Plus className="h-3.5 w-3.5" />
             Add
           </Button>
         </div>
-        <div className="space-y-2">
-          {statuses.map((item, index) => (
-            <div
-              key={item.key}
-              className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-3 sm:flex-row sm:items-center"
+        <OptionList
+          items={statuses}
+          onReorder={(activeKey, overKey) =>
+            setDraft((current) => ({ ...current, statuses: reorderKeys(current.statuses, activeKey, overKey) }))
+          }
+        >
+          {(item) => (
+            <OptionFields
+              label={item.label}
+              color={item.color}
+              placeholder="Status"
+              onLabel={(label) => updateStatus(item.key, { label })}
+              onColor={(color) => updateStatus(item.key, { color })}
+              onRemove={() => removeStatus(item.key)}
+              removeDisabled={statuses.length <= 1}
             >
-              <input
-                type="color"
-                value={normalizeColorInput(item.color)}
-                onChange={(event) => updateStatus(item.key, { color: event.target.value })}
-                className="h-9 w-10 cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
-                aria-label={`Color for ${item.label}`}
+              <Switch
+                checked={item.enabled}
+                label="On board"
+                onChange={(enabled) => updateStatus(item.key, { enabled })}
               />
-              <Input
-                className="h-9"
-                value={item.label}
-                onChange={(event) => updateStatus(item.key, { label: event.target.value })}
+              <Switch
+                checked={Boolean(item.isDone)}
+                label="Completed"
+                onChange={(isDone) => updateStatus(item.key, { isDone })}
               />
-              <label className="flex items-center gap-2 text-xs text-zinc-600">
-                <input
-                  type="checkbox"
-                  checked={item.enabled}
-                  onChange={(event) => updateStatus(item.key, { enabled: event.target.checked })}
-                />
-                Enabled
-              </label>
-              <label className="flex items-center gap-2 text-xs text-zinc-600">
-                <input
-                  type="checkbox"
-                  checked={Boolean(item.isDone)}
-                  onChange={(event) => updateStatus(item.key, { isDone: event.target.checked })}
-                />
-                Done
-              </label>
-              <div className="ml-auto flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9"
-                  disabled={index === 0}
-                  onClick={() => moveStatus(item.key, -1)}
-                >
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9"
-                  disabled={index === statuses.length - 1}
-                  onClick={() => moveStatus(item.key, 1)}
-                >
-                  <ArrowDown className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-red-600 hover:text-red-700"
-                  disabled={statuses.length <= 1}
-                  onClick={() => removeStatus(item.key)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            </OptionFields>
+          )}
+        </OptionList>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
-        <div className="flex items-center justify-between gap-2">
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-900">Priorities</h2>
-            <p className="text-xs text-zinc-500">Colors show as the accent on task rows and cards.</p>
+            <h2 className="text-sm font-semibold text-foreground">Priorities</h2>
+            <p className="text-xs text-muted-foreground">Drag to set the order. The color is the card accent.</p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={addPriority}>
+          <Button type="button" variant="outline" size="sm" className="h-9" onClick={addPriority}>
             <Plus className="h-3.5 w-3.5" />
             Add
           </Button>
         </div>
-        <div className="space-y-2">
-          {priorities.map((item, index) => (
-            <div
-              key={item.key}
-              className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-3 sm:flex-row sm:items-center"
+        <OptionList
+          items={priorities}
+          onReorder={(activeKey, overKey) =>
+            setDraft((current) => ({ ...current, priorities: reorderKeys(current.priorities, activeKey, overKey) }))
+          }
+        >
+          {(item) => (
+            <OptionFields
+              label={item.label}
+              color={item.color}
+              placeholder="Priority"
+              onLabel={(label) => updatePriority(item.key, { label })}
+              onColor={(color) => updatePriority(item.key, { color })}
+              onRemove={() => removePriority(item.key)}
+              removeDisabled={priorities.length <= 1}
             >
-              <input
-                type="color"
-                value={normalizeColorInput(item.color)}
-                onChange={(event) => updatePriority(item.key, { color: event.target.value })}
-                className="h-9 w-10 cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
-                aria-label={`Color for ${item.label}`}
+              <Switch
+                checked={item.enabled}
+                label="On board"
+                onChange={(enabled) => updatePriority(item.key, { enabled })}
               />
-              <Input
-                className="h-9"
-                value={item.label}
-                onChange={(event) => updatePriority(item.key, { label: event.target.value })}
-              />
-              <label className="flex items-center gap-2 text-xs text-zinc-600">
-                <input
-                  type="checkbox"
-                  checked={item.enabled}
-                  onChange={(event) => updatePriority(item.key, { enabled: event.target.checked })}
-                />
-                Enabled
-              </label>
-              <span
-                className={cn('hidden h-6 w-1 rounded-full sm:block')}
-                style={{ backgroundColor: item.color }}
-                aria-hidden
-              />
-              <div className="ml-auto flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9"
-                  disabled={index === 0}
-                  onClick={() => movePriority(item.key, -1)}
-                >
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9"
-                  disabled={index === priorities.length - 1}
-                  onClick={() => movePriority(item.key, 1)}
-                >
-                  <ArrowDown className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-red-600 hover:text-red-700"
-                  disabled={priorities.length <= 1}
-                  onClick={() => removePriority(item.key)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            </OptionFields>
+          )}
+        </OptionList>
       </section>
     </PageContainer>
   );
 }
 
-function reorder<T extends { key: string; order: number }>(
-  items: T[],
-  key: string,
-  direction: -1 | 1,
-) {
+function reorderKeys<T extends { key: string; order: number }>(items: T[], activeKey: string, overKey: string) {
   const sorted = sortByOrder(items);
-  const index = sorted.findIndex((item) => item.key === key);
-  const target = index + direction;
-  if (index < 0 || target < 0 || target >= sorted.length) return items;
-  const next = [...sorted];
-  const [moved] = next.splice(index, 1);
-  next.splice(target, 0, moved);
-  return next.map((item, order) => ({ ...item, order }));
+  const oldIndex = sorted.findIndex((item) => item.key === activeKey);
+  const newIndex = sorted.findIndex((item) => item.key === overKey);
+  if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return items;
+  return arrayMove(sorted, oldIndex, newIndex).map((item, order) => ({ ...item, order }));
+}
+
+function OptionList<T extends { key: string }>({
+  items,
+  onReorder,
+  children,
+}: {
+  items: T[];
+  onReorder: (activeKey: string, overKey: string) => void;
+  children: (item: T) => ReactNode;
+}) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  function onDragEnd(event: DragEndEvent) {
+    if (!event.over || event.active.id === event.over.id) return;
+    onReorder(String(event.active.id), String(event.over.id));
+  }
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <SortableContext items={items.map((item) => item.key)} strategy={verticalListSortingStrategy}>
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          {items.map((item, index) => (
+            <SortableRow key={item.key} id={item.key} divided={index > 0}>
+              {children(item)}
+            </SortableRow>
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function SortableRow({ id, divided, children }: { id: string; divided?: boolean; children: ReactNode }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useSortable({
+    id,
+    animateLayoutChanges: () => false,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform) }}
+      className={cn(
+        'flex items-start gap-1 bg-card px-2 py-2.5 sm:items-center',
+        divided && 'border-t border-border',
+        isDragging && 'relative z-10 shadow-lg',
+      )}
+    >
+      <div
+        ref={setActivatorNodeRef}
+        className="mt-1 inline-flex h-8 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-border hover:bg-accent hover:text-muted-foreground active:cursor-grabbing sm:mt-0"
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+function OptionFields({
+  label,
+  color,
+  placeholder,
+  onLabel,
+  onColor,
+  onRemove,
+  removeDisabled,
+  children,
+}: {
+  label: string;
+  color: string;
+  placeholder: string;
+  onLabel: (label: string) => void;
+  onColor: (color: string) => void;
+  onRemove: () => void;
+  removeDisabled: boolean;
+  children: ReactNode;
+}) {
+  const swatch = normalizeColorInput(color);
+  return (
+    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <label
+          className="relative h-7 w-7 shrink-0 cursor-pointer rounded-full ring-1 ring-inset ring-black/10"
+          style={{ backgroundColor: swatch }}
+        >
+          <span className="sr-only">Color for {label || placeholder}</span>
+          <input
+            type="color"
+            value={swatch}
+            onChange={(event) => onColor(event.target.value)}
+            className="absolute inset-0 cursor-pointer opacity-0"
+          />
+        </label>
+        <Input
+          className="h-9 min-w-0 flex-1 border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
+          value={label}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          onChange={(event) => onLabel(event.target.value)}
+        />
+        <span
+          className="hidden h-6 max-w-24 shrink-0 items-center truncate rounded-full px-2 text-xs font-medium sm:inline-flex"
+          style={{ backgroundColor: `${swatch}22`, color: swatch }}
+        >
+          {label || placeholder}
+        </span>
+      </div>
+      <div className="flex items-center gap-1 pl-9 sm:pl-0">
+        {children}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+          disabled={removeDisabled}
+          aria-label={`Remove ${label || placeholder}`}
+          onClick={onRemove}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function Switch({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="inline-flex h-8 items-center gap-1.5 rounded-full px-1.5 text-xs text-muted-foreground hover:bg-accent"
+    >
+      <span className={cn('relative h-4 w-7 rounded-full transition-colors', checked ? 'bg-primary' : 'bg-secondary')}>
+        <span
+          className={cn(
+            'absolute top-0.5 h-3 w-3 rounded-full bg-popover transition-transform',
+            checked ? 'translate-x-3.5' : 'translate-x-0.5',
+          )}
+        />
+      </span>
+      {label}
+    </button>
+  );
 }
 
 function normalizeColorInput(color: string) {

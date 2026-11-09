@@ -6,8 +6,8 @@ Productive mini-apps for workspace-scoped project hubs and replacement-grade tas
 
 | Key | Role | Depends on | Status |
 |---|---|---|---|
-| `projects` | Thin hub: CRUD projects | — | available |
-| `tasks` | List/board tasks inside projects | `projects` | available |
+| `projects` | Project page is the task list for that project | — | available |
+| `tasks` | All and Today across projects, plus the list inside a project | `projects` | available |
 
 Install order is enforced by `dependsOn`. You cannot install Tasks without Projects. You cannot uninstall Projects while Tasks is installed.
 
@@ -60,15 +60,15 @@ Every route: cookie auth → workspace membership → app installed.
 
 ## Web routes
 
-- `/w/[workspaceId]/projects`
-- `/w/[workspaceId]/projects/[projectId]`
-- `/w/[workspaceId]/tasks` (list + board with drag-and-drop; click opens edit modal via `?taskId=`)
-- `/w/[workspaceId]/tasks/settings` (statuses, priorities, colors, order)
-- `/w/[workspaceId]/tasks/[taskId]` redirects to `/tasks?taskId=`
+- `/w/[workspaceId]/projects` opens each project from the card. The card shows open and total task counts.
+- `/w/[workspaceId]/projects/[projectId]` is that project's task list. The name and description save on blur. Archive and delete are in the header menu.
+- `/w/[workspaceId]/tasks` is All and Today across projects (`scope=today`, `view=board`, `done=1`, `taskId=`). The list groups by project. The board groups by status.
+- `/w/[workspaceId]/tasks/settings` edits statuses, priorities, colors, and order.
+- `/w/[workspaceId]/tasks/[taskId]` redirects to `/tasks?taskId=`.
 
-Tasks app chrome includes a top nav: **Tasks** | **Settings**.
+The task dialog autosaves. See [../UI.md](../UI.md).
 
-Shell nav uses `/w/{id}/{appKey}` from installed manifests.
+Shell nav uses `/w/{id}/{appKey}` from installed manifests, with `manifest.nav.icon`.
 
 ## Non-goals (v1)
 

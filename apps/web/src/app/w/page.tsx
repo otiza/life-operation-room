@@ -23,5 +23,5 @@ export default function WorkspaceIndexPage() {
     router.replace(`/w/${target}`);
   }, [workspacesQuery.data, currentWorkspaceId, router, setCurrentWorkspaceId]);
 
-  return <div className="text-sm text-zinc-500">Opening workspace…</div>;
+  return <div className="text-sm text-muted-foreground">Opening workspace…</div>;
 }

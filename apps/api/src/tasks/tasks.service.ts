@@ -20,6 +20,7 @@ import {
 import { tasks, type Task, type User } from '../db/schema.js';
 import {
   DOMAIN_EVENTS,
+  type AppInstalledEvent,
   type AppUninstalledEvent,
   type TaskDomainEvent,
 } from '../common/events/domain-events.js';
@@ -27,9 +28,9 @@ import { toIso } from '../common/utils/crypto.js';
 import { AppsService } from '../apps/apps.service.js';
 import { ProjectsService } from '../projects/projects.service.js';
 import { WorkspacesService } from '../workspaces/workspaces.service.js';
+import { TaskReferencesService } from './task-references.service.js';
 
 const READ_ROLES = ['owner', 'admin', 'member', 'guest'] as const;
-const WRITE_ROLES = ['owner', 'admin', 'member'] as const;
 
 @Injectable()
 export class TasksService {
@@ -40,11 +41,11 @@ export class TasksService {
     private readonly workspacesService: WorkspacesService,
     private readonly appsService: AppsService,
     private readonly projectsService: ProjectsService,
+    private readonly taskReferencesService: TaskReferencesService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async getSettings(workspaceId: string, userId: string): Promise<TaskSettings> {
-    await this.workspacesService.requireMembership(workspaceId, userId, [...READ_ROLES]);
+  async getSettings(workspaceId: string): Promise<TaskSettings> {
     const row = await this.appsService.assertInstalled(workspaceId, 'tasks');
     const parsed = taskSettingsSchema.safeParse(row.config);
     if (parsed.success) return parsed.data;
@@ -53,17 +54,10 @@ export class TasksService {
     return defaults;
   }
 
-  async updateSettings(
-    workspaceId: string,
-    user: User,
-    input: UpdateTaskSettingsInput,
-  ): Promise<TaskSettings> {
-    await this.workspacesService.requireMembership(workspaceId, user.id, [...WRITE_ROLES]);
-    await this.appsService.assertInstalled(workspaceId, 'tasks');
+  async updateSettings(workspaceId: string, input: UpdateTaskSettingsInput): Promise<TaskSettings> {
     const settings = taskSettingsSchema.parse(input);
     this.assertUniqueKeys(settings);
-
-    const previous = await this.getSettings(workspaceId, user.id);
+    const previous = await this.getSettings(workspaceId);
     const removedStatusKeys = previous.statuses
       .map((item) => item.key)
       .filter((key) => !settings.statuses.some((item) => item.key === key));
@@ -105,9 +99,7 @@ export class TasksService {
   }
 
   async list(workspaceId: string, userId: string, query: ListTasksQuery) {
-    await this.workspacesService.requireMembership(workspaceId, userId, [...READ_ROLES]);
-    await this.appsService.assertInstalled(workspaceId, 'tasks');
-    const settings = await this.getSettings(workspaceId, userId);
+    const settings = await this.getSettings(workspaceId);
     const doneKeys = settings.statuses.filter((item) => item.isDone).map((item) => item.key);
     const conditions = [eq(tasks.workspaceId, workspaceId)];
     if (query.projectId) conditions.push(eq(tasks.projectId, query.projectId));
@@ -141,39 +133,37 @@ export class TasksService {
     return rows.map((row) => this.toDto(row));
   }
 
-  async get(workspaceId: string, taskId: string, userId: string) {
-    await this.workspacesService.requireMembership(workspaceId, userId, [...READ_ROLES]);
-    await this.appsService.assertInstalled(workspaceId, 'tasks');
+  async get(workspaceId: string, taskId: string) {
     const task = await this.findInWorkspace(workspaceId, taskId);
     return this.toDto(task);
   }
 
-  async countByProject(workspaceId: string, projectId: string): Promise<number> {
-    const [row] = await this.db
-      .select({ value: count() })
-      .from(tasks)
-      .where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.projectId, projectId)));
-    return Number(row?.value ?? 0);
+  countByProject(workspaceId: string, projectId: string): Promise<number> {
+    return this.taskReferencesService.countByProject(workspaceId, projectId);
   }
 
-  async countsByProject(workspaceId: string, userId: string) {
-    await this.workspacesService.requireMembership(workspaceId, userId, [...READ_ROLES]);
-    await this.appsService.assertInstalled(workspaceId, 'tasks');
+  async countsByProject(workspaceId: string) {
+    const settings = await this.getSettings(workspaceId);
+    const doneKeys = new Set(settings.statuses.filter((item) => item.isDone).map((item) => item.key));
     const rows = await this.db
-      .select({ projectId: tasks.projectId, value: count() })
+      .select({ projectId: tasks.projectId, status: tasks.status, value: count() })
       .from(tasks)
       .where(eq(tasks.workspaceId, workspaceId))
-      .groupBy(tasks.projectId);
-    const counts: Record<string, number> = {};
-    for (const row of rows) counts[row.projectId] = Number(row.value);
+      .groupBy(tasks.projectId, tasks.status);
+    const counts: Record<string, { total: number; open: number }> = {};
+    for (const row of rows) {
+      const current = counts[row.projectId] ?? { total: 0, open: 0 };
+      const value = Number(row.value);
+      current.total += value;
+      if (!doneKeys.has(row.status)) current.open += value;
+      counts[row.projectId] = current;
+    }
     return counts;
   }
 
   async create(workspaceId: string, user: User, input: CreateTaskInput) {
-    await this.workspacesService.requireMembership(workspaceId, user.id, [...WRITE_ROLES]);
-    await this.appsService.assertInstalled(workspaceId, 'tasks');
     await this.projectsService.assertProjectInWorkspace(workspaceId, input.projectId);
-    const settings = await this.getSettings(workspaceId, user.id);
+    const settings = await this.getSettings(workspaceId);
     const defaultStatus =
       settings.statuses.find((item) => item.enabled)?.key ?? settings.statuses[0]?.key ?? 'todo';
     const defaultPriority =
@@ -229,10 +219,8 @@ export class TasksService {
   }
 
   async update(workspaceId: string, taskId: string, user: User, input: UpdateTaskInput) {
-    await this.workspacesService.requireMembership(workspaceId, user.id, [...WRITE_ROLES]);
-    await this.appsService.assertInstalled(workspaceId, 'tasks');
     const existing = await this.findInWorkspace(workspaceId, taskId);
-    const settings = await this.getSettings(workspaceId, user.id);
+    const settings = await this.getSettings(workspaceId);
     if (input.status !== undefined) this.assertAssignableStatus(settings, input.status, existing.status);
     if (input.priority !== undefined) {
       this.assertAssignablePriority(settings, input.priority, existing.priority);
@@ -305,14 +293,23 @@ export class TasksService {
     return dto;
   }
 
-  async remove(workspaceId: string, taskId: string, user: User) {
-    await this.workspacesService.requireMembership(workspaceId, user.id, [...WRITE_ROLES]);
-    await this.appsService.assertInstalled(workspaceId, 'tasks');
+  async remove(workspaceId: string, taskId: string) {
     await this.findInWorkspace(workspaceId, taskId);
     await this.db
       .delete(tasks)
       .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
     return { ok: true };
+  }
+
+  @OnEvent(DOMAIN_EVENTS.appInstalled)
+  async onAppInstalled(event: AppInstalledEvent) {
+    if (event.appKey !== 'tasks') return;
+    const installed = await this.appsService.assertInstalled(event.workspaceId, 'tasks');
+    if (taskSettingsSchema.safeParse(installed.config).success) return;
+    await this.appsService.updateConfig(event.workspaceId, 'tasks', {
+      ...structuredClone(DEFAULT_TASK_SETTINGS),
+      ...installed.config,
+    });
   }
 
   @OnEvent(DOMAIN_EVENTS.appUninstalled)

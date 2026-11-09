@@ -4,22 +4,12 @@ import { eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { crossAppLinks } from '../db/schema.js';
 import { toIso } from '../common/utils/crypto.js';
-import { WorkspacesService } from '../workspaces/workspaces.service.js';
 
 @Injectable()
 export class LinksService {
-  constructor(
-    @InjectDrizzle() private readonly db: NodePgDatabase,
-    private readonly workspacesService: WorkspacesService,
-  ) {}
+  constructor(@InjectDrizzle() private readonly db: NodePgDatabase) {}
 
-  async list(workspaceId: string, userId: string) {
-    await this.workspacesService.requireMembership(workspaceId, userId, [
-      'owner',
-      'admin',
-      'member',
-      'guest',
-    ]);
+  async list(workspaceId: string) {
     const rows = await this.db
       .select()
       .from(crossAppLinks)

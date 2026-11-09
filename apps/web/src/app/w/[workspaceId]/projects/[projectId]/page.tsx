@@ -1,28 +1,40 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  deleteProject,
-  getProject,
-  updateProject,
-} from '../../../../../features/projects/projects-api';
+import { MoreHorizontal } from 'lucide-react';
+import { deleteProject, getProject, updateProject } from '../../../../../features/projects/projects-api';
+import { TasksWorkspace } from '../../../../../features/tasks/tasks-workspace';
 import { Button } from '../../../../../components/ui/button';
-import { Input } from '../../../../../components/ui/input';
-import { Badge } from '../../../../../components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../../components/ui/card';
+import { Dialog } from '../../../../../components/ui/dialog';
 import { PageContainer, PageHeader } from '../../../../../components/layout/page-container';
 import { ApiError } from '../../../../../lib/api';
 
 export default function ProjectDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageContainer size="md">
+          <PageHeader title="Project" description="Loading…" />
+        </PageContainer>
+      }
+    >
+      <ProjectDetailContent />
+    </Suspense>
+  );
+}
+
+function ProjectDetailContent() {
   const params = useParams<{ workspaceId: string; projectId: string }>();
   const { workspaceId, projectId } = params;
   const router = useRouter();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const projectQuery = useQuery({
@@ -38,11 +50,8 @@ export default function ProjectDetailPage() {
   }, [projectQuery.data]);
 
   const saveMutation = useMutation({
-    mutationFn: () =>
-      updateProject(workspaceId, projectId, {
-        name: name.trim(),
-        description: description.trim() || null,
-      }),
+    mutationFn: (input: { name?: string; description?: string | null; status?: 'active' | 'archived' }) =>
+      updateProject(workspaceId, projectId, input),
     onSuccess: async () => {
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['project', workspaceId, projectId] });
@@ -50,15 +59,6 @@ export default function ProjectDetailPage() {
     },
     onError: (err: unknown) => {
       setError(err instanceof ApiError ? err.message : 'Could not save project');
-    },
-  });
-
-  const archiveMutation = useMutation({
-    mutationFn: (status: 'active' | 'archived') =>
-      updateProject(workspaceId, projectId, { status }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['project', workspaceId, projectId] });
-      await queryClient.invalidateQueries({ queryKey: ['projects', workspaceId] });
     },
   });
 
@@ -73,12 +73,6 @@ export default function ProjectDetailPage() {
     },
   });
 
-  function onSave(event: FormEvent) {
-    event.preventDefault();
-    if (!name.trim()) return;
-    saveMutation.mutate();
-  }
-
   if (projectQuery.isLoading) {
     return (
       <PageContainer size="md">
@@ -92,11 +86,9 @@ export default function ProjectDetailPage() {
       <PageContainer size="md">
         <PageHeader title="Project" description="Not found" />
         <p className="text-sm text-red-600">
-          {projectQuery.error instanceof ApiError
-            ? projectQuery.error.message
-            : 'Project not found'}
+          {projectQuery.error instanceof ApiError ? projectQuery.error.message : 'Project not found'}
         </p>
-        <Link href={`/w/${workspaceId}/projects`} className="text-sm text-zinc-700 underline">
+        <Link href={`/w/${workspaceId}/projects`} className="text-sm text-foreground underline">
           Back to projects
         </Link>
       </PageContainer>
@@ -106,82 +98,99 @@ export default function ProjectDetailPage() {
   const project = projectQuery.data.project;
 
   return (
-    <PageContainer size="md">
-      <PageHeader
-        title={project.name}
-        description="Edit project details or jump to its tasks."
-        actions={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Link
-              href={`/w/${workspaceId}/tasks?projectId=${project.id}`}
-              className="inline-flex h-11 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white"
-            >
-              View tasks
-            </Link>
-            <Button
-              variant="outline"
-              className="h-11"
-              onClick={() =>
-                archiveMutation.mutate(project.status === 'archived' ? 'active' : 'archived')
-              }
-              disabled={archiveMutation.isPending}
-            >
-              {project.status === 'archived' ? 'Restore' : 'Archive'}
-            </Button>
+    <>
+      <TasksWorkspace
+        workspaceId={workspaceId}
+        lockedProjectId={projectId}
+        header={
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <input
+                className="w-full bg-transparent text-xl font-semibold tracking-tight text-foreground outline-none sm:text-2xl"
+                value={name}
+                aria-label="Project name"
+                onChange={(event) => setName(event.target.value)}
+                onBlur={() => {
+                  const next = name.trim();
+                  if (!next || next === project.name) return;
+                  saveMutation.mutate({ name: next });
+                }}
+              />
+              <textarea
+                className="mt-1 w-full resize-none bg-transparent text-sm text-muted-foreground outline-none placeholder:text-muted-foreground"
+                rows={description ? 2 : 1}
+                placeholder="Add a description"
+                value={description}
+                aria-label="Project description"
+                onChange={(event) => setDescription(event.target.value)}
+                onBlur={() => {
+                  const next = description.trim();
+                  if (next === (project.description ?? '')) return;
+                  saveMutation.mutate({ description: next || null });
+                }}
+              />
+              {error ? <p className="mt-1 text-sm text-red-600">{error}</p> : null}
+            </div>
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Project actions"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+              {menuOpen ? (
+                <div className="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-border bg-popover py-1 shadow-lg">
+                  <button
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      saveMutation.mutate({ status: project.status === 'archived' ? 'active' : 'archived' });
+                    }}
+                  >
+                    {project.status === 'archived' ? 'Restore' : 'Archive'}
+                  </button>
+                  <button
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setConfirmDelete(true);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         }
       />
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle>Details</CardTitle>
-            <Badge>{project.status}</Badge>
-          </div>
-          <CardDescription>Changes save to this workspace only.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-3" onSubmit={onSave}>
-            <Input
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
+        <div className="space-y-4 p-5">
+          <h2 className="text-base font-semibold text-foreground">Delete {project.name}?</h2>
+          <p className="text-sm text-muted-foreground">
+            This is only allowed when the project has zero tasks. Archive it if work still exists.
+          </p>
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" className="h-11" onClick={() => setConfirmDelete(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
               className="h-11"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-            />
-            <textarea
-              className="min-h-28 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 sm:text-sm"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Description"
-            />
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-              <Button className="h-11 w-full sm:w-auto" disabled={saveMutation.isPending}>
-                {saveMutation.isPending ? 'Saving…' : 'Save'}
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                className="h-11 w-full sm:w-auto"
-                disabled={deleteMutation.isPending}
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      'Delete this project? This is only allowed when it has zero tasks. Archive it instead if work still exists.',
-                    )
-                  ) {
-                    deleteMutation.mutate();
-                  }
-                }}
-              >
-                Delete
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-      <Link href={`/w/${workspaceId}/projects`} className="text-sm text-zinc-600 underline">
-        Back to projects
-      </Link>
-    </PageContainer>
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate()}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+    </>
   );
 }

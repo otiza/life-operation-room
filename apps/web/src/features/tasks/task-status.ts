@@ -28,6 +28,17 @@ export function formatDueAtShort(dueAt: string | null) {
   return due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+export function isDueToday(dueAt: string | null) {
+  if (!dueAt) return false;
+  const due = new Date(dueAt);
+  const now = new Date();
+  return (
+    due.getFullYear() === now.getFullYear() &&
+    due.getMonth() === now.getMonth() &&
+    due.getDate() === now.getDate()
+  );
+}
+
 export function assigneeInitials(label: string) {
   if (label === 'Unassigned') return '?';
   if (label === 'Me') return 'Me';
@@ -91,6 +102,20 @@ export function priorityLabel(settings: TaskSettings, key: string) {
 
 export function defaultTaskSettings(): TaskSettings {
   return structuredClone(DEFAULT_TASK_SETTINGS);
+}
+
+export function dueLocalOnDay(dayOffset: number) {
+  const day = new Date();
+  day.setDate(day.getDate() + dayOffset);
+  day.setHours(18, 0, 0, 0);
+  return toDatetimeLocalValue(day.toISOString());
+}
+
+export function dueLocalFromDateInput(value: string) {
+  if (!value) return '';
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return '';
+  return toDatetimeLocalValue(new Date(year, month - 1, day, 18, 0, 0, 0).toISOString());
 }
 
 export function toDatetimeLocalValue(iso: string | null) {

@@ -74,7 +74,7 @@ export default function WorkspaceSettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {workspace?.kind === 'personal' ? (
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-muted-foreground">
               Personal workspaces are private. Create a shared workspace from the sidebar to invite
               collaborators.
             </p>
@@ -99,11 +99,11 @@ export default function WorkspaceSettingsPage() {
             {(membersQuery.data?.members ?? []).map((member) => (
               <div
                 key={member.id}
-                className="flex flex-col gap-2 rounded-lg border border-zinc-100 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 rounded-lg border border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{member.email}</div>
-                  <div className="text-xs text-zinc-500">{member.role}</div>
+                  <div className="text-xs text-muted-foreground">{member.role}</div>
                 </div>
                 <Badge className="w-fit">{member.status}</Badge>
               </div>

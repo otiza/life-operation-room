@@ -7,23 +7,16 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import {
-  APP_MANIFESTS,
-  DEFAULT_TASK_SETTINGS,
-  getAppManifest,
-  type InstallAppInput,
-} from '@erp-tiza/shared';
+import { APP_MANIFESTS, getAppManifest, type InstallAppInput } from '@erp-tiza/shared';
 import { workspaceApps } from '../db/schema.js';
 import type { User } from '../db/schema.js';
 import { DOMAIN_EVENTS } from '../common/events/domain-events.js';
 import { toIso } from '../common/utils/crypto.js';
-import { WorkspacesService } from '../workspaces/workspaces.service.js';
 
 @Injectable()
 export class AppsService {
   constructor(
     @InjectDrizzle() private readonly db: NodePgDatabase,
-    private readonly workspacesService: WorkspacesService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -31,13 +24,7 @@ export class AppsService {
     return APP_MANIFESTS;
   }
 
-  async listInstalled(workspaceId: string, userId: string) {
-    await this.workspacesService.requireMembership(workspaceId, userId, [
-      'owner',
-      'admin',
-      'member',
-      'guest',
-    ]);
+  async listInstalled(workspaceId: string) {
     const rows = await this.db
       .select()
       .from(workspaceApps)
@@ -46,7 +33,6 @@ export class AppsService {
   }
 
   async install(workspaceId: string, user: User, input: InstallAppInput) {
-    await this.workspacesService.requireMembership(workspaceId, user.id, ['owner', 'admin']);
     const manifest = getAppManifest(input.appKey);
     if (!manifest) {
       throw new NotFoundException(`Unknown app: ${input.appKey}`);
@@ -63,24 +49,24 @@ export class AppsService {
     if (missingDeps.length) {
       throw new BadRequestException(`Missing dependencies: ${missingDeps.join(', ')}`);
     }
-    const seededConfig =
-      manifest.key === 'tasks'
-        ? { ...DEFAULT_TASK_SETTINGS, ...(input.config ?? {}) }
-        : (input.config ?? {});
     const [row] = await this.db
       .insert(workspaceApps)
       .values({
         workspaceId,
         appKey: manifest.key,
-        config: seededConfig,
+        config: input.config ?? {},
       })
       .returning();
-    this.eventEmitter.emit(DOMAIN_EVENTS.appInstalled, {
+    await this.eventEmitter.emitAsync(DOMAIN_EVENTS.appInstalled, {
       workspaceId,
       appKey: manifest.key,
       installedByUserId: user.id,
     });
-    return this.toDto(row);
+    const [updated] = await this.db
+      .select()
+      .from(workspaceApps)
+      .where(and(eq(workspaceApps.workspaceId, workspaceId), eq(workspaceApps.appKey, manifest.key)));
+    return this.toDto(updated ?? row);
   }
 
   async updateConfig(workspaceId: string, appKey: string, config: Record<string, unknown>) {
@@ -94,7 +80,6 @@ export class AppsService {
   }
 
   async uninstall(workspaceId: string, user: User, appKey: string) {
-    await this.workspacesService.requireMembership(workspaceId, user.id, ['owner', 'admin']);
     const installed = await this.db
       .select()
       .from(workspaceApps)
@@ -114,7 +99,7 @@ export class AppsService {
     await this.db
       .delete(workspaceApps)
       .where(and(eq(workspaceApps.workspaceId, workspaceId), eq(workspaceApps.appKey, appKey)));
-    this.eventEmitter.emit(DOMAIN_EVENTS.appUninstalled, {
+    await this.eventEmitter.emitAsync(DOMAIN_EVENTS.appUninstalled, {
       workspaceId,
       appKey,
       uninstalledByUserId: user.id,

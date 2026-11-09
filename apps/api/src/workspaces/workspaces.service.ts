@@ -9,7 +9,7 @@ import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { CreateWorkspaceInput, InviteMemberInput, MemberRole } from '@erp-tiza/shared';
-import { workspaceMembers, workspaces, type User, type Workspace, type WorkspaceMember } from '../db/schema.js';
+import { users, workspaceMembers, workspaces, type User, type Workspace, type WorkspaceMember } from '../db/schema.js';
 import { createInviteToken, slugify, toIso } from '../common/utils/crypto.js';
 import { DOMAIN_EVENTS, type MemberInvitedEvent } from '../common/events/domain-events.js';
 import { UsersService } from '../users/users.service.js';
@@ -81,8 +81,7 @@ export class WorkspacesService {
     return rows.map((row) => row.workspace);
   }
 
-  async getForUser(workspaceId: string, userId: string): Promise<Workspace> {
-    await this.requireMembership(workspaceId, userId, ['owner', 'admin', 'member', 'guest']);
+  async getForUser(workspaceId: string): Promise<Workspace> {
     const workspace = await this.findById(workspaceId);
     if (!workspace) throw new NotFoundException('Workspace not found');
     return workspace;
@@ -93,24 +92,20 @@ export class WorkspacesService {
     return workspace;
   }
 
-  async listMembers(workspaceId: string, userId: string) {
-    await this.requireMembership(workspaceId, userId, ['owner', 'admin', 'member', 'guest']);
+  async listMembers(workspaceId: string) {
     const rows = await this.db
-      .select()
+      .select({ member: workspaceMembers, name: users.name })
       .from(workspaceMembers)
+      .leftJoin(users, eq(workspaceMembers.userId, users.id))
       .where(eq(workspaceMembers.workspaceId, workspaceId));
-    return rows.map((row) => this.memberToDto(row));
+    return rows.map((row) => this.memberToDto(row.member, false, row.name));
   }
 
   async inviteMember(workspaceId: string, invitedBy: User, input: InviteMemberInput) {
-    const membership = await this.requireMembership(workspaceId, invitedBy.id, ['owner', 'admin']);
     const workspace = await this.findById(workspaceId);
     if (!workspace) throw new NotFoundException('Workspace not found');
     if (workspace.kind === 'personal') {
       throw new BadRequestException('Cannot invite members to a personal workspace');
-    }
-    if (membership.role === 'admin' && input.role === 'admin') {
-      // admins may invite admins
     }
     const email = input.email.toLowerCase();
     const existing = await this.db
@@ -205,11 +200,12 @@ export class WorkspacesService {
     };
   }
 
-  memberToDto(member: WorkspaceMember, includeToken = false) {
+  memberToDto(member: WorkspaceMember, includeToken = false, name: string | null = null) {
     return {
       id: member.id,
       workspaceId: member.workspaceId,
       userId: member.userId,
+      name,
       email: member.email,
       role: member.role,
       status: member.status,

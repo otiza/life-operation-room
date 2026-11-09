@@ -1,6 +1,12 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { createWorkspaceSchema, inviteMemberSchema } from '@erp-tiza/shared';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import {
+  WORKSPACE_ADMIN_ROLES,
+  WORKSPACE_READ_ROLES,
+  WorkspaceAccessGuard,
+  WorkspaceRoles,
+} from '../common/guards/workspace-access.guard.js';
 import type { User } from '../db/schema.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { WorkspacesService } from './workspaces.service.js';
@@ -24,18 +30,24 @@ export class WorkspacesController {
   }
 
   @Get('workspaces/:id')
-  async get(@CurrentUser() user: User, @Param('id') id: string) {
-    const workspace = await this.workspacesService.getForUser(id, user.id);
+  @UseGuards(WorkspaceAccessGuard)
+  @WorkspaceRoles(WORKSPACE_READ_ROLES)
+  async get(@Param('id') id: string) {
+    const workspace = await this.workspacesService.getForUser(id);
     return { workspace: this.workspacesService.toDto(workspace) };
   }
 
   @Get('workspaces/:id/members')
-  async members(@CurrentUser() user: User, @Param('id') id: string) {
-    const members = await this.workspacesService.listMembers(id, user.id);
+  @UseGuards(WorkspaceAccessGuard)
+  @WorkspaceRoles(WORKSPACE_READ_ROLES)
+  async members(@Param('id') id: string) {
+    const members = await this.workspacesService.listMembers(id);
     return { members };
   }
 
   @Post('workspaces/:id/invites')
+  @UseGuards(WorkspaceAccessGuard)
+  @WorkspaceRoles(WORKSPACE_ADMIN_ROLES)
   async invite(@CurrentUser() user: User, @Param('id') id: string, @Body() body: unknown) {
     const input = inviteMemberSchema.parse(body);
     const member = await this.workspacesService.inviteMember(id, user, input);

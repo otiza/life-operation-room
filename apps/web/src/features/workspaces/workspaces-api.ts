@@ -5,6 +5,7 @@ export type WorkspaceMember = {
   id: string;
   workspaceId: string;
   userId: string | null;
+  name?: string | null;
   email: string;
   role: 'owner' | 'admin' | 'member' | 'guest';
   status: 'invited' | 'active';

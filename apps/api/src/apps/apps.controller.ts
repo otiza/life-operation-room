@@ -2,6 +2,12 @@ import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/c
 import { installAppSchema } from '@erp-tiza/shared';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import {
+  WORKSPACE_ADMIN_ROLES,
+  WORKSPACE_READ_ROLES,
+  WorkspaceAccessGuard,
+  WorkspaceRoles,
+} from '../common/guards/workspace-access.guard.js';
 import type { User } from '../db/schema.js';
 import { AppsService } from './apps.service.js';
 
@@ -16,12 +22,16 @@ export class AppsController {
   }
 
   @Get('workspaces/:id/apps')
-  async list(@CurrentUser() user: User, @Param('id') workspaceId: string) {
-    const apps = await this.appsService.listInstalled(workspaceId, user.id);
+  @UseGuards(WorkspaceAccessGuard)
+  @WorkspaceRoles(WORKSPACE_READ_ROLES)
+  async list(@Param('id') workspaceId: string) {
+    const apps = await this.appsService.listInstalled(workspaceId);
     return { apps };
   }
 
   @Post('workspaces/:id/apps/install')
+  @UseGuards(WorkspaceAccessGuard)
+  @WorkspaceRoles(WORKSPACE_ADMIN_ROLES)
   async install(@CurrentUser() user: User, @Param('id') workspaceId: string, @Body() body: unknown) {
     const input = installAppSchema.parse(body);
     const app = await this.appsService.install(workspaceId, user, input);
@@ -29,6 +39,8 @@ export class AppsController {
   }
 
   @Delete('workspaces/:id/apps/:appKey')
+  @UseGuards(WorkspaceAccessGuard)
+  @WorkspaceRoles(WORKSPACE_ADMIN_ROLES)
   async uninstall(
     @CurrentUser() user: User,
     @Param('id') workspaceId: string,

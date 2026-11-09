@@ -23,9 +23,9 @@ Create `apps/api/src/<app>/` with a Nest module, controller, and service.
 Rules:
 
 - Scope every row with `workspace_id`
-- Use `WorkspacesService.requireMembership(...)` (or dedicated guards)
-- Call `AppsService.assertInstalled(workspaceId, appKey)` on app routes
-- Do not query another app’s tables; publish domain events and/or insert `cross_app_links`
+- Protect routes with `AuthGuard`, `WorkspaceAccessGuard` (`@WorkspaceRoles`), and `AppInstalledGuard` (`@InstalledApp`)
+- Do not query another app’s tables. Publish domain events, insert `cross_app_links`, or call a narrow port that app exports
+- Seed install data from an `app.installed` listener in that app, not from `AppsService`
 - Register the module in `AppModule`
 
 ## 3. Frontend feature
@@ -34,7 +34,9 @@ Create `apps/web/src/features/<app>/` for API helpers and UI.
 
 Add a real route under `apps/web/src/app/w/[workspaceId]/<app>/` (the dynamic `[appKey]` placeholder can stay for stubs).
 
-Shell nav comes from installed manifests automatically after install.
+Follow [UI.md](./UI.md). A list-shaped app copies `TasksWorkspace`: the page is the work, edits autosave over the list, and scope stays separate from list or board.
+
+Shell nav comes from installed manifests automatically after install. Use `manifest.nav.icon`.
 
 Responsive checklist (mandatory):
 
@@ -63,7 +65,7 @@ Emit typed events through Nest `EventEmitter2` (see `DOMAIN_EVENTS`). Notificati
 
 ## 6. Patterns used by Projects / Tasks
 
-- **Install seed:** listen for `app.installed` in the app service (Projects creates an Inbox when none exists).
+- **Install seed:** listen for `app.installed` in the app service (Projects creates an Inbox when none exists; Tasks writes default status and priority settings).
 - **Uninstall cleanup:** listen for `app.uninstalled` and delete that workspace’s app rows (do not leave orphan data after uninstall).
-- **Hard dependency without cross-app FK:** when `dependsOn` is required (Tasks → Projects), store the foreign id as a UUID column **without** a DB FK, and validate through the other app’s exported service.
+- **Hard dependency without cross-app FK:** when `dependsOn` is required (Tasks → Projects), store the foreign id as a UUID column **without** a DB FK, and validate through the other app’s exported service. Reads such as “how many tasks point at this project” go through a port (`TaskReferencesService`), not a direct table import.
 - Soft coupling to optional apps (e.g. Calendar): emit domain events only; do not write `cross_app_links` until a real target exists.

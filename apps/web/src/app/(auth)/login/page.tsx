@@ -31,7 +31,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(circle_at_top,_#f8fafc,_#e2e8f0)] p-4 sm:p-6">
+    <div className="flex min-h-dvh items-center justify-center bg-background p-4 sm:p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Welcome back</CardTitle>
@@ -57,9 +57,9 @@ export default function LoginPage() {
               {mutation.isPending ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
-          <p className="mt-4 text-sm text-zinc-500">
+          <p className="mt-4 text-sm text-muted-foreground">
             No account?{' '}
-            <Link className="font-medium text-zinc-900 underline" href="/signup">
+            <Link className="font-medium text-foreground underline" href="/signup">
               Create one
             </Link>
           </p>

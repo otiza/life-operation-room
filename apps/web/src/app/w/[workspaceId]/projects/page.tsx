@@ -9,7 +9,6 @@ import { countsByProject } from '../../../../features/tasks/tasks-api';
 import { listInstalledApps } from '../../../../features/apps/apps-api';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
-import { Badge } from '../../../../components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { PageContainer, PageHeader } from '../../../../components/layout/page-container';
 import { ApiError } from '../../../../lib/api';
@@ -67,7 +66,7 @@ export default function ProjectsPage() {
 
   if (installedQuery.isLoading) {
     return (
-      <PageContainer>
+      <PageContainer size="full">
         <PageHeader title="Projects" description="Loading…" />
       </PageContainer>
     );
@@ -79,10 +78,10 @@ export default function ProjectsPage() {
         <PageHeader title="Projects" description="Organize work into projects." />
         <Card>
           <CardContent className="space-y-4 pt-6">
-            <p className="text-sm text-zinc-600">Projects is not installed in this workspace.</p>
+            <p className="text-sm text-muted-foreground">Projects is not installed in this workspace.</p>
             <Link
               href={`/w/${workspaceId}/apps`}
-              className="inline-flex h-11 w-full items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white sm:w-auto"
+              className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground sm:w-auto"
             >
               Open marketplace
             </Link>
@@ -98,7 +97,7 @@ export default function ProjectsPage() {
   const counts = countsQuery.data?.counts ?? {};
 
   return (
-    <PageContainer>
+    <PageContainer size="full">
       <PageHeader
         title="Projects"
         description="Hubs for work. Tasks attach here; other apps can link later."
@@ -125,7 +124,7 @@ export default function ProjectsPage() {
                 autoFocus
               />
               <textarea
-                className="min-h-24 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-base outline-none placeholder:text-zinc-400 focus-visible:ring-2 focus-visible:ring-zinc-400 sm:text-sm"
+                className="min-h-24 w-full rounded-md border border-border bg-card px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
                 placeholder="Description (optional)"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
@@ -139,7 +138,7 @@ export default function ProjectsPage() {
         </Card>
       ) : null}
       {projectsQuery.isLoading ? (
-        <p className="text-sm text-zinc-500">Loading projects…</p>
+        <p className="text-sm text-muted-foreground">Loading projects…</p>
       ) : projectsQuery.isError ? (
         <p className="text-sm text-red-600">
           {projectsQuery.error instanceof ApiError
@@ -149,8 +148,8 @@ export default function ProjectsPage() {
       ) : projects.length === 0 ? (
         <Card>
           <CardContent className="space-y-3 py-10 text-center">
-            <p className="text-base font-semibold text-zinc-900">No projects yet</p>
-            <p className="mx-auto max-w-md text-sm text-zinc-500">
+            <p className="text-base font-semibold text-foreground">No projects yet</p>
+            <p className="mx-auto max-w-md text-sm text-muted-foreground">
               Create a project to group tasks. Installing Projects also seeds an Inbox.
             </p>
             <Button className="h-11" onClick={() => setShowCreate(true)}>
@@ -161,52 +160,34 @@ export default function ProjectsPage() {
       ) : (
         <div className="space-y-6">
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Active</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Active</h2>
             {activeProjects.length === 0 ? (
-              <p className="text-sm text-zinc-500">No active projects.</p>
+              <p className="text-sm text-muted-foreground">No active projects.</p>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {activeProjects.map((project) => {
-                  const taskCount = counts[project.id] ?? 0;
+                  const stats = counts[project.id] ?? { total: 0, open: 0 };
+                  const done = Math.max(stats.total - stats.open, 0);
+                  const progress = stats.total ? Math.round((done / stats.total) * 100) : 0;
                   return (
-                    <div
+                    <Link
                       key={project.id}
-                      className="flex min-w-0 flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
+                      href={`/w/${workspaceId}/projects/${project.id}`}
+                      className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm hover:border-border"
                     >
-                      <Link
-                        href={`/w/${workspaceId}/projects/${project.id}`}
-                        className="min-w-0"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="truncate text-base font-semibold text-zinc-900">
-                            {project.name}
-                          </h3>
-                          <Badge className="shrink-0 border-transparent bg-emerald-50 text-emerald-800">
-                            {project.status}
-                          </Badge>
+                      <h3 className="truncate text-base font-semibold text-foreground">{project.name}</h3>
+                      {project.description ? (
+                        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{project.description}</p>
+                      ) : null}
+                      <div className="mt-4">
+                        <div className="h-1 overflow-hidden rounded-full bg-muted">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
                         </div>
-                        {project.description ? (
-                          <p className="mt-2 line-clamp-2 text-sm text-zinc-500">
-                            {project.description}
-                          </p>
-                        ) : (
-                          <p className="mt-2 text-sm text-zinc-400">No description</p>
-                        )}
-                      </Link>
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
-                        <Badge className="border-transparent bg-zinc-100 text-zinc-700">
-                          {taskCount} task{taskCount === 1 ? '' : 's'}
-                        </Badge>
-                        {tasksInstalled ? (
-                          <Link
-                            href={`/w/${workspaceId}/tasks?projectId=${project.id}`}
-                            className="inline-flex h-9 items-center rounded-md px-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
-                          >
-                            Open tasks
-                          </Link>
-                        ) : null}
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {tasksInstalled ? `${stats.open} open · ${stats.total} tasks` : 'Tasks not installed'}
+                        </p>
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -214,24 +195,23 @@ export default function ProjectsPage() {
           </section>
           {archivedProjects.length > 0 ? (
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Archived
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {archivedProjects.map((project) => (
                   <Link
                     key={project.id}
                     href={`/w/${workspaceId}/projects/${project.id}`}
-                    className="block min-w-0 rounded-xl border border-zinc-100 bg-zinc-50 p-4"
+                    className="block min-w-0 rounded-xl border border-border bg-muted/50 p-4"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="truncate text-base font-medium text-zinc-700">
-                        {project.name}
-                      </h3>
-                      <Badge className="shrink-0">{project.status}</Badge>
+                      <h3 className="truncate text-base font-medium text-foreground">{project.name}</h3>
                     </div>
-                    <p className="mt-2 text-xs text-zinc-500">
-                      {counts[project.id] ?? 0} task{(counts[project.id] ?? 0) === 1 ? '' : 's'}
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {tasksInstalled
+                        ? `${counts[project.id]?.open ?? 0} open · ${counts[project.id]?.total ?? 0} tasks`
+                        : project.status}
                     </p>
                   </Link>
                 ))}

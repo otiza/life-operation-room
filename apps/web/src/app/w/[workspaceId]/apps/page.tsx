@@ -74,7 +74,7 @@ export default function MarketplacePage() {
       )}
       {grouped.map((group) => (
         <section key={group.category} className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             {group.category}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -94,7 +94,7 @@ export default function MarketplacePage() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-xs text-zinc-500">
+                    <div className="text-xs text-muted-foreground">
                       {app.dependsOn.length
                         ? `Depends on: ${app.dependsOn.join(', ')}`
                         : 'No dependencies'}

@@ -1,49 +1,91 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TaskSettings } from '@erp-tiza/shared';
-import { deleteTask, getTask, updateTask } from './tasks-api';
+import { deleteTask, getTask, updateTask, type Task } from './tasks-api';
 import {
+  dueLocalFromDateInput,
+  dueLocalOnDay,
   enabledPriorities,
   enabledStatuses,
   findPriority,
   findStatus,
+  formatDueAtShort,
   fromDatetimeLocalValue,
+  priorityLabel,
+  statusLabel,
   toDatetimeLocalValue,
 } from './task-status';
 import { listProjects } from '../projects/projects-api';
 import { listMembers } from '../workspaces/workspaces-api';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
 import { ApiError } from '../../lib/api';
 import { cn } from '../../lib/utils';
 
-const selectClass =
-  'h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 sm:h-10 sm:text-sm';
+type Draft = {
+  title: string;
+  description: string;
+  projectId: string;
+  status: string;
+  priority: string;
+  dueLocal: string;
+  assigneeUserId: string;
+};
+
+function draftFromTask(task: {
+  title: string;
+  description: string | null;
+  projectId: string;
+  status: string;
+  priority: string;
+  dueAt: string | null;
+  assigneeUserId: string | null;
+}): Draft {
+  return {
+    title: task.title,
+    description: task.description ?? '',
+    projectId: task.projectId,
+    status: task.status,
+    priority: task.priority,
+    dueLocal: toDatetimeLocalValue(task.dueAt),
+    assigneeUserId: task.assigneeUserId ?? '',
+  };
+}
+
+function sameDraft(left: Draft, right: Draft) {
+  return (
+    left.title === right.title &&
+    left.description === right.description &&
+    left.projectId === right.projectId &&
+    left.status === right.status &&
+    left.priority === right.priority &&
+    left.dueLocal === right.dueLocal &&
+    left.assigneeUserId === right.assigneeUserId
+  );
+}
 
 export function TaskEditForm({
   workspaceId,
   taskId,
   settings,
   onDeleted,
-  onSaved,
 }: {
   workspaceId: string;
   taskId: string;
   settings: TaskSettings;
-  onDeleted?: () => void;
-  onSaved?: () => void;
+  onDeleted?: (task: Task) => void;
 }) {
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [projectId, setProjectId] = useState('');
-  const [status, setStatus] = useState('');
-  const [priority, setPriority] = useState('');
-  const [dueLocal, setDueLocal] = useState('');
-  const [assigneeUserId, setAssigneeUserId] = useState('');
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const dirtyRef = useRef(false);
+  const draftRef = useRef<Draft | null>(null);
+  const hydratedDraftRef = useRef<string | null>(null);
+  draftRef.current = draft;
 
   const taskQuery = useQuery({
     queryKey: ['task', workspaceId, taskId],
@@ -60,57 +102,67 @@ export function TaskEditForm({
 
   useEffect(() => {
     const task = taskQuery.data?.task;
-    if (!task) return;
-    setTitle(task.title);
-    setDescription(task.description ?? '');
-    setProjectId(task.projectId);
-    setStatus(task.status);
-    setPriority(task.priority);
-    setDueLocal(toDatetimeLocalValue(task.dueAt));
-    setAssigneeUserId(task.assigneeUserId ?? '');
+    if (!task || dirtyRef.current) return;
+    const next = draftFromTask(task);
+    hydratedDraftRef.current = JSON.stringify(next);
+    setDraft(next);
   }, [taskQuery.data]);
 
   const saveMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (next: Draft) =>
       updateTask(workspaceId, taskId, {
-        title: title.trim(),
-        description: description.trim() || null,
-        projectId,
-        status,
-        priority,
-        dueAt: fromDatetimeLocalValue(dueLocal),
-        assigneeUserId: assigneeUserId || null,
+        title: next.title.trim(),
+        description: next.description.trim() || null,
+        projectId: next.projectId,
+        status: next.status,
+        priority: next.priority,
+        dueAt: fromDatetimeLocalValue(next.dueLocal),
+        assigneeUserId: next.assigneeUserId || null,
       }),
-    onSuccess: async () => {
+    onSuccess: async (_result, saved) => {
+      if (draftRef.current && sameDraft(draftRef.current, saved)) dirtyRef.current = false;
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['task', workspaceId, taskId] });
       await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
-      onSaved?.();
+      await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
     },
     onError: (err: unknown) => {
       setError(err instanceof ApiError ? err.message : 'Could not save task');
     },
   });
 
+  useEffect(() => {
+    if (!draft) return;
+    const serialized = JSON.stringify(draft);
+    if (hydratedDraftRef.current === serialized) {
+      hydratedDraftRef.current = null;
+      return;
+    }
+    if (!draft.title.trim() || !draft.projectId) return;
+    dirtyRef.current = true;
+    const handle = window.setTimeout(() => {
+      const next = draftRef.current;
+      if (!next?.title.trim() || !next.projectId) return;
+      saveMutation.mutate(next);
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [draft]);
+
   const deleteMutation = useMutation({
     mutationFn: () => deleteTask(workspaceId, taskId),
     onSuccess: async () => {
+      const task = taskQuery.data?.task;
       await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
-      onDeleted?.();
+      await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
+      if (task) onDeleted?.(task);
     },
     onError: (err: unknown) => {
       setError(err instanceof ApiError ? err.message : 'Could not delete task');
     },
   });
 
-  function onSave(event: FormEvent) {
-    event.preventDefault();
-    if (!title.trim() || !projectId) return;
-    saveMutation.mutate();
-  }
-
-  if (taskQuery.isLoading) {
-    return <p className="p-6 text-sm text-zinc-500">Loading task…</p>;
+  if (taskQuery.isLoading || !draft) {
+    return <p className="p-6 text-sm text-muted-foreground">Loading task…</p>;
   }
 
   if (taskQuery.isError || !taskQuery.data?.task) {
@@ -126,125 +178,328 @@ export function TaskEditForm({
   );
   const statusOptions = enabledStatuses(settings);
   const priorityOptions = enabledPriorities(settings);
-  const currentStatus = findStatus(settings, status);
-  const currentPriority = findPriority(settings, priority);
+  const currentStatus = findStatus(settings, draft.status);
+  const currentPriority = findPriority(settings, draft.priority);
   if (currentStatus && !statusOptions.some((item) => item.key === currentStatus.key)) {
     statusOptions.push(currentStatus);
   }
   if (currentPriority && !priorityOptions.some((item) => item.key === currentPriority.key)) {
     priorityOptions.push(currentPriority);
   }
+  const projects = projectsQuery.data?.projects ?? [];
+  const projectName = projects.find((project) => project.id === draft.projectId)?.name ?? 'Project';
+  const assigneeLabel =
+    activeMembers.find((member) => member.userId === draft.assigneeUserId)?.name?.trim() ||
+    activeMembers.find((member) => member.userId === draft.assigneeUserId)?.email ||
+    'Unassigned';
+  const dueLabel = formatDueAtShort(fromDatetimeLocalValue(draft.dueLocal)) ?? 'Due';
+
+  function patch(partial: Partial<Draft>) {
+    setDraft((current) => (current ? { ...current, ...partial } : current));
+    setOpenMenu(null);
+  }
 
   return (
-    <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSave}>
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-        <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-zinc-500">Title</span>
-          <Input
-            className="h-11 text-base font-medium"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            required
-            autoFocus
+        <input
+          className="w-full bg-transparent text-lg font-semibold text-foreground outline-none placeholder:text-muted-foreground"
+          value={draft.title}
+          aria-label="Title"
+          placeholder="Task title"
+          onChange={(event) => patch({ title: event.target.value })}
+        />
+        <textarea
+          className="min-h-28 w-full resize-y bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          placeholder="Add details…"
+          value={draft.description}
+          aria-label="Description"
+          onChange={(event) => patch({ description: event.target.value })}
+        />
+        <div className="flex flex-wrap gap-2">
+          <PropertyMenu
+            menuKey="status"
+            openKey={openMenu}
+            setOpenKey={setOpenMenu}
+            label={statusLabel(settings, draft.status)}
+            options={statusOptions.map((item) => ({ value: item.key, label: item.label }))}
+            onSelect={(value) => patch({ status: value })}
           />
-        </label>
-        <label className="block space-y-1.5">
-          <span className="text-xs font-medium text-zinc-500">Description</span>
-          <textarea
-            className="min-h-28 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-base outline-none placeholder:text-zinc-400 focus-visible:ring-2 focus-visible:ring-zinc-400 sm:text-sm"
-            placeholder="Add details…"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
+          <PropertyMenu
+            menuKey="priority"
+            openKey={openMenu}
+            setOpenKey={setOpenMenu}
+            label={priorityLabel(settings, draft.priority)}
+            options={priorityOptions.map((item) => ({ value: item.key, label: item.label }))}
+            onSelect={(value) => patch({ priority: value })}
           />
-        </label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-zinc-500">Project</span>
-            <select
-              className={selectClass}
-              value={projectId}
-              onChange={(event) => setProjectId(event.target.value)}
-              required
-            >
-              {(projectsQuery.data?.projects ?? []).map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                  {project.status === 'archived' ? ' (archived)' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-zinc-500">Assignee</span>
-            <select
-              className={selectClass}
-              value={assigneeUserId}
-              onChange={(event) => setAssigneeUserId(event.target.value)}
-            >
-              <option value="">Unassigned</option>
-              {activeMembers.map((member) => (
-                <option key={member.id} value={member.userId!}>
-                  {member.email}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-zinc-500">Status</span>
-            <select
-              className={selectClass}
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              {statusOptions.map((item) => (
-                <option key={item.key} value={item.key}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-zinc-500">Priority</span>
-            <select
-              className={selectClass}
-              value={priority}
-              onChange={(event) => setPriority(event.target.value)}
-            >
-              {priorityOptions.map((item) => (
-                <option key={item.key} value={item.key}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block space-y-1.5 sm:col-span-2">
-            <span className="text-xs font-medium text-zinc-500">Due</span>
-            <Input
-              type="datetime-local"
-              className="h-11"
-              value={dueLocal}
-              onChange={(event) => setDueLocal(event.target.value)}
-            />
-          </label>
+          <PropertyMenu
+            menuKey="project"
+            openKey={openMenu}
+            setOpenKey={setOpenMenu}
+            label={projectName}
+            options={projects.map((project) => ({
+              value: project.id,
+              label: project.status === 'archived' ? `${project.name} (archived)` : project.name,
+            }))}
+            onSelect={(value) => patch({ projectId: value })}
+          />
+          <PropertyMenu
+            menuKey="assignee"
+            openKey={openMenu}
+            setOpenKey={setOpenMenu}
+            label={assigneeLabel}
+            options={[
+              { value: '', label: 'Unassigned' },
+              ...activeMembers.map((member) => ({
+                value: member.userId!,
+                label: member.name?.trim() || member.email,
+              })),
+            ]}
+            onSelect={(value) => patch({ assigneeUserId: value })}
+          />
+          <DueMenu
+            open={openMenu === 'due'}
+            setOpen={(next) => setOpenMenu(next ? 'due' : null)}
+            label={dueLabel}
+            dateValue={draft.dueLocal.slice(0, 10)}
+            onToday={() => patch({ dueLocal: dueLocalOnDay(0) })}
+            onTomorrow={() => patch({ dueLocal: dueLocalOnDay(1) })}
+            onClear={() => patch({ dueLocal: '' })}
+            onPickDate={(value) => patch({ dueLocal: dueLocalFromDateInput(value) })}
+          />
         </div>
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        <p className="text-xs text-muted-foreground">
+          {saveMutation.isPending || dirtyRef.current ? 'Saving…' : 'Saved'}
+        </p>
       </div>
-      <div className={cn('flex flex-col gap-2 border-t border-zinc-100 px-5 py-4 sm:flex-row sm:justify-between')}>
-        <Button className="h-11 w-full sm:w-auto" disabled={saveMutation.isPending}>
-          {saveMutation.isPending ? 'Saving…' : 'Save changes'}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          className="h-11 w-full text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto"
-          disabled={deleteMutation.isPending}
-          onClick={() => {
-            if (window.confirm('Delete this task?')) deleteMutation.mutate();
-          }}
-        >
-          Delete
-        </Button>
+      <div className={cn('flex items-center justify-between gap-2 border-t border-border px-5 py-4')}>
+        {confirmDelete ? (
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-foreground">Delete this task?</p>
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" className="h-11" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                className="h-11"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate()}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-11 text-red-600 hover:bg-red-50 hover:text-red-700"
+            onClick={() => setConfirmDelete(true)}
+          >
+            Delete
+          </Button>
+        )}
       </div>
-    </form>
+    </div>
+  );
+}
+
+type MenuBox = { top: number; left: number; maxHeight: number; minWidth: number };
+
+function placeMenu(button: HTMLButtonElement): MenuBox {
+  const rect = button.getBoundingClientRect();
+  const gap = 6;
+  const margin = 8;
+  const spaceBelow = window.innerHeight - rect.bottom - margin;
+  const spaceAbove = rect.top - margin;
+  const openBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
+  const maxHeight = Math.max(140, Math.min(320, (openBelow ? spaceBelow : spaceAbove) - gap));
+  const top = openBelow ? rect.bottom + gap : Math.max(margin, rect.top - gap - maxHeight);
+  const minWidth = Math.max(rect.width, 220);
+  const left = Math.min(Math.max(margin, rect.left), window.innerWidth - minWidth - margin);
+  return { top, left, maxHeight, minWidth };
+}
+
+function DueMenu({
+  open,
+  setOpen,
+  label,
+  dateValue,
+  onToday,
+  onTomorrow,
+  onClear,
+  onPickDate,
+}: {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  label: string;
+  dateValue: string;
+  onToday: () => void;
+  onTomorrow: () => void;
+  onClear: () => void;
+  onPickDate: (value: string) => void;
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<MenuBox | null>(null);
+
+  useEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const button = buttonRef.current;
+    function place() {
+      setBox(placeMenu(button));
+    }
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open, setOpen]);
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="inline-flex h-8 items-center rounded-full bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        {label}
+      </button>
+      {open && box
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className="fixed z-[80] overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
+              style={{ top: box.top, left: box.left, maxHeight: box.maxHeight, minWidth: box.minWidth }}
+            >
+              <button type="button" className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent" onClick={onToday}>
+                Today
+              </button>
+              <button type="button" className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent" onClick={onTomorrow}>
+                Tomorrow
+              </button>
+              <button type="button" className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent" onClick={onClear}>
+                Clear
+              </button>
+              <label className="block px-3 py-2 text-sm text-foreground">
+                Pick a day
+                <input
+                  type="date"
+                  className="mt-1 h-9 w-full rounded-md border border-border px-2 text-sm"
+                  value={dateValue}
+                  onChange={(event) => {
+                    if (event.target.value) onPickDate(event.target.value);
+                  }}
+                />
+              </label>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
+function PropertyMenu({
+  menuKey,
+  openKey,
+  setOpenKey,
+  label,
+  options,
+  onSelect,
+}: {
+  menuKey: string;
+  openKey: string | null;
+  setOpenKey: (key: string | null) => void;
+  label: string;
+  options: { value: string; label: string }[];
+  onSelect: (value: string) => void;
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<MenuBox | null>(null);
+  const open = openKey === menuKey;
+
+  useEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const button = buttonRef.current;
+    function place() {
+      setBox(placeMenu(button));
+    }
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpenKey(null);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open, setOpenKey]);
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="inline-flex h-8 max-w-44 items-center truncate rounded-full bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent"
+        aria-expanded={open}
+        onClick={() => setOpenKey(open ? null : menuKey)}
+      >
+        {label}
+      </button>
+      {open && box
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="listbox"
+              className="fixed z-[80] overflow-y-auto rounded-lg border border-border bg-popover py-1 shadow-lg"
+              style={{ top: box.top, left: box.left, maxHeight: box.maxHeight, minWidth: box.minWidth }}
+            >
+              {options.map((option) => (
+                <button
+                  key={`${menuKey}-${option.value}`}
+                  type="button"
+                  className="block w-full px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent"
+                  onClick={() => onSelect(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }

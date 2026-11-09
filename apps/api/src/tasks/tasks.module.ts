@@ -3,11 +3,12 @@ import { AuthModule } from '../auth/auth.module.js';
 import { AppsModule } from '../apps/apps.module.js';
 import { ProjectsModule } from '../projects/projects.module.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
+import { TaskReferencesModule } from './task-references.module.js';
 import { TasksController } from './tasks.controller.js';
 import { TasksService } from './tasks.service.js';
 
 @Module({
-  imports: [AuthModule, WorkspacesModule, AppsModule, ProjectsModule],
+  imports: [AuthModule, WorkspacesModule, AppsModule, ProjectsModule, TaskReferencesModule],
   controllers: [TasksController],
   providers: [TasksService],
   exports: [TasksService],

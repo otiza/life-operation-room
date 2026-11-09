@@ -37,7 +37,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(circle_at_top,_#f8fafc,_#e2e8f0)] p-4 sm:p-6">
+    <div className="flex min-h-dvh items-center justify-center bg-background p-4 sm:p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Create your space</CardTitle>
@@ -70,9 +70,9 @@ export default function SignupPage() {
               {mutation.isPending ? 'Creating…' : 'Create account'}
             </Button>
           </form>
-          <p className="mt-4 text-sm text-zinc-500">
+          <p className="mt-4 text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link className="font-medium text-zinc-900 underline" href="/login">
+            <Link className="font-medium text-foreground underline" href="/login">
               Sign in
             </Link>
           </p>
