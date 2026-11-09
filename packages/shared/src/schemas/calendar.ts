@@ -103,6 +103,22 @@ export const deleteCalendarEventSchema = z.object({
   }
 });
 
+export const calendarDeleteUndoSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('soft_delete'), eventId: z.string().uuid() }),
+  z.object({
+    kind: z.literal('cancel_exception'),
+    eventId: z.string().uuid(),
+    occurrenceStart: z.string().datetime(),
+  }),
+  z.object({
+    kind: z.literal('rrule_truncate'),
+    eventId: z.string().uuid(),
+    previousRrule: z.string().nullable(),
+  }),
+]);
+
+export const undoCalendarDeleteSchema = calendarDeleteUndoSchema;
+
 export const listCalendarEventsQuerySchema = z.object({
   from: z.string().datetime(),
   to: z.string().datetime(),
@@ -199,6 +215,8 @@ export type UpdateCalendarSettingsInput = z.infer<typeof updateCalendarSettingsS
 export type CreateCalendarEventInput = z.infer<typeof createCalendarEventSchema>;
 export type UpdateCalendarEventInput = z.infer<typeof updateCalendarEventSchema>;
 export type DeleteCalendarEventInput = z.infer<typeof deleteCalendarEventSchema>;
+export type CalendarDeleteUndo = z.infer<typeof calendarDeleteUndoSchema>;
+export type UndoCalendarDeleteInput = z.infer<typeof undoCalendarDeleteSchema>;
 export type ListCalendarEventsQuery = z.infer<typeof listCalendarEventsQuerySchema>;
 export type CreateTimeBlockInput = z.infer<typeof createTimeBlockSchema>;
 export type CalendarOccurrence = z.infer<typeof calendarOccurrenceSchema>;

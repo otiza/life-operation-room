@@ -1,4 +1,5 @@
 import type {
+  CalendarDeleteUndo,
   CalendarEventDto,
   CalendarIcsTokenCreated,
   CalendarIcsTokenStatus,
@@ -64,16 +65,29 @@ export async function deleteCalendarEvent(
   eventId: string,
   input: DeleteCalendarEventInput = { scope: 'all' },
 ) {
-  return api<{ ok: boolean }>(`/workspaces/${workspaceId}/calendar/events/${eventId}`, {
-    method: 'DELETE',
-    body: JSON.stringify(input),
-  });
+  return api<{ ok: boolean; undo: CalendarDeleteUndo }>(
+    `/workspaces/${workspaceId}/calendar/events/${eventId}`,
+    {
+      method: 'DELETE',
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export async function restoreCalendarEvent(workspaceId: string, eventId: string) {
   return api<{ event: CalendarEvent }>(
     `/workspaces/${workspaceId}/calendar/events/${eventId}/restore`,
     { method: 'POST' },
+  );
+}
+
+export async function undoCalendarDelete(workspaceId: string, undo: CalendarDeleteUndo) {
+  return api<{ ok?: boolean; event?: CalendarEvent }>(
+    `/workspaces/${workspaceId}/calendar/events/${undo.eventId}/undo-delete`,
+    {
+      method: 'POST',
+      body: JSON.stringify(undo),
+    },
   );
 }
 

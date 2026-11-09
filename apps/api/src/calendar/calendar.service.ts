@@ -18,6 +18,7 @@ import {
   type CalendarSettings,
   type DeleteCalendarEventInput,
   type ListCalendarEventsQuery,
+  type UndoCalendarDeleteInput,
   type UpdateCalendarEventInput,
   type UpdateCalendarSettingsInput,
 } from '@erp-tiza/shared';
@@ -239,7 +240,7 @@ export class CalendarService {
         .update(calendarEvents)
         .set({ deletedAt: new Date(), updatedAt: new Date() })
         .where(and(eq(calendarEvents.id, eventId), eq(calendarEvents.workspaceId, workspaceId)));
-      return { ok: true };
+      return { ok: true, undo: { kind: 'soft_delete' as const, eventId } };
     }
 
     if (!input.occurrenceStart) {
@@ -249,9 +250,17 @@ export class CalendarService {
 
     if (scope === 'this') {
       await this.upsertException(workspaceId, event, occurrenceStart, { cancelled: true });
-      return { ok: true };
+      return {
+        ok: true,
+        undo: {
+          kind: 'cancel_exception' as const,
+          eventId,
+          occurrenceStart: occurrenceStart.toISOString(),
+        },
+      };
     }
 
+    const previousRrule = event.rrule;
     const untilRrule = this.recurrenceService.untilBeforeOccurrence(
       event.rrule,
       occurrenceStart,
@@ -262,7 +271,10 @@ export class CalendarService {
       .update(calendarEvents)
       .set({ rrule: untilRrule, updatedAt: new Date() })
       .where(and(eq(calendarEvents.id, event.id), eq(calendarEvents.workspaceId, workspaceId)));
-    return { ok: true };
+    return {
+      ok: true,
+      undo: { kind: 'rrule_truncate' as const, eventId, previousRrule },
+    };
   }
 
   async restore(workspaceId: string, eventId: string) {
@@ -284,6 +296,57 @@ export class CalendarService {
       .returning();
     if (!row) throw new NotFoundException('Event not found');
     return this.toDto(row);
+  }
+
+  async undoDelete(workspaceId: string, input: UndoCalendarDeleteInput) {
+    if (input.kind === 'soft_delete') {
+      return { event: await this.restore(workspaceId, input.eventId) };
+    }
+    if (input.kind === 'cancel_exception') {
+      const occurrenceStart = new Date(input.occurrenceStart);
+      const [existing] = await this.db
+        .select()
+        .from(calendarEventExceptions)
+        .where(
+          and(
+            eq(calendarEventExceptions.workspaceId, workspaceId),
+            eq(calendarEventExceptions.eventId, input.eventId),
+            eq(calendarEventExceptions.originalOccurrenceStart, occurrenceStart),
+            eq(calendarEventExceptions.cancelled, true),
+          ),
+        );
+      if (!existing) throw new NotFoundException('Cancellation exception not found');
+      const hasOverrides =
+        existing.title != null ||
+        existing.description != null ||
+        existing.location != null ||
+        existing.startAt != null ||
+        existing.endAt != null ||
+        existing.startDate != null ||
+        existing.endDate != null;
+      if (hasOverrides) {
+        await this.db
+          .update(calendarEventExceptions)
+          .set({ cancelled: false, updatedAt: new Date() })
+          .where(eq(calendarEventExceptions.id, existing.id));
+      } else {
+        await this.db.delete(calendarEventExceptions).where(eq(calendarEventExceptions.id, existing.id));
+      }
+      return { ok: true };
+    }
+    const [row] = await this.db
+      .update(calendarEvents)
+      .set({ rrule: input.previousRrule, updatedAt: new Date() })
+      .where(
+        and(
+          eq(calendarEvents.id, input.eventId),
+          eq(calendarEvents.workspaceId, workspaceId),
+          isNull(calendarEvents.deletedAt),
+        ),
+      )
+      .returning();
+    if (!row) throw new NotFoundException('Event not found');
+    return { event: this.toDto(row) };
   }
 
   async createTimeBlock(workspaceId: string, user: User, input: CreateTimeBlockInput) {

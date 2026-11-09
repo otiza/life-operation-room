@@ -14,6 +14,7 @@ import {
   createTimeBlockSchema,
   deleteCalendarEventSchema,
   listCalendarEventsQuerySchema,
+  undoCalendarDeleteSchema,
   updateCalendarEventSchema,
   updateCalendarSettingsSchema,
 } from '@erp-tiza/shared';
@@ -108,6 +109,20 @@ export class CalendarController {
   async restore(@Param('id') workspaceId: string, @Param('eventId') eventId: string) {
     const event = await this.calendarService.restore(workspaceId, eventId);
     return { event };
+  }
+
+  @Post('workspaces/:id/calendar/events/:eventId/undo-delete')
+  @WorkspaceRoles(WORKSPACE_WRITE_ROLES)
+  async undoDelete(
+    @Param('id') workspaceId: string,
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+  ) {
+    const input = undoCalendarDeleteSchema.parse({
+      ...(typeof body === 'object' && body ? body : {}),
+      eventId,
+    });
+    return this.calendarService.undoDelete(workspaceId, input);
   }
 
   @Post('workspaces/:id/calendar/time-blocks')

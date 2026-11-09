@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { minuteFromDropPosition, type CalendarMutationScope, type CalendarView } from '@erp-tiza/shared';
+import {
+  minuteFromDropPosition,
+  type CalendarDeleteUndo,
+  type CalendarMutationScope,
+  type CalendarView,
+} from '@erp-tiza/shared';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { Button } from '../../components/ui/button';
 import { listInstalledApps } from '../apps/apps-api';
@@ -14,7 +19,7 @@ import {
   createTimeBlock,
   deleteCalendarEvent,
   listCalendarEvents,
-  restoreCalendarEvent,
+  undoCalendarDelete,
   updateCalendarEvent,
   getCalendarSettings,
   type CalendarOccurrenceDto,
@@ -49,7 +54,7 @@ type MovePrevious = {
 };
 
 type UndoAction =
-  | { kind: 'delete'; eventId: string; label: string }
+  | { kind: 'delete'; undo: CalendarDeleteUndo; label: string }
   | {
       kind: 'move';
       eventId: string;
@@ -115,6 +120,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [undo, setUndo] = useState<UndoAction | null>(null);
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CalendarOccurrenceDto | null>(null);
 
   useEffect(() => {
     if (!undo) return;
@@ -221,7 +227,8 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
       if (event.key === 'e' && selected) setEditorOpen(true);
       if (event.key === 'Backspace' && selected && selected.kind !== 'due_chip') {
         event.preventDefault();
-        void handleDelete(selected, 'all');
+        if (selected.isRecurring) setPendingDelete(selected);
+        else void handleDelete(selected, 'all');
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -229,11 +236,11 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
   });
 
   async function handleDelete(occurrence: CalendarOccurrenceDto, scope: CalendarMutationScope) {
-    await deleteCalendarEvent(workspaceId, occurrence.eventId, {
+    const result = await deleteCalendarEvent(workspaceId, occurrence.eventId, {
       scope,
       occurrenceStart: occurrenceStartPayload(occurrence),
     });
-    setUndo({ kind: 'delete', eventId: occurrence.eventId, label: `Deleted “${occurrence.title}”` });
+    setUndo({ kind: 'delete', undo: result.undo, label: `Deleted “${occurrence.title}”` });
     setSelected(null);
     await invalidateEvents();
   }
@@ -590,6 +597,20 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         }}
       />
 
+      <ScopePrompt
+        open={Boolean(pendingDelete)}
+        title="Delete recurring event"
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        onSelect={(scope) => {
+          if (!pendingDelete) return;
+          const occurrence = pendingDelete;
+          setPendingDelete(null);
+          void handleDelete(occurrence, scope);
+        }}
+      />
+
       {undo ? (
         <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-popover px-4 py-2 text-sm shadow-lg">
           <span>{undo.label}</span>
@@ -598,7 +619,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
             variant="secondary"
             onClick={async () => {
               if (undo.kind === 'delete') {
-                await restoreCalendarEvent(workspaceId, undo.eventId);
+                await undoCalendarDelete(workspaceId, undo.undo);
               }
               if (undo.kind === 'move') {
                 await updateCalendarEvent(workspaceId, undo.eventId, {

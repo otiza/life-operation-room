@@ -41,9 +41,9 @@ describe('serializeIcsCalendar', () => {
     expect(ics).toContain('RRULE:FREQ=WEEKLY;BYDAY=MO');
 
     const parsed = ical.sync.parseICS(ics);
-    const vevents = Object.values(parsed).filter((item) => item.type === 'VEVENT');
+    const vevents = Object.values(parsed).filter((item) => item?.type === 'VEVENT');
     expect(vevents.length).toBeGreaterThanOrEqual(1);
-    expect(vevents[0].summary).toBe('Standup');
+    expect((vevents[0] as { summary?: string }).summary).toBe('Standup');
   });
 
   it('emits EXDATE in the event TZID and modified exceptions as RECURRENCE-ID VEVENTs', () => {
@@ -95,7 +95,7 @@ describe('serializeIcsCalendar', () => {
 
     expect(ics.match(/BEGIN:VEVENT/g)?.length).toBe(2);
     const parsed = ical.sync.parseICS(ics);
-    const vevents = Object.values(parsed).filter((item) => item.type === 'VEVENT');
+    const vevents = Object.values(parsed).filter((item) => item?.type === 'VEVENT');
     // Same UID + RECURRENCE-ID is folded by many parsers; content must still parse.
     expect(vevents.length).toBeGreaterThanOrEqual(1);
   });
@@ -122,7 +122,7 @@ describe('serializeIcsCalendar', () => {
     );
     expect(ics).toMatch(/UNTIL=\d{8}T\d{6}Z/);
     const parsed = ical.sync.parseICS(ics);
-    const vevents = Object.values(parsed).filter((item) => item.type === 'VEVENT');
+    const vevents = Object.values(parsed).filter((item) => item?.type === 'VEVENT');
     expect(vevents).toHaveLength(2);
 
     const allDay = makeEvent({
