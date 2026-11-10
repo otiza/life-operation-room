@@ -41,7 +41,6 @@ import { LinksService } from '../links/links.service.js';
 import { TaskReferencesService } from '../tasks/task-references.service.js';
 import { addCalendarDays, calendarEventToDto } from './calendar-mappers.js';
 import { CalendarSeriesService } from './calendar-series.service.js';
-import { CalendarTaskBlocksService } from './calendar-task-blocks.service.js';
 import { serializeIcsCalendar } from './ics.js';
 import { RecurrenceService } from './recurrence.service.js';
 
@@ -56,7 +55,6 @@ export class CalendarService {
     private readonly taskReferencesService: TaskReferencesService,
     private readonly recurrenceService: RecurrenceService,
     private readonly seriesService: CalendarSeriesService,
-    private readonly taskBlocksService: CalendarTaskBlocksService,
   ) {}
 
   async getSettings(workspaceId: string): Promise<CalendarSettings> {
@@ -357,7 +355,28 @@ export class CalendarService {
   }
 
   async createTimeBlock(workspaceId: string, user: User, input: CreateTimeBlockInput) {
-    return this.taskBlocksService.createTimeBlock(workspaceId, user, input);
+    const task = await this.taskReferencesService.assertTaskInWorkspace(workspaceId, input.taskId);
+    const event = await this.create(workspaceId, user, {
+      title: task.title,
+      description: null,
+      location: null,
+      isAllDay: false,
+      startAt: input.start,
+      endAt: input.end,
+      timezone: 'UTC',
+      kind: 'time_block',
+      rrule: null,
+      color: null,
+    });
+    await this.linksService.create({
+      workspaceId,
+      sourceApp: 'calendar',
+      sourceRef: event.id,
+      targetApp: 'tasks',
+      targetRef: task.id,
+      linkType: 'time_block',
+    });
+    return event;
   }
 
   async getIcsTokenStatus(workspaceId: string, userId: string) {

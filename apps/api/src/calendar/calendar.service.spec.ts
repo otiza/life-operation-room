@@ -2,7 +2,6 @@ import { NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CalendarSeriesService } from './calendar-series.service.js';
 import { CalendarService } from './calendar.service.js';
-import { CalendarTaskBlocksService } from './calendar-task-blocks.service.js';
 import { RecurrenceService } from './recurrence.service.js';
 
 function buildCalendarService(deps: {
@@ -22,27 +21,14 @@ function buildCalendarService(deps: {
       listDueInRange: vi.fn(),
     };
   const appsService = deps.appsService ?? { assertInstalled: vi.fn(), updateConfig: vi.fn() };
-  let service!: CalendarService;
-  const taskBlocks = new CalendarTaskBlocksService(
-    deps.db as never,
-    linksService as never,
-    taskReferencesService as never,
-    new Proxy({} as CalendarService, {
-      get(_target, property, receiver) {
-        return Reflect.get(service, property, receiver);
-      },
-    }),
-  );
-  service = new CalendarService(
+  return new CalendarService(
     deps.db as never,
     appsService as never,
     linksService as never,
     taskReferencesService as never,
     recurrence,
     series,
-    taskBlocks,
   );
-  return service;
 }
 
 describe('CalendarService time blocks', () => {
