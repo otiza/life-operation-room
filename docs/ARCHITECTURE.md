@@ -21,11 +21,11 @@ ERP Tiza is a **modular life OS**, not a single monolithic feature app.
 | Cross-app links | Generic table for interconnect (Odoo-like). Apps do not share tables. |
 | Platform services | Files / AI / Integrations / Goals — contracts exist; implement when first needed. |
 
-Phase 1 shipped the **shell**. **Projects** and **Tasks** are the first available mini-apps (`status: available`); other catalog entries remain stubs (`coming_soon`).
+The **shell** plus **Projects**, **Tasks**, and **Calendar** are available mini-apps (`status: available`); other catalog entries remain stubs (`coming_soon`).
 
 Vision roadmap (do not build unless asked):
 
-1. Near-term: calendar, notes, costs, chat
+1. Near-term: notes, costs, chat
 2. Mid-term: learning, work finder, goals
 3. Later: AI coach, fitness / wearables
 
@@ -81,7 +81,7 @@ flowchart LR
 
 - Auth is **HTTP-only cookie sessions** (`tiza_session`), not JWTs in localStorage.
 - CORS is credentialed (`credentials: true` both sides).
-- Redis is up for later queues/pubsub; phase 1 sessions and notifications use Postgres.
+- Redis is up for later queues/pubsub; sessions and notifications use Postgres.
 
 ---
 
@@ -91,14 +91,15 @@ flowchart LR
 
 | Module | Responsibility |
 |---|---|
-| `AuthModule` | signup / login / logout; claims pending invites on signup |
-| `SessionService` | create/destroy/resolve sessions (no circular deps with notifications) |
+| `AuthModule` | signup / login / logout; claims pending invites on signup (user + personal workspace + invite claim in one DB transaction) |
+| `SessionService` | create/destroy/resolve sessions; hourly cleanup of expired rows (no circular deps with notifications) |
 | `UsersModule` | user lookup/create + DTO mapping |
 | `WorkspacesModule` | personal + shared workspaces, members, invites, role checks |
 | `AppsModule` | catalog from shared manifests; install/uninstall + dependency rules |
 | `NotificationsModule` | persist notifications; domain-event listeners; Socket.IO gateway |
 | `LinksModule` | list/create/delete `cross_app_links` (Calendar is the first writer) |
-| `CalendarModule` | events, recurrence expansion, ICS feed; Tasks via events + links only |
+| `CalendarModule` | `CalendarService` orchestrates settings/list/CRUD/ICS; `CalendarSeriesService` handles recurring patch/split/exceptions; `CalendarTaskBlocksService` owns time blocks + task sync listeners; `RecurrenceService` + `ics.ts` unchanged |
+| `TasksModule` | `TasksService` orchestrates settings/CRUD/events; `TaskQueryService` builds list/view filters; `TaskOrderingService` owns FOR UPDATE reorder + position locks |
 | `HealthModule` | `GET /health` |
 
 Platform contracts (interfaces only): `apps/api/src/platform/platform.contracts.ts`.
@@ -192,7 +193,7 @@ pnpm db:generate
 pnpm db:migrate
 ```
 
-### 4.6 API surface (phase 1)
+### 4.6 API surface (shell + available apps)
 
 | Method | Path | Auth |
 |---|---|---|
@@ -321,6 +322,9 @@ src/features/
   apps/
   notifications/
   shell/
+  projects/
+  tasks/          # TasksWorkspace + hooks (useTasksQuery, useTaskSelection, …) + section components
+  calendar/
   <future-app>/
 ```
 
@@ -386,7 +390,7 @@ First real apps: **Projects** + **Tasks** — see [apps/TASKS.md](./apps/TASKS.m
 
 ## 10. What is intentionally unfinished
 
-- Remaining domain UIs (calendar/notes/…); Projects + Tasks v1 are shipped — see [apps/TASKS.md](./apps/TASKS.md)
+- Remaining domain UIs (notes/costs/…); Projects, Tasks, and Calendar v1 are shipped — see [apps/TASKS.md](./apps/TASKS.md) and [apps/CALENDAR.md](./apps/CALENDAR.md)
 - Real `FilesModule` / `AiModule` / `IntegrationsModule` / `GoalsModule` implementations
 - BullMQ workers on Redis
 - OAuth / SSO
