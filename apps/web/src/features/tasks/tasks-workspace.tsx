@@ -1,64 +1,46 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutGrid, List as ListIcon, Plus, X } from 'lucide-react';
-import type { TaskSettings, TaskView } from '@erp-tiza/shared';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { X } from 'lucide-react';
+import type { TaskView } from '@erp-tiza/shared';
+import { parseTaskQuickAdd } from '@erp-tiza/shared';
 import {
   createTask,
   deleteTask,
-  getTaskSettings,
-  listTasks,
   reorderTasks,
   restoreTask,
-  taskCounts,
   updateTask,
   type Task,
 } from './tasks-api';
 import {
-  defaultTaskSettings,
   dueLocalFromDateInput,
   dueLocalOnDay,
-  enabledPriorities,
-  enabledStatuses,
-  formatDueAtShort,
   isDoneStatus,
-  isOverdue,
-  priorityColor,
-  statusLabel,
 } from './task-status';
-import { TasksBoard, type TaskBoardMove } from './tasks-board';
 import { TaskEditForm } from './task-edit-form';
 import { emptyStateCopy, TasksNav } from './tasks-nav';
-import { listProjects, type Project } from '../projects/projects-api';
-import { listInstalledApps } from '../apps/apps-api';
-import { listMembers, getWorkspace } from '../workspaces/workspaces-api';
-import { me } from '../auth/auth-api';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
 import { Card, CardContent } from '../../components/ui/card';
 import { Sheet } from '../../components/ui/sheet';
-import { Dialog } from '../../components/ui/dialog';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { ApiError } from '../../lib/api';
-import { isTypingTarget, TASK_SHORTCUTS } from '../../lib/keyboard';
 import { cn } from '../../lib/utils';
 import { registerAppCommands } from '../shell/command-registry';
 import { useShellStore } from '../shell/shell-store';
-import { TaskActionPicker } from './task-action-picker';
-import { parseTaskQuickAdd } from '@erp-tiza/shared';
-
-type LayoutMode = 'list' | 'board';
-const SMART_VIEWS = new Set<TaskView>(['inbox', 'today', 'upcoming', 'anytime', 'someday', 'logbook']);
+import type { TaskBoardMove } from './tasks-board';
+import { groupByKey, groupTasks } from './task-group-utils';
+import { TasksActionPickers } from './tasks-action-pickers';
+import { TasksComposer } from './tasks-composer';
+import { TasksFiltersBar } from './tasks-filters-bar';
+import { TasksListSection } from './tasks-list-section';
+import { useTaskKeyboardShortcuts } from './use-task-keyboard-shortcuts';
+import { useTaskSelection } from './use-task-selection';
+import { useTasksQuery } from './use-tasks-query';
 
 type UndoAction =
   | { kind: 'delete'; task: Task; label: string }
   | { kind: 'complete'; task: Task; previousStatus: string; label: string }
   | { kind: 'move'; previous: { id: string; status: string; position: number }[]; label: string };
-
-const selectClass =
-  'h-11 w-full rounded-lg border border-border bg-card px-2.5 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:w-auto sm:text-sm';
 
 export function TasksWorkspace({
   workspaceId,
@@ -69,28 +51,37 @@ export function TasksWorkspace({
   lockedProjectId?: string;
   header?: React.ReactNode;
 }) {
-  const searchParams = useSearchParams();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const composerRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const basePath = lockedProjectId
-    ? `/w/${workspaceId}/projects/${lockedProjectId}`
-    : `/w/${workspaceId}/tasks`;
-
-  const viewParam = searchParams.get('view');
-  const smartView: TaskView | null = lockedProjectId
-    ? null
-    : SMART_VIEWS.has(viewParam as TaskView)
-      ? (viewParam as TaskView)
-      : 'today';
-  const layout: LayoutMode =
-    searchParams.get('layout') === 'board' || searchParams.get('view') === 'board' ? 'board' : 'list';
-  const filterProjectId = lockedProjectId || searchParams.get('projectId') || undefined;
-  const assignee = searchParams.get('assignee') === 'me' ? 'me' : undefined;
-  const showDone = searchParams.get('done') === '1';
-  const selectedTaskId = searchParams.get('task') ?? searchParams.get('taskId');
-  const urlQuery = searchParams.get('q') ?? '';
+  const {
+    router,
+    smartView,
+    layout,
+    filterProjectId,
+    assignee,
+    showDone,
+    selectedTaskId,
+    urlQuery,
+    replaceParams,
+    setLayout,
+    openTask,
+    closeTask,
+  } = useTaskSelection(workspaceId, lockedProjectId);
+  const {
+    installedQuery,
+    tasksInstalled,
+    meQuery,
+    workspaceQuery,
+    settingsQuery,
+    membersQuery,
+    tasksQuery,
+    countsQuery,
+    settings,
+    statusOptions,
+    projects,
+    activeProjects,
+  } = useTasksQuery(workspaceId, lockedProjectId, smartView);
 
   const [composerTitle, setComposerTitle] = useState('');
   const [composerProjectId, setComposerProjectId] = useState<string | 'inbox'>('inbox');
@@ -109,56 +100,6 @@ export function TasksWorkspace({
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const installedQuery = useQuery({
-    queryKey: ['installed-apps', workspaceId],
-    queryFn: () => listInstalledApps(workspaceId),
-  });
-  const tasksInstalled = installedQuery.data?.apps.some((app) => app.appKey === 'tasks');
-  const projectsInstalled = installedQuery.data?.apps.some((app) => app.appKey === 'projects');
-
-  const meQuery = useQuery({ queryKey: ['me'], queryFn: me });
-  const workspaceQuery = useQuery({
-    queryKey: ['workspace', workspaceId],
-    queryFn: () => getWorkspace(workspaceId),
-  });
-  const settingsQuery = useQuery({
-    queryKey: ['task-settings', workspaceId],
-    queryFn: () => getTaskSettings(workspaceId),
-    enabled: Boolean(tasksInstalled),
-  });
-  const projectsQuery = useQuery({
-    queryKey: ['projects', workspaceId],
-    queryFn: () => listProjects(workspaceId),
-    enabled: Boolean(projectsInstalled),
-  });
-  const membersQuery = useQuery({
-    queryKey: ['members', workspaceId],
-    queryFn: () => listMembers(workspaceId),
-    enabled: Boolean(tasksInstalled),
-  });
-  const tasksQuery = useQuery({
-    queryKey: ['tasks', workspaceId, { projectId: lockedProjectId, view: smartView }],
-    queryFn: () =>
-      listTasks(
-        workspaceId,
-        lockedProjectId
-          ? { projectId: lockedProjectId }
-          : smartView
-            ? { view: smartView }
-            : {},
-      ),
-    enabled: Boolean(tasksInstalled),
-  });
-  const countsQuery = useQuery({
-    queryKey: ['task-counts', workspaceId],
-    queryFn: () => taskCounts(workspaceId),
-    enabled: Boolean(tasksInstalled),
-  });
-
-  const settings: TaskSettings = settingsQuery.data?.settings ?? defaultTaskSettings();
-  const statusOptions = enabledStatuses(settings);
-  const projects = projectsQuery.data?.projects ?? [];
-  const activeProjects = projects.filter((project) => project.status === 'active');
   const defaultComposerProjectId =
     lockedProjectId || (composerProjectId === 'inbox' ? null : composerProjectId || null);
   const defaultWhenDate = smartView === 'today' ? new Date().toISOString().slice(0, 10) : undefined;
@@ -292,37 +233,6 @@ export function TasksWorkspace({
     },
   });
 
-  function replaceParams(mutate: (params: URLSearchParams) => void) {
-    const next = new URLSearchParams(searchParams.toString());
-    mutate(next);
-    const query = next.toString();
-    router.replace(query ? `${basePath}?${query}` : basePath);
-  }
-
-  function setLayout(nextLayout: LayoutMode) {
-    replaceParams((params) => {
-      params.delete('view');
-      if (smartView) params.set('view', smartView);
-      if (nextLayout === 'list') params.delete('layout');
-      else params.set('layout', nextLayout);
-      if (params.get('view') === 'board') params.delete('view');
-    });
-  }
-
-  function openTask(taskId: string) {
-    replaceParams((params) => {
-      params.set('task', taskId);
-      params.delete('taskId');
-    });
-  }
-
-  function closeTask() {
-    replaceParams((params) => {
-      params.delete('task');
-      params.delete('taskId');
-    });
-  }
-
   function memberLabel(userId: string | null) {
     if (!userId) return 'Unassigned';
     if (userId === meQuery.data?.user.id) return meQuery.data.user.name || 'Me';
@@ -344,7 +254,7 @@ export function TasksWorkspace({
       if (needle && !task.title.toLowerCase().includes(needle)) return false;
       return true;
     });
-  }, [assignee, filterProjectId, meQuery.data?.user.id, searchText, tasksQuery.data?.tasks]);
+  }, [assignee, filterProjectId, meQuery.data?.user, searchText, tasksQuery.data?.tasks]);
 
   const isProjectList = Boolean(lockedProjectId);
   const listedTasks = isProjectList
@@ -424,82 +334,6 @@ export function TasksWorkspace({
     ]);
   }, [activeProjects, openQuickAdd, router, smartView, workspaceId]);
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (isTypingTarget(event.target)) return;
-      if (event.key === '?' ) {
-        event.preventDefault();
-        setShortcutsOpen(true);
-        return;
-      }
-      if (event.key === '/' ) {
-        event.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
-        return;
-      }
-      if (event.key === 'j' || event.key === 'k') {
-        if (isBoard || navigableTaskIds.length === 0) return;
-        event.preventDefault();
-        const currentIndex = safeFocusedTaskId ? navigableTaskIds.indexOf(safeFocusedTaskId) : -1;
-        const nextIndex =
-          currentIndex < 0
-            ? event.key === 'j'
-              ? 0
-              : navigableTaskIds.length - 1
-            : Math.min(navigableTaskIds.length - 1, Math.max(0, currentIndex + (event.key === 'j' ? 1 : -1)));
-        const nextId = navigableTaskIds[nextIndex] ?? null;
-        setFocusedTaskId(nextId);
-        if (selectedTaskId && nextId) openTask(nextId);
-        return;
-      }
-      if (event.key === 'Enter' && safeFocusedTaskId && !selectedTaskId) {
-        event.preventDefault();
-        openTask(safeFocusedTaskId);
-        return;
-      }
-      if (!activeTask) return;
-      if (event.key === 's') {
-        event.preventDefault();
-        setPicker('status');
-      } else if (event.key === 'p') {
-        event.preventDefault();
-        setPicker('priority');
-      } else if (event.key === 'd') {
-        event.preventDefault();
-        setPicker('due');
-      } else if (event.key === 'w') {
-        event.preventDefault();
-        setPicker('when');
-      } else if (event.key === 'm') {
-        event.preventDefault();
-        setPicker('move');
-      } else if (event.key === 'a') {
-        event.preventDefault();
-        setPicker('assignee');
-      } else if (event.key === 'x') {
-        event.preventDefault();
-        toggleComplete(activeTask);
-      } else if (event.key === 'e') {
-        event.preventDefault();
-        openTask(activeTask.id);
-      } else if (event.key === 'Backspace') {
-        event.preventDefault();
-        void deleteTaskAndUndo(activeTask);
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
-    activeTask,
-    safeFocusedTaskId,
-    isBoard,
-    navigableTaskIds,
-    selectedTaskId,
-    settings,
-  ]);
-
   async function deleteTaskAndUndo(task: Task) {
     await deleteTask(workspaceId, task.id);
     setUndo({ kind: 'delete', task, label: `Deleted “${task.title}”` });
@@ -507,6 +341,21 @@ export function TasksWorkspace({
     await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
     await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
   }
+
+  useTaskKeyboardShortcuts({
+    isBoard,
+    navigableTaskIds,
+    safeFocusedTaskId,
+    selectedTaskId,
+    activeTask,
+    searchRef,
+    setFocusedTaskId,
+    setShortcutsOpen,
+    setPicker,
+    openTask,
+    toggleComplete,
+    deleteTaskAndUndo,
+  });
 
   async function applyPickerValue(value: string) {
     if (!activeTask || !picker) return;
@@ -676,166 +525,67 @@ export function TasksWorkspace({
           />
         ) : null}
         <div className="min-w-0 flex-1 space-y-4">
-      <form
-        className="flex flex-col gap-2 rounded-xl border border-border bg-card px-2 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring sm:flex-row sm:items-center"
-        onSubmit={onCreate}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Plus className="ml-1.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <Input
-            ref={composerRef}
-            className="h-11 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 sm:h-9 sm:text-sm"
-            placeholder="Add a task…"
-            value={composerTitle}
-            onChange={(event) => setComposerTitle(event.target.value)}
+          <TasksComposer
+            composerRef={composerRef}
+            composerTitle={composerTitle}
+            setComposerTitle={setComposerTitle}
+            composerProjectId={composerProjectId}
+            setComposerProjectId={setComposerProjectId}
+            lockedProjectId={lockedProjectId}
+            activeProjects={activeProjects}
+            isPending={createMutation.isPending}
+            error={error}
+            onSubmit={onCreate}
           />
-        </div>
-        {lockedProjectId ? null : (
-          <select
-            className={cn(selectClass, 'sm:min-w-36')}
-            value={composerProjectId}
-            onChange={(event) => setComposerProjectId(event.target.value as string | 'inbox')}
-            aria-label="Project for new task"
-          >
-            <option value="inbox">Inbox</option>
-            {activeProjects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <Button
-          size="sm"
-          className="h-11 shrink-0 sm:h-9"
-          disabled={createMutation.isPending || !composerTitle.trim()}
-        >
-          Add
-        </Button>
-      </form>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        {smartView !== 'logbook' && smartView !== 'upcoming' ? (
-          <div className="inline-flex rounded-lg border border-border bg-muted p-0.5">
-            <ScopeButton active={!isBoard} onClick={() => setLayout('list')}>
-              <ListIcon className="h-3.5 w-3.5" />
-              List
-            </ScopeButton>
-            <ScopeButton active={isBoard} onClick={() => setLayout('board')}>
-              <LayoutGrid className="h-3.5 w-3.5" />
-              Board
-            </ScopeButton>
-          </div>
-        ) : null}
-        <Input
-          ref={searchRef}
-          className="h-11 w-full sm:h-9 sm:w-44"
-          placeholder="Search tasks"
-          aria-label="Search tasks"
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
-        />
-        <select
-          className={selectClass}
-          value={assignee ?? ''}
-          onChange={(event) =>
-            replaceParams((params) => {
-              if (!event.target.value) params.delete('assignee');
-              else params.set('assignee', event.target.value);
-            })
-          }
-          aria-label="Filter by assignee"
-        >
-          <option value="">Anyone</option>
-          <option value="me">Assigned to me</option>
-        </select>
-        {!tasksQuery.isLoading && listedTasks.length > 0 ? (
-          <span className="ml-auto text-xs tabular-nums text-muted-foreground">{openCount} open</span>
-        ) : null}
-      </div>
+          <TasksFiltersBar
+            smartView={smartView}
+            isBoard={isBoard}
+            setLayout={setLayout}
+            searchRef={searchRef}
+            searchText={searchText}
+            setSearchText={setSearchText}
+            assignee={assignee}
+            replaceParams={replaceParams}
+            isLoading={tasksQuery.isLoading}
+            listedCount={listedTasks.length}
+            openCount={openCount}
+          />
 
-      {tasksQuery.isLoading || settingsQuery.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading tasks…</p>
-      ) : tasksQuery.isError ? (
-        <p className="text-sm text-red-600">
-          {tasksQuery.error instanceof ApiError ? tasksQuery.error.message : 'Failed to load tasks'}
-        </p>
-      ) : (isBoard ? boardTasks : listedTasks).length === 0 && completedTasks.length === 0 ? (
-        <Card>
-          <CardContent className="space-y-2 py-10 text-center">
-            <p className="text-base font-semibold text-foreground">
-              {hasSearch ? 'No matches' : emptyCopy.title}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {hasSearch ? 'Try another title.' : emptyCopy.body}
-            </p>
-          </CardContent>
-        </Card>
-      ) : isBoard ? (
-        <TasksBoard
-          tasks={boardTasks}
-          settings={settings}
-          projectName={projectName}
-          memberLabel={memberLabel}
-          onMove={moveTasks}
-          onOpenTask={openTask}
-          onCreate={(status, title) =>
-            createMutation.mutate({
-              title,
-              projectId: defaultComposerProjectId,
-              status,
-              whenDate: defaultWhenDate ?? null,
-            })
-          }
-        />
-      ) : (
-        <div className="space-y-6">
-          {groups.map((group) => (
-            <section key={group.key} className="space-y-2">
-              <h2 className="text-sm font-semibold text-foreground">{group.label}</h2>
-              <TaskRows
-                tasks={group.tasks}
-                settings={settings}
-                showProject={!lockedProjectId && (group.key.startsWith('status:') || Boolean(smartView))}
-                focusedTaskId={safeFocusedTaskId}
-                pendingCompleteIds={pendingCompleteIds}
-                projectName={projectName}
-                memberLabel={memberLabel}
-                onOpen={openTask}
-                onFocusTask={setFocusedTaskId}
-                onToggleDone={toggleComplete}
-              />
-            </section>
-          ))}
-          {completedTasks.length > 0 ? (
-            <section className="space-y-2">
-              <button
-                type="button"
-                className="text-sm font-semibold text-foreground"
-                aria-expanded={completedOpen}
-                onClick={() => setCompletedOpen((open) => !open)}
-              >
-                Completed · {completedTasks.length}
-              </button>
-              {completedOpen ? (
-                <TaskRows
-                  tasks={completedTasks}
-                  settings={settings}
-                  showProject={false}
-                  focusedTaskId={safeFocusedTaskId}
-                  pendingCompleteIds={pendingCompleteIds}
-                  projectName={projectName}
-                  memberLabel={memberLabel}
-                  onOpen={openTask}
-                  onFocusTask={setFocusedTaskId}
-                  onToggleDone={toggleComplete}
-                />
-              ) : null}
-            </section>
-          ) : null}
-        </div>
-      )}
+          <TasksListSection
+            tasksQueryIsLoading={tasksQuery.isLoading}
+            settingsQueryIsLoading={settingsQuery.isLoading}
+            tasksQueryIsError={tasksQuery.isError}
+            tasksQueryError={tasksQuery.error}
+            isBoard={isBoard}
+            boardTasks={boardTasks}
+            listedTasks={listedTasks}
+            completedTasks={completedTasks}
+            hasSearch={hasSearch}
+            emptyCopy={emptyCopy}
+            settings={settings}
+            projectName={projectName}
+            memberLabel={memberLabel}
+            onMove={moveTasks}
+            onOpenTask={openTask}
+            onCreate={(status, title) =>
+              createMutation.mutate({
+                title,
+                projectId: defaultComposerProjectId,
+                status,
+                whenDate: defaultWhenDate ?? null,
+              })
+            }
+            groups={groups}
+            lockedProjectId={lockedProjectId}
+            smartView={smartView}
+            safeFocusedTaskId={safeFocusedTaskId}
+            pendingCompleteIds={pendingCompleteIds}
+            onFocusTask={setFocusedTaskId}
+            onToggleDone={toggleComplete}
+            completedOpen={completedOpen}
+            setCompletedOpen={setCompletedOpen}
+          />
         </div>
       </div>
 
@@ -862,84 +612,16 @@ export function TasksWorkspace({
           />
         ) : null}
       </Sheet>
-      <TaskActionPicker
-        open={picker === 'status'}
-        title="Status"
-        options={statusOptions.map((item) => ({ value: item.key, label: item.label }))}
+      <TasksActionPickers
+        picker={picker}
+        setPicker={setPicker}
+        settings={settings}
+        activeProjects={activeProjects}
+        members={membersQuery.data?.members ?? []}
         onSelect={(value) => void applyPickerValue(value)}
-        onClose={() => setPicker(null)}
+        shortcutsOpen={shortcutsOpen}
+        setShortcutsOpen={setShortcutsOpen}
       />
-      <TaskActionPicker
-        open={picker === 'priority'}
-        title="Priority"
-        options={enabledPriorities(settings).map((item) => ({ value: item.key, label: item.label }))}
-        onSelect={(value) => void applyPickerValue(value)}
-        onClose={() => setPicker(null)}
-      />
-      <TaskActionPicker
-        open={picker === 'move'}
-        title="Move to project"
-        options={[
-          { value: '', label: 'Inbox' },
-          ...activeProjects.map((project) => ({ value: project.id, label: project.name })),
-        ]}
-        onSelect={(value) => void applyPickerValue(value)}
-        onClose={() => setPicker(null)}
-      />
-      <TaskActionPicker
-        open={picker === 'assignee'}
-        title="Assignee"
-        options={[
-          { value: '', label: 'Unassigned' },
-          ...(membersQuery.data?.members ?? [])
-            .filter((member) => member.status === 'active' && member.userId)
-            .map((member) => ({
-              value: member.userId!,
-              label: member.name?.trim() || member.email,
-            })),
-        ]}
-        onSelect={(value) => void applyPickerValue(value)}
-        onClose={() => setPicker(null)}
-      />
-      <TaskActionPicker
-        open={picker === 'when'}
-        title="When"
-        options={[
-          { value: 'today', label: 'Today' },
-          { value: 'evening', label: 'This evening' },
-          { value: 'tomorrow', label: 'Tomorrow' },
-          { value: 'someday', label: 'Someday' },
-          { value: 'clear', label: 'Clear' },
-        ]}
-        allowFreeText
-        onSelect={(value) => void applyPickerValue(value)}
-        onClose={() => setPicker(null)}
-      />
-      <TaskActionPicker
-        open={picker === 'due'}
-        title="Due"
-        options={[
-          { value: 'today', label: 'Today' },
-          { value: 'tomorrow', label: 'Tomorrow' },
-          { value: 'clear', label: 'Clear' },
-        ]}
-        allowFreeText
-        onSelect={(value) => void applyPickerValue(value)}
-        onClose={() => setPicker(null)}
-      />
-      <Dialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} className="sm:max-w-md">
-        <div className="space-y-3 p-4">
-          <h2 className="text-base font-semibold">Keyboard shortcuts</h2>
-          <ul className="space-y-2">
-            {TASK_SHORTCUTS.map((item) => (
-              <li key={item.key} className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">{item.description}</span>
-                <kbd className="rounded border border-border bg-muted px-2 py-0.5 font-mono text-xs">{item.label}</kbd>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </Dialog>
       {undo ? (
         <div className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-primary px-4 py-2 text-sm text-primary-foreground shadow-lg">
           <span>{undo.label}</span>
@@ -950,179 +632,4 @@ export function TasksWorkspace({
       ) : null}
     </PageContainer>
   );
-}
-
-function ScopeButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        'inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors',
-        active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-      )}
-      aria-pressed={active}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
-
-function TaskRows({
-  tasks,
-  settings,
-  showProject,
-  focusedTaskId,
-  pendingCompleteIds,
-  projectName,
-  memberLabel,
-  onOpen,
-  onFocusTask,
-  onToggleDone,
-}: {
-  tasks: Task[];
-  settings: TaskSettings;
-  showProject: boolean;
-  focusedTaskId: string | null;
-  pendingCompleteIds: Set<string>;
-  projectName: (id: string | null) => string;
-  memberLabel: (userId: string | null) => string;
-  onOpen: (taskId: string) => void;
-  onFocusTask: (taskId: string) => void;
-  onToggleDone: (task: Task) => void;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      {tasks.map((task, index) => {
-        const overdue = isOverdue(task.dueAt, task.status, settings);
-        const pending = pendingCompleteIds.has(task.id);
-        const done = isDoneStatus(settings, task.status) || pending;
-        const dueLabel = formatDueAtShort(task.dueAt);
-        const accent = priorityColor(settings, task.priority);
-        const showAccent = task.priority !== 'none';
-        const focused = focusedTaskId === task.id;
-        return (
-          <div
-            key={task.id}
-            data-task-id={task.id}
-            className={cn(
-              'group relative flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-muted sm:px-4 motion-safe:transition-all motion-safe:duration-300',
-              index > 0 && 'border-t border-border',
-              overdue && 'bg-red-50/30 hover:bg-red-50/50',
-              focused && 'bg-accent',
-              done && 'opacity-70',
-              pending && 'motion-safe:translate-x-1 motion-safe:opacity-40',
-            )}
-          >
-            {showAccent ? (
-              <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accent }} aria-hidden />
-            ) : null}
-            <button
-              type="button"
-              className={cn(
-                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] motion-safe:transition-colors',
-                done
-                  ? 'border-emerald-500 bg-emerald-500 text-white'
-                  : 'border-border text-transparent hover:border-foreground/40',
-                pending && 'motion-safe:scale-110',
-              )}
-              aria-label={done ? 'Mark as open' : 'Mark as done'}
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleDone(task);
-              }}
-            >
-              ✓
-            </button>
-            <button
-              type="button"
-              className="min-w-0 flex-1 text-left"
-              onClick={() => onOpen(task.id)}
-              onFocus={() => onFocusTask(task.id)}
-            >
-              <p className={cn('truncate text-sm font-medium text-foreground', done && 'text-muted-foreground line-through')}>
-                {task.title}
-              </p>
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
-                <span>{statusLabel(settings, task.status)}</span>
-                {showProject ? (
-                  <>
-                    <span className="text-border">·</span>
-                    <span className="truncate">{projectName(task.projectId)}</span>
-                  </>
-                ) : null}
-                {task.assigneeUserId ? (
-                  <>
-                    <span className="text-border">·</span>
-                    <span>{memberLabel(task.assigneeUserId)}</span>
-                  </>
-                ) : null}
-              </div>
-            </button>
-            {dueLabel ? (
-              <span className={cn('shrink-0 text-xs', overdue ? 'font-medium text-red-600' : 'text-muted-foreground')}>
-                {dueLabel}
-              </span>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function groupTasks(
-  tasks: Task[],
-  options: { by: 'project' | 'status'; projects: Project[]; settings: TaskSettings },
-) {
-  if (options.by === 'status') {
-    const statuses = enabledStatuses(options.settings);
-    const groups = statuses.map((status) => ({
-      key: `status:${status.key}`,
-      label: status.label,
-      tasks: tasks.filter((task) => task.status === status.key),
-    }));
-    const known = new Set(statuses.map((status) => status.key));
-    const extras = tasks.filter((task) => !known.has(task.status));
-    if (extras.length) groups.push({ key: 'status:other', label: 'Other', tasks: extras });
-    return groups.filter((group) => group.tasks.length > 0);
-  }
-  const byProject = new Map<string, Task[]>();
-  for (const task of tasks) {
-    const key = task.projectId ?? 'inbox';
-    const list = byProject.get(key) ?? [];
-    list.push(task);
-    byProject.set(key, list);
-  }
-  return [...byProject.entries()].map(([projectId, projectTasks]) => ({
-    key: projectId,
-    label:
-      projectId === 'inbox'
-        ? 'Inbox'
-        : options.projects.find((project) => project.id === projectId)?.name ?? 'Project',
-    tasks: projectTasks,
-  }));
-}
-
-function groupByKey(tasks: Task[]) {
-  const map = new Map<string, Task[]>();
-  for (const task of tasks) {
-    const key = task.groupKey ?? task.whenDate ?? 'later';
-    const list = map.get(key) ?? [];
-    list.push(task);
-    map.set(key, list);
-  }
-  return [...map.entries()].map(([key, groupTasks]) => ({
-    key,
-    label: key,
-    tasks: groupTasks,
-  }));
 }
