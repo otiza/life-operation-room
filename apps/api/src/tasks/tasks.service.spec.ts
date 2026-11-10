@@ -3,6 +3,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_TASK_SETTINGS, getDayBoundsInTimeZone } from '@erp-tiza/shared';
 import { DOMAIN_EVENTS } from '../common/events/domain-events.js';
+import { TaskOrderingService } from './task-ordering.service.js';
+import { TaskQueryService } from './task-query.service.js';
 import { TasksService } from './tasks.service.js';
 
 const workspaceId = '11111111-1111-4111-8111-111111111111';
@@ -168,6 +170,8 @@ describe('TasksService', () => {
       projectsService as never,
       { countByProject: vi.fn() } as never,
       eventEmitter as unknown as EventEmitter2,
+      new TaskQueryService(dbMock.db as never),
+      new TaskOrderingService(dbMock.db as never),
     );
   });
 

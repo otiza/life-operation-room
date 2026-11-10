@@ -3,6 +3,8 @@ import { AuthModule } from '../auth/auth.module.js';
 import { AppsModule } from '../apps/apps.module.js';
 import { ProjectsModule } from '../projects/projects.module.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
+import { TaskOrderingService } from './task-ordering.service.js';
+import { TaskQueryService } from './task-query.service.js';
 import { TaskReferencesModule } from './task-references.module.js';
 import { TasksController } from './tasks.controller.js';
 import { TasksService } from './tasks.service.js';
@@ -10,7 +12,7 @@ import { TasksService } from './tasks.service.js';
 @Module({
   imports: [AuthModule, WorkspacesModule, AppsModule, ProjectsModule, TaskReferencesModule],
   controllers: [TasksController],
-  providers: [TasksService],
+  providers: [TasksService, TaskQueryService, TaskOrderingService],
   exports: [TasksService],
 })
 export class TasksModule {}

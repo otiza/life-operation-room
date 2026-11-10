@@ -6,12 +6,10 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, max, notInArray, or, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   DEFAULT_TASK_SETTINGS,
-  calendarDateKeyInTimeZone,
-  getDayBoundsInTimeZone,
   taskSettingsSchema,
   type CreateTaskInput,
   type ListTasksQuery,
@@ -30,6 +28,8 @@ import { toIso } from '../common/utils/crypto.js';
 import { AppsService } from '../apps/apps.service.js';
 import { ProjectsService } from '../projects/projects.service.js';
 import { WorkspacesService } from '../workspaces/workspaces.service.js';
+import { TaskOrderingService } from './task-ordering.service.js';
+import { TaskQueryService } from './task-query.service.js';
 import { TaskReferencesService } from './task-references.service.js';
 
 const READ_ROLES = ['owner', 'admin', 'member', 'guest'] as const;
@@ -45,6 +45,8 @@ export class TasksService {
     private readonly projectsService: ProjectsService,
     private readonly taskReferencesService: TaskReferencesService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly taskQueryService: TaskQueryService,
+    private readonly taskOrderingService: TaskOrderingService,
   ) {}
 
   async getSettings(workspaceId: string): Promise<TaskSettings> {
@@ -121,134 +123,16 @@ export class TasksService {
     const settings = await this.getSettings(workspaceId);
     const doneKeys = settings.statuses.filter((item) => item.isDone).map((item) => item.key);
     if (query.view) {
-      return this.listByView(workspaceId, userId, query, doneKeys);
+      const rows = await this.taskQueryService.listByView(workspaceId, userId, query, doneKeys);
+      return rows.map(({ task, section, groupKey }) => this.toDto(task, { section, groupKey }));
     }
-    const conditions = [eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt)];
-    if (query.projectId) conditions.push(eq(tasks.projectId, query.projectId));
-    if (query.status) conditions.push(eq(tasks.status, query.status));
-    if (query.assignee === 'me') conditions.push(eq(tasks.assigneeUserId, userId));
-    if (query.due) {
-      const { startOfToday, startOfTomorrow } = getDayBoundsInTimeZone(new Date(), query.tz);
-      if (query.due === 'none') {
-        conditions.push(isNull(tasks.dueAt));
-      } else if (query.due === 'overdue') {
-        if (doneKeys.length) {
-          conditions.push(and(lt(tasks.dueAt, startOfToday), notInArray(tasks.status, doneKeys))!);
-        } else {
-          conditions.push(lt(tasks.dueAt, startOfToday));
-        }
-      } else if (query.due === 'today') {
-        conditions.push(and(gte(tasks.dueAt, startOfToday), lt(tasks.dueAt, startOfTomorrow))!);
-      } else if (query.due === 'upcoming') {
-        conditions.push(gte(tasks.dueAt, startOfTomorrow));
-      }
-    }
-    const rows = await this.db
-      .select()
-      .from(tasks)
-      .where(and(...conditions))
-      .orderBy(asc(tasks.position), asc(tasks.createdAt));
+    const rows = await this.taskQueryService.list(workspaceId, userId, query, doneKeys);
     return rows.map((row) => this.toDto(row));
   }
 
   async listByView(workspaceId: string, userId: string, query: ListTasksQuery, doneKeys: string[]) {
-    const now = new Date();
-    const { startOfTomorrow } = getDayBoundsInTimeZone(now, query.tz);
-    const todayKey = calendarDateKeyInTimeZone(now, query.tz);
-    const openConditions = [
-      eq(tasks.workspaceId, workspaceId),
-      isNull(tasks.deletedAt),
-      ...(doneKeys.length ? [notInArray(tasks.status, doneKeys)] : []),
-    ];
-    if (query.assignee === 'me') openConditions.push(eq(tasks.assigneeUserId, userId));
-
-    if (query.view === 'inbox') {
-      const rows = await this.db
-        .select()
-        .from(tasks)
-        .where(and(...openConditions, isNull(tasks.projectId), isNull(tasks.whenDate), eq(tasks.isSomeday, false)))
-        .orderBy(asc(tasks.position), asc(tasks.createdAt));
-      return rows.map((row) => this.toDto(row));
-    }
-
-    if (query.view === 'today') {
-      const whenDueOrOverdue = or(
-        and(isNotNull(tasks.whenDate), lte(tasks.whenDate, todayKey)),
-        and(isNotNull(tasks.dueAt), lt(tasks.dueAt, startOfTomorrow)),
-      )!;
-      const rows = await this.db
-        .select()
-        .from(tasks)
-        .where(and(...openConditions, whenDueOrOverdue))
-        .orderBy(asc(tasks.todayPosition), asc(tasks.position), asc(tasks.createdAt));
-      return rows.map((row) => this.toDto(row, { section: row.whenEvening ? 'evening' : 'today' }));
-    }
-
-    if (query.view === 'upcoming') {
-      const rows = await this.db
-        .select()
-        .from(tasks)
-        .where(
-          and(
-            ...openConditions,
-            or(
-              and(isNotNull(tasks.whenDate), sql`${tasks.whenDate} > ${todayKey}`),
-              and(isNull(tasks.whenDate), isNotNull(tasks.dueAt), gte(tasks.dueAt, startOfTomorrow)),
-            )!,
-          ),
-        )
-        .orderBy(asc(tasks.whenDate), asc(tasks.dueAt), asc(tasks.position));
-      return rows.map((row) => {
-        const groupKey = row.whenDate
-          ? String(row.whenDate)
-          : row.dueAt
-            ? calendarDateKeyInTimeZone(row.dueAt, query.tz)
-            : todayKey;
-        return this.toDto(row, { groupKey });
-      });
-    }
-
-    if (query.view === 'anytime') {
-      const rows = await this.db
-        .select()
-        .from(tasks)
-        .where(
-          and(
-            ...openConditions,
-            isNotNull(tasks.projectId),
-            isNull(tasks.whenDate),
-            eq(tasks.isSomeday, false),
-          ),
-        )
-        .orderBy(asc(tasks.position), asc(tasks.createdAt));
-      return rows.map((row) => this.toDto(row));
-    }
-
-    if (query.view === 'someday') {
-      const rows = await this.db
-        .select()
-        .from(tasks)
-        .where(and(...openConditions, eq(tasks.isSomeday, true)))
-        .orderBy(asc(tasks.position), asc(tasks.createdAt));
-      return rows.map((row) => this.toDto(row));
-    }
-
-    // logbook
-    const limit = query.limit ?? 50;
-    const conditions = [
-      eq(tasks.workspaceId, workspaceId),
-      isNull(tasks.deletedAt),
-      isNotNull(tasks.completedAt),
-    ];
-    if (query.cursor) conditions.push(lt(tasks.completedAt, new Date(query.cursor)));
-    if (query.assignee === 'me') conditions.push(eq(tasks.assigneeUserId, userId));
-    const rows = await this.db
-      .select()
-      .from(tasks)
-      .where(and(...conditions))
-      .orderBy(desc(tasks.completedAt), desc(tasks.updatedAt))
-      .limit(limit);
-    return rows.map((row) => this.toDto(row));
+    const rows = await this.taskQueryService.listByView(workspaceId, userId, query, doneKeys);
+    return rows.map(({ task, section, groupKey }) => this.toDto(task, { section, groupKey }));
   }
 
   async get(workspaceId: string, taskId: string) {
@@ -331,8 +215,8 @@ export class TasksService {
     const dueAt = input.dueAt ? new Date(input.dueAt) : null;
     const isDone = Boolean(settings.statuses.find((item) => item.key === status)?.isDone);
     const row = await this.db.transaction(async (tx) => {
-      await this.lockProjectPositions(tx, workspaceId, projectId);
-      const nextPosition = await this.nextPositionInProject(tx, workspaceId, projectId);
+      await this.taskOrderingService.lockProjectPositions(tx, workspaceId, projectId);
+      const nextPosition = await this.taskOrderingService.nextPositionInProject(tx, workspaceId, projectId);
       const [created] = await tx
         .insert(tasks)
         .values({
@@ -411,8 +295,8 @@ export class TasksService {
     const row = await this.db.transaction(async (tx) => {
       let nextPosition = input.position;
       if (projectChanged) {
-        await this.lockProjectPositions(tx, workspaceId, input.projectId ?? null);
-        nextPosition = await this.nextPositionInProject(tx, workspaceId, input.projectId ?? null);
+        await this.taskOrderingService.lockProjectPositions(tx, workspaceId, input.projectId ?? null);
+        nextPosition = await this.taskOrderingService.nextPositionInProject(tx, workspaceId, input.projectId ?? null);
       }
       const [updated] = await tx
         .update(tasks)
@@ -506,77 +390,12 @@ export class TasksService {
 
   async reorder(workspaceId: string, user: User, input: ReorderTasksInput) {
     const settings = await this.getSettings(workspaceId);
-    const taskIds = input.moves.map((move) => move.taskId);
-    if (new Set(taskIds).size !== taskIds.length) {
-      throw new BadRequestException('Duplicate task ids in moves');
-    }
-
-    const changed = await this.db.transaction(async (tx) => {
-      const existingRows = await tx
-        .select()
-        .from(tasks)
-        .where(
-          and(
-            eq(tasks.workspaceId, workspaceId),
-            inArray(tasks.id, taskIds),
-            isNull(tasks.deletedAt),
-          ),
-        )
-        .for('update');
-      if (existingRows.length !== taskIds.length) {
-        throw new NotFoundException('One or more tasks were not found');
-      }
-      const byId = new Map(existingRows.map((row) => [row.id, row]));
-      for (const move of input.moves) {
-        const existing = byId.get(move.taskId)!;
-        if (move.status !== undefined) {
-          this.assertAssignableStatus(settings, move.status, existing.status);
-        }
-      }
-
-      const results: Array<{ before: Task; after: Task }> = [];
-      for (const move of input.moves) {
-        const before = byId.get(move.taskId)!;
-        const nextStatus = move.status ?? before.status;
-        const nextPosition = move.position ?? before.position;
-        const nextTodayPosition =
-          move.todayPosition !== undefined ? move.todayPosition : before.todayPosition;
-        if (
-          before.status === nextStatus &&
-          before.position === nextPosition &&
-          before.todayPosition === nextTodayPosition
-        ) {
-          continue;
-        }
-        const nextIsDone = Boolean(settings.statuses.find((item) => item.key === nextStatus)?.isDone);
-        const previousIsDone = Boolean(
-          settings.statuses.find((item) => item.key === before.status)?.isDone,
-        );
-        let completedAt = before.completedAt;
-        if (nextIsDone && !previousIsDone) completedAt = new Date();
-        if (!nextIsDone && previousIsDone) completedAt = null;
-        const [after] = await tx
-          .update(tasks)
-          .set({
-            status: nextStatus,
-            position: nextPosition,
-            ...(move.todayPosition !== undefined ? { todayPosition: move.todayPosition } : {}),
-            completedAt,
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(tasks.id, move.taskId),
-              eq(tasks.workspaceId, workspaceId),
-              isNull(tasks.deletedAt),
-            ),
-          )
-          .returning();
-        if (!after) throw new NotFoundException('Task not found');
-        results.push({ before, after });
-      }
-      return results;
-    });
+    const changed = await this.taskOrderingService.reorder(
+      workspaceId,
+      input,
+      settings,
+      (status, currentStatus) => this.assertAssignableStatus(settings, status, currentStatus),
+    );
 
     const dtos = changed.map(({ before, after }) => {
       const dto = this.toDto(after);
@@ -725,31 +544,6 @@ export class TasksService {
       whenEvening: Boolean(input.whenEvening),
       isSomeday: false,
     };
-  }
-
-  private async lockProjectPositions(
-    tx: NodePgDatabase,
-    workspaceId: string,
-    projectId: string | null,
-  ) {
-    const bucket = projectId ?? 'inbox';
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${`task-pos:${workspaceId}:${bucket}`}))`,
-    );
-  }
-
-  private async nextPositionInProject(
-    tx: NodePgDatabase,
-    workspaceId: string,
-    projectId: string | null,
-  ) {
-    const projectCondition =
-      projectId === null ? isNull(tasks.projectId) : eq(tasks.projectId, projectId);
-    const [positionRow] = await tx
-      .select({ maxPosition: max(tasks.position) })
-      .from(tasks)
-      .where(and(eq(tasks.workspaceId, workspaceId), projectCondition));
-    return (positionRow?.maxPosition ?? -1) + 1;
   }
 
   private emitTaskEvent(
