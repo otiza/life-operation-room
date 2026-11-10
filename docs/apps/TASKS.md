@@ -115,6 +115,10 @@ Every route: cookie auth → workspace membership → app installed.
 
 Completion: check animation, ~1.5s struck-through delay, then leave the list (skipped when `prefers-reduced-motion`). Undo remains available. Logbook can reopen tasks.
 
+## Workspace home
+
+`/w/[workspaceId]` lists today's calendar occurrences first, then open Today tasks. From that list the user can mark a task done or change its plan: tomorrow, this evening, clear when (`Not today`), or Someday. The patch goes through the existing task update API. A due date is never cleared here, so a task that is due today or overdue remains on Today after a plan change. `Move carried over to tomorrow` applies the tomorrow plan to every open task whose `when_date` is before today.
+
 ## Non-goals (this batch)
 
-Recurring tasks, labels, saved views, sub-tasks, multi-select, comments, mentions, activity log, Plan-my-day with Calendar.
+Recurring tasks, labels, saved views, sub-tasks, multi-select, comments, mentions, activity log, guided plan-my-day with time estimates and automatic time blocks.

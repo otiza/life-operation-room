@@ -10,6 +10,7 @@ import { listCalendarEvents, viewerTimeZone } from '../../../features/calendar/c
 import { addDays, startOfDay } from '../../../features/calendar/calendar-range';
 import { useShellStore } from '../../../features/shell/shell-store';
 import { createTask, listTasks } from '../../../features/tasks/tasks-api';
+import { TodayTaskList } from '../../../features/today/today-review';
 import { PageContainer, PageHeader } from '../../../components/layout/page-container';
 import { Button } from '../../../components/ui/button';
 import { EmptyState } from '../../../components/ui/empty-state';
@@ -196,47 +197,6 @@ export default function WorkspaceHomePage() {
 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-foreground">Tasks</h2>
-              {tasksInstalled ? (
-                <Link
-                  href={`/w/${workspaceId}/tasks?view=today`}
-                  className="text-sm text-muted-foreground hover:text-foreground"
-                >
-                  Open Tasks
-                </Link>
-              ) : null}
-            </div>
-            {!tasksInstalled ? null : tasksQuery.isLoading ? (
-              <div className="space-y-2" aria-busy="true">
-                <SkeletonRow />
-                <SkeletonRow />
-              </div>
-            ) : tasks.length === 0 ? (
-              <EmptyState
-                title="Nothing for today"
-                description="Capture something with the composer above, or press q."
-              />
-            ) : (
-              <ul className="overflow-hidden rounded-xl border border-border bg-card">
-                {tasks.map((task, index) => (
-                  <li key={task.id} className={cn(index > 0 && 'border-t border-border')}>
-                    <Link
-                      href={`/w/${workspaceId}/tasks?view=today&task=${task.id}`}
-                      className="flex min-h-11 items-center gap-3 px-3 py-2.5 text-sm hover:bg-accent sm:px-4"
-                    >
-                      <span className="min-w-0 flex-1 truncate text-foreground">{task.title}</span>
-                      {task.whenEvening ? (
-                        <span className="shrink-0 text-xs text-muted-foreground">Evening</span>
-                      ) : null}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-foreground">Calendar</h2>
               {calendarInstalled ? (
                 <Link
@@ -292,6 +252,29 @@ export default function WorkspaceHomePage() {
                 ))}
               </ul>
             )}
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">Tasks</h2>
+              {tasksInstalled ? (
+                <Link
+                  href={`/w/${workspaceId}/tasks?view=today`}
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Open Tasks
+                </Link>
+              ) : null}
+            </div>
+            {tasksInstalled ? (
+              <TodayTaskList
+                workspaceId={workspaceId}
+                tasks={tasks}
+                todayKey={todayKey}
+                timeZone={timeZone}
+                loading={tasksQuery.isLoading}
+              />
+            ) : null}
           </section>
         </div>
       )}

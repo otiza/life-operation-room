@@ -15,6 +15,8 @@ packages/
 docs/
   ARCHITECTURE.md
   ADDING_APPS.md
+  COMPETITIVE-BENCHMARK.md
+  PRODUCT-ROADMAP.md
 ```
 
 ## Available apps

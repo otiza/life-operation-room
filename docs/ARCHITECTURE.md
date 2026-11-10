@@ -7,6 +7,8 @@ Companion docs:
 - [ADDING_APPS.md](./ADDING_APPS.md) — how to ship a new mini-app
 - [DESIGN.md](./DESIGN.md) — identity, tokens, primitives, and UI rules
 - [UI.md](./UI.md) — list-shaped work-surface behavior
+- [COMPETITIVE-BENCHMARK.md](./COMPETITIVE-BENCHMARK.md) — workflow comparison, 10 Nov 2026
+- [PRODUCT-ROADMAP.md](./PRODUCT-ROADMAP.md) — scored next capabilities
 - [../README.md](../README.md) — setup and run commands
 
 ---
@@ -279,7 +281,7 @@ Work surfaces (how a project, task, or the next list-shaped app should behave) l
 |---|---|
 | `/login`, `/signup` | auth |
 | `/w` | redirect to current/personal workspace |
-| `/w/[workspaceId]` | workspace home |
+| `/w/[workspaceId]` | workspace home: capture for today, today's calendar, and decisions on open tasks |
 | `/w/[workspaceId]/apps` | marketplace |
 | `/w/[workspaceId]/settings` | members / invites |
 | `/w/[workspaceId]/projects` | project index; a card opens that project's tasks |
