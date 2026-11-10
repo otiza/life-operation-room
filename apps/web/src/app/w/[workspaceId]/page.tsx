@@ -140,7 +140,7 @@ export default function WorkspaceHomePage() {
                   variant="outline"
                   onClick={() => router.push(`/w/${workspaceId}/notes`)}
                 >
-                  Today's note
+                  {"Today's note"}
                 </Button>
               ) : null}
               {tasksInstalled ? (

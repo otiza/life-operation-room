@@ -17,11 +17,10 @@ export function NotesWorkspace({ workspaceId }: { workspaceId: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const timeZone = viewerTimeZone();
-  const [draftBody, setDraftBody] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ noteId: string; body: string } | null>(null);
   const [focusedChecklistIndex, setFocusedChecklistIndex] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const noteIdRef = useRef<string | null>(null);
 
   const appsQuery = useQuery({
     queryKey: ['installed-apps', workspaceId],
@@ -38,13 +37,7 @@ export function NotesWorkspace({ workspaceId }: { workspaceId: string }) {
   });
 
   const note = noteQuery.data?.note;
-  const body = draftBody ?? note?.body ?? '';
-
-  useEffect(() => {
-    if (!note) return;
-    noteIdRef.current = note.id;
-    setDraftBody(null);
-  }, [note?.id]);
+  const body = note && draft?.noteId === note.id ? draft.body : (note?.body ?? '');
 
   useEffect(() => {
     return () => {
@@ -71,7 +64,7 @@ export function NotesWorkspace({ workspaceId }: { workspaceId: string }) {
         checked: input.checked,
       }),
     onSuccess: async (result) => {
-      setDraftBody(result.note.body);
+      setDraft({ noteId: result.note.id, body: result.note.body });
       queryClient.setQueryData(['notes', workspaceId, 'today', timeZone], { note: result.note });
       await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
       if (result.created) {
@@ -93,14 +86,14 @@ export function NotesWorkspace({ workspaceId }: { workspaceId: string }) {
   }
 
   function onBodyChange(nextBody: string) {
-    const noteId = noteIdRef.current ?? note?.id;
+    const noteId = note?.id;
     if (!noteId) return;
-    setDraftBody(nextBody);
+    setDraft({ noteId, body: nextBody });
     scheduleSave(nextBody, noteId);
   }
 
   function onToggleChecklist(checklistIndex: number, checked: boolean) {
-    const noteId = noteIdRef.current ?? note?.id;
+    const noteId = note?.id;
     if (!noteId) return;
     let block: ReturnType<typeof getChecklistBlock>;
     try {
@@ -130,7 +123,7 @@ export function NotesWorkspace({ workspaceId }: { workspaceId: string }) {
   }
 
   function onMakeTask() {
-    const noteId = noteIdRef.current ?? note?.id;
+    const noteId = note?.id;
     if (noteId == null || focusedChecklistIndex == null) return;
     if (!tasksInstalled) {
       toast({
