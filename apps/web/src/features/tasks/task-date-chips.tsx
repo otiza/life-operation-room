@@ -50,7 +50,7 @@ function DateChip({
         'inline-flex items-center gap-1 text-xs',
         compact && 'rounded-md px-1.5 py-0.5 font-medium',
         compact && !danger && 'bg-muted text-muted-foreground',
-        danger && (compact ? 'bg-red-100 font-medium text-red-700' : 'font-medium text-red-600'),
+        danger && (compact ? 'bg-danger-soft font-medium text-danger-soft-foreground' : 'font-medium text-destructive'),
         !compact && !danger && 'text-muted-foreground',
       )}
       title={chip.kind === 'when' ? 'When' : 'Deadline'}

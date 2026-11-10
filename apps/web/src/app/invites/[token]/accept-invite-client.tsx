@@ -38,7 +38,7 @@ export function AcceptInviteClient() {
           <CardDescription>Join the shared workspace you were invited to.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <Button className="w-full" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
             {mutation.isPending ? 'Accepting…' : 'Accept invite'}
           </Button>

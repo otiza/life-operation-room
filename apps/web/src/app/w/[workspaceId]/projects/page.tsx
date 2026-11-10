@@ -133,7 +133,7 @@ export default function ProjectsPage() {
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
               />
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {error ? <p className="text-sm text-destructive">{error}</p> : null}
               <Button className="h-11 w-full sm:w-auto" disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Creating…' : 'Create'}
               </Button>
@@ -144,7 +144,7 @@ export default function ProjectsPage() {
       {projectsQuery.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading projects…</p>
       ) : projectsQuery.isError ? (
-        <p className="text-sm text-red-600">
+        <p className="text-sm text-destructive">
           {projectsQuery.error instanceof ApiError
             ? projectsQuery.error.message
             : 'Failed to load projects'}

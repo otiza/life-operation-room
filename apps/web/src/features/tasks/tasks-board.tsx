@@ -373,7 +373,7 @@ function TaskCardContent({
       className={cn(
         'group relative cursor-grab rounded-xl border border-border/90 bg-card p-3 shadow-sm active:cursor-grabbing',
         'hover:border-border hover:shadow-md',
-        overdue && 'border-red-200 bg-red-50/40',
+        overdue && 'border-destructive/40 bg-danger-soft/50',
         dragging && 'shadow-xl ring-2 ring-ring',
         done && 'opacity-80',
       )}

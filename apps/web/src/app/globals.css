@@ -1,40 +1,127 @@
 @import "tailwindcss";
 
 /*
-  Tiza design tokens.
-  Structure follows shadcn/ui on Tailwind v4: semantic colors, one accent, hairline borders.
-  Light surfaces stay calm (a life manager, not a marketing page). The accent is only for focus and selection.
-  Use bg-background, text-foreground, bg-card, text-muted-foreground, border-border, bg-primary.
-  Do not invent a new gray for each screen.
+  Life room design tokens (Option B).
+  Headings: Literata. Body: IBM Plex Sans.
+  Accent: muted terracotta. Density: comfortable.
+  Semantic names only — no raw Tailwind palette colors in UI code.
 */
 :root {
   color-scheme: light;
-  --background: oklch(0.975 0.004 260);
-  --foreground: oklch(0.22 0.02 264);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.02 264);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.02 264);
-  --primary: oklch(0.27 0.03 264);
-  --primary-foreground: oklch(0.985 0.002 260);
-  --secondary: oklch(0.955 0.006 260);
-  --secondary-foreground: oklch(0.27 0.03 264);
-  --muted: oklch(0.955 0.006 260);
-  --muted-foreground: oklch(0.5 0.02 264);
-  --accent: oklch(0.94 0.012 264);
-  --accent-foreground: oklch(0.27 0.03 264);
-  --destructive: oklch(0.55 0.2 25);
-  --destructive-foreground: oklch(0.985 0.002 260);
-  --border: oklch(0.91 0.008 264);
-  --input: oklch(0.91 0.008 264);
-  --ring: oklch(0.55 0.14 277);
-  --radius: 0.75rem;
-  --sidebar: oklch(0.99 0.003 260);
-  --sidebar-foreground: oklch(0.27 0.03 264);
-  --sidebar-accent: oklch(0.95 0.01 264);
-  --sidebar-accent-foreground: oklch(0.22 0.02 264);
-  --sidebar-border: oklch(0.91 0.008 264);
-  --sidebar-ring: oklch(0.55 0.14 277);
+  --background: oklch(0.975 0.008 70);
+  --foreground: oklch(0.24 0.02 50);
+  --card: oklch(0.995 0.004 70);
+  --card-foreground: oklch(0.24 0.02 50);
+  --popover: oklch(0.995 0.004 70);
+  --popover-foreground: oklch(0.24 0.02 50);
+  --primary: oklch(0.58 0.12 45);
+  --primary-foreground: oklch(0.99 0.01 70);
+  --secondary: oklch(0.95 0.012 70);
+  --secondary-foreground: oklch(0.32 0.03 50);
+  --muted: oklch(0.95 0.01 70);
+  --muted-foreground: oklch(0.45 0.02 55);
+  --accent: oklch(0.94 0.02 50);
+  --accent-foreground: oklch(0.3 0.04 45);
+  --destructive: oklch(0.55 0.18 25);
+  --destructive-foreground: oklch(0.99 0.01 70);
+  --success: oklch(0.52 0.12 155);
+  --success-foreground: oklch(0.99 0.01 155);
+  --warning: oklch(0.72 0.14 75);
+  --warning-foreground: oklch(0.28 0.05 55);
+  --border: oklch(0.9 0.012 70);
+  --input: oklch(0.9 0.012 70);
+  --ring: oklch(0.58 0.12 45);
+  --radius: 0.875rem;
+  --sidebar: oklch(0.985 0.006 70);
+  --sidebar-foreground: oklch(0.28 0.02 50);
+  --sidebar-accent: oklch(0.95 0.02 50);
+  --sidebar-accent-foreground: oklch(0.24 0.02 50);
+  --sidebar-border: oklch(0.9 0.012 70);
+  --sidebar-ring: oklch(0.58 0.12 45);
+
+  --priority-urgent: oklch(0.55 0.2 25);
+  --priority-high: oklch(0.62 0.16 45);
+  --priority-medium: oklch(0.72 0.14 75);
+  --priority-low: oklch(0.62 0.1 230);
+  --priority-none: oklch(0.88 0.01 70);
+
+  --event-1: oklch(0.58 0.12 45);
+  --event-2: oklch(0.55 0.11 155);
+  --event-3: oklch(0.55 0.12 250);
+  --event-4: oklch(0.6 0.12 320);
+  --event-5: oklch(0.65 0.12 85);
+  --event-6: oklch(0.52 0.1 200);
+  --event-7: oklch(0.58 0.14 25);
+  --event-8: oklch(0.5 0.08 280);
+
+  --elevation-flat: none;
+  --elevation-raised: 0 1px 2px oklch(0.3 0.02 50 / 0.06), 0 1px 3px oklch(0.3 0.02 50 / 0.08);
+  --elevation-overlay: 0 8px 24px oklch(0.3 0.02 50 / 0.14), 0 2px 6px oklch(0.3 0.02 50 / 0.08);
+
+  --density-row: 2.75rem;
+  --density-pad-x: 1rem;
+  --density-pad-y: 0.75rem;
+  --danger-soft: oklch(0.95 0.03 25);
+  --danger-soft-foreground: oklch(0.48 0.16 25);
+  --success-soft: oklch(0.95 0.03 155);
+  --success-soft-foreground: oklch(0.4 0.1 155);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.18 0.015 50);
+  --foreground: oklch(0.94 0.01 70);
+  --card: oklch(0.22 0.016 50);
+  --card-foreground: oklch(0.94 0.01 70);
+  --popover: oklch(0.22 0.016 50);
+  --popover-foreground: oklch(0.94 0.01 70);
+  --primary: oklch(0.72 0.12 50);
+  --primary-foreground: oklch(0.2 0.03 45);
+  --secondary: oklch(0.28 0.02 50);
+  --secondary-foreground: oklch(0.92 0.01 70);
+  --muted: oklch(0.28 0.018 50);
+  --muted-foreground: oklch(0.72 0.02 65);
+  --accent: oklch(0.3 0.03 45);
+  --accent-foreground: oklch(0.94 0.01 70);
+  --destructive: oklch(0.65 0.18 25);
+  --destructive-foreground: oklch(0.98 0.01 70);
+  --success: oklch(0.7 0.12 155);
+  --success-foreground: oklch(0.18 0.03 155);
+  --warning: oklch(0.78 0.12 80);
+  --warning-foreground: oklch(0.22 0.04 55);
+  --border: oklch(0.32 0.02 50);
+  --input: oklch(0.32 0.02 50);
+  --ring: oklch(0.72 0.12 50);
+  --sidebar: oklch(0.16 0.014 50);
+  --sidebar-foreground: oklch(0.92 0.01 70);
+  --sidebar-accent: oklch(0.26 0.025 45);
+  --sidebar-accent-foreground: oklch(0.94 0.01 70);
+  --sidebar-border: oklch(0.3 0.02 50);
+  --sidebar-ring: oklch(0.72 0.12 50);
+
+  --priority-urgent: oklch(0.7 0.18 25);
+  --priority-high: oklch(0.72 0.14 50);
+  --priority-medium: oklch(0.78 0.12 80);
+  --priority-low: oklch(0.72 0.1 230);
+  --priority-none: oklch(0.4 0.02 50);
+
+  --event-1: oklch(0.72 0.12 50);
+  --event-2: oklch(0.7 0.11 155);
+  --event-3: oklch(0.7 0.12 250);
+  --event-4: oklch(0.72 0.12 320);
+  --event-5: oklch(0.78 0.12 85);
+  --event-6: oklch(0.68 0.1 200);
+  --event-7: oklch(0.7 0.14 25);
+  --event-8: oklch(0.68 0.08 280);
+
+  --elevation-flat: none;
+  --elevation-raised: 0 1px 2px oklch(0 0 0 / 0.35), 0 1px 3px oklch(0 0 0 / 0.25);
+  --elevation-overlay: 0 12px 32px oklch(0 0 0 / 0.45), 0 4px 12px oklch(0 0 0 / 0.3);
+
+  --danger-soft: oklch(0.3 0.06 25);
+  --danger-soft-foreground: oklch(0.85 0.08 25);
+  --success-soft: oklch(0.3 0.05 155);
+  --success-soft-foreground: oklch(0.85 0.08 155);
 }
 
 @theme inline {
@@ -54,6 +141,10 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -63,12 +154,33 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-priority-urgent: var(--priority-urgent);
+  --color-priority-high: var(--priority-high);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-low: var(--priority-low);
+  --color-priority-none: var(--priority-none);
+  --color-event-1: var(--event-1);
+  --color-event-2: var(--event-2);
+  --color-event-3: var(--event-3);
+  --color-event-4: var(--event-4);
+  --color-event-5: var(--event-5);
+  --color-event-6: var(--event-6);
+  --color-event-7: var(--event-7);
+  --color-event-8: var(--event-8);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-soft-foreground: var(--danger-soft-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-success-soft-foreground: var(--success-soft-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
+  --font-mono: var(--font-mono);
+  --shadow-flat: var(--elevation-flat);
+  --shadow-raised: var(--elevation-raised);
+  --shadow-overlay: var(--elevation-overlay);
 }
 
 html {
@@ -78,10 +190,49 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-body), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   overflow-x: hidden;
 }
 
 .min-h-dvh {
   min-height: 100dvh;
+}
+
+@utility text-page-title {
+  font-family: var(--font-heading), Literata, ui-serif, Georgia, serif;
+  font-size: 1.625rem;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+@utility text-section-title {
+  font-family: var(--font-heading), Literata, ui-serif, Georgia, serif;
+  font-size: 1.125rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+@utility text-body {
+  font-family: var(--font-body), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+@utility text-meta {
+  font-family: var(--font-body), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+@utility shadow-flat {
+  box-shadow: var(--elevation-flat);
+}
+
+@utility shadow-raised {
+  box-shadow: var(--elevation-raised);
+}
+
+@utility shadow-overlay {
+  box-shadow: var(--elevation-overlay);
 }

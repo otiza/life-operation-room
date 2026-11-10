@@ -69,7 +69,7 @@ export function TaskRows({
             className={cn(
               'group relative flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-muted sm:px-4 motion-safe:transition-all motion-safe:duration-300',
               index > 0 && 'border-t border-border',
-              overdue && 'bg-red-50/30 hover:bg-red-50/50',
+              overdue && 'bg-danger-soft/40 hover:bg-danger-soft/60',
               focused && 'bg-accent',
               done && 'opacity-70',
               pending && 'motion-safe:translate-x-1 motion-safe:opacity-40',
@@ -83,7 +83,7 @@ export function TaskRows({
               className={cn(
                 'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] motion-safe:transition-colors',
                 done
-                  ? 'border-emerald-500 bg-emerald-500 text-white'
+                  ? 'border-success bg-success text-success-foreground'
                   : 'border-border text-transparent hover:border-foreground/40',
                 pending && 'motion-safe:scale-110',
               )}

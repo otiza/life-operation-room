@@ -138,11 +138,17 @@ export function isOverdue(dueAt: string | null, statusKey: string, settings?: Ta
 }
 
 export function priorityColor(settings: TaskSettings, key: string) {
-  return findPriority(settings, key)?.color ?? '#e4e4e7';
+  const fromSettings = findPriority(settings, key)?.color;
+  if (fromSettings) return fromSettings;
+  if (key === 'urgent') return 'var(--priority-urgent)';
+  if (key === 'high') return 'var(--priority-high)';
+  if (key === 'medium') return 'var(--priority-medium)';
+  if (key === 'low') return 'var(--priority-low)';
+  return 'var(--priority-none)';
 }
 
 export function statusColor(settings: TaskSettings, key: string) {
-  return findStatus(settings, key)?.color ?? '#a1a1aa';
+  return findStatus(settings, key)?.color ?? 'var(--muted-foreground)';
 }
 
 export function statusLabel(settings: TaskSettings, key: string) {

@@ -52,7 +52,7 @@ export default function LoginPage() {
                 required
               />
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button className="w-full" disabled={mutation.isPending}>
               {mutation.isPending ? 'Signing in…' : 'Sign in'}
             </Button>

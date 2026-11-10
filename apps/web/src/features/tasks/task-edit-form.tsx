@@ -196,7 +196,7 @@ export function TaskEditForm({
 
   if (taskQuery.isError || !taskQuery.data?.task) {
     return (
-      <p className="p-6 text-sm text-red-600">
+      <p className="p-6 text-sm text-destructive">
         {taskQuery.error instanceof ApiError ? taskQuery.error.message : 'Task not found'}
       </p>
     );
@@ -336,7 +336,7 @@ export function TaskEditForm({
             onPickDate={(value) => patch({ dueLocal: dueLocalFromDateInput(value) })}
           />
         </div>
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <p className="text-xs text-muted-foreground">
           {saveMutation.isPending ? 'Saving…' : 'Saved'}
         </p>
@@ -364,7 +364,7 @@ export function TaskEditForm({
           <Button
             type="button"
             variant="ghost"
-            className="h-11 text-red-600 hover:bg-red-50 hover:text-red-700"
+            className="h-11 text-destructive hover:bg-danger-soft hover:text-danger-soft-foreground"
             onClick={() => setConfirmDelete(true)}
           >
             Delete

@@ -207,7 +207,7 @@ export default function TasksSettingsPage() {
         </p>
       </div>
       {error ? (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-soft-foreground">{error}</p>
       ) : null}
 
       <section className="space-y-3">
@@ -413,7 +413,7 @@ function OptionFields({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+          className="h-8 w-8 text-muted-foreground hover:bg-danger-soft hover:text-destructive"
           disabled={removeDisabled}
           aria-label={`Remove ${label || placeholder}`}
           onClick={onRemove}

@@ -24,6 +24,7 @@ import { TaskQuickAddDialog } from '../tasks/task-quick-add-dialog';
 import { ShellCommandPalette } from './command-palette';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { ThemeToggle } from '../../components/theme-toggle';
 import { isTypingTarget } from '../../lib/keyboard';
 import { cn } from '../../lib/utils';
 import { useEffect, useMemo, useState } from 'react';
@@ -167,8 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">ERP Tiza</div>
-            <div className="mt-1 text-lg font-semibold text-sidebar-foreground">Life manager</div>
+            <div className="text-page-title text-sidebar-foreground">Life room</div>
           </div>
           <Button
             variant="ghost"
@@ -257,6 +257,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="border-t border-border p-3">
         <div className="mb-2 truncate text-sm font-medium">{meQuery.data.user.name}</div>
         <div className="mb-3 truncate text-xs text-muted-foreground">{meQuery.data.user.email}</div>
+        <ThemeToggle className="mb-3" />
         <Button variant="outline" className="h-11 w-full" onClick={() => logoutMutation.mutate()}>
           <LogOut className="h-4 w-4" />
           Log out

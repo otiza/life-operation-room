@@ -2,6 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import type { CalendarOccurrenceDto } from '../calendar-api';
+import { eventColorFor } from '../event-colors';
 import { cn } from '../../../lib/utils';
 
 type EventBlockProps = {
@@ -29,6 +30,7 @@ export function EventBlock({
   const isDone = Boolean(occurrence.task?.isDone);
   const isDeleted = occurrence.task?.deleted;
   const canInteract = occurrence.kind !== 'due_chip';
+  const tint = eventColorFor(occurrence);
   const drag = useDraggable({
     id: `event:${occurrence.eventId}:${occurrence.occurrenceStart}`,
     data: { occurrence, kind: 'calendar-event' },
@@ -51,15 +53,22 @@ export function EventBlock({
       }}
       style={{
         ...style,
+        ...(isDueChip
+          ? null
+          : {
+              backgroundColor: `color-mix(in oklab, ${tint} 22%, transparent)`,
+              borderColor: `color-mix(in oklab, ${tint} 45%, transparent)`,
+              color: 'var(--foreground)',
+            }),
         ...(draggable && drag.transform
           ? { transform: `translate3d(${drag.transform.x}px, ${drag.transform.y}px, 0)`, zIndex: 20 }
           : null),
       }}
       className={cn(
-        'absolute left-0 right-0 overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-xs shadow-sm transition hover:brightness-95',
+        'absolute left-0 right-0 overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-xs shadow-raised transition hover:brightness-95',
         isDueChip
           ? 'border-dashed border-border bg-muted/60 text-muted-foreground'
-          : 'border-primary/20 bg-primary/15 text-foreground',
+          : null,
         isDone && 'text-muted-foreground line-through opacity-70',
         isDeleted && 'italic opacity-60',
         compact && 'static relative mb-1',

@@ -78,7 +78,7 @@ function ProjectDetailContent() {
     return (
       <PageContainer size="md">
         <PageHeader title="Project" description="Not found" />
-        <p className="text-sm text-red-600">
+        <p className="text-sm text-destructive">
           {projectQuery.error instanceof ApiError ? projectQuery.error.message : 'Project not found'}
         </p>
         <Link href={`/w/${workspaceId}/projects`} className="text-sm text-foreground underline">
@@ -124,7 +124,7 @@ function ProjectDetailContent() {
                   saveMutation.mutate({ description: next || null });
                 }}
               />
-              {error ? <p className="mt-1 text-sm text-red-600">{error}</p> : null}
+              {error ? <p className="mt-1 text-sm text-destructive">{error}</p> : null}
             </div>
             <div className="relative">
               <Button
@@ -150,7 +150,7 @@ function ProjectDetailContent() {
                   </button>
                   <button
                     type="button"
-                    className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                    className="block w-full px-3 py-2 text-left text-sm text-destructive hover:bg-danger-soft"
                     onClick={() => {
                       setMenuOpen(false);
                       setConfirmDelete(true);
@@ -170,7 +170,7 @@ function ProjectDetailContent() {
           <p className="text-sm text-muted-foreground">
             This is only allowed when the project has zero tasks. Archive it if work still exists.
           </p>
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" className="h-11" onClick={() => setConfirmDelete(false)}>
               Cancel

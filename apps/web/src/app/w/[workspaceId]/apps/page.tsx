@@ -69,7 +69,7 @@ export default function MarketplacePage() {
         description="Install what you need. Dependencies are enforced the Odoo way."
       />
       {(installMutation.error || uninstallMutation.error) && (
-        <p className="text-sm text-red-600">
+        <p className="text-sm text-destructive">
           {(installMutation.error || uninstallMutation.error) instanceof ApiError
             ? ((installMutation.error || uninstallMutation.error) as ApiError).message
             : 'Action failed'}

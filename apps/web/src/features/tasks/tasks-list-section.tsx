@@ -67,7 +67,7 @@ export function TasksListSection({
   }
   if (tasksQueryIsError) {
     return (
-      <p className="text-sm text-red-600">
+      <p className="text-sm text-destructive">
         {tasksQueryError instanceof ApiError ? tasksQueryError.message : 'Failed to load tasks'}
       </p>
     );

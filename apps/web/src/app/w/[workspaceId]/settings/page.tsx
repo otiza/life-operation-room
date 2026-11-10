@@ -93,8 +93,8 @@ export default function WorkspaceSettingsPage() {
               </Button>
             </form>
           )}
-          {message && <p className="break-all text-sm text-emerald-700">{message}</p>}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {message && <p className="break-all text-sm text-success">{message}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="space-y-2">
             {(membersQuery.data?.members ?? []).map((member) => (
               <div

@@ -89,7 +89,7 @@ function DroppableDayColumn({
       ))}
       {isToday && nowMinutes >= gridStartMinute && nowMinutes <= gridStartMinute + totalMinutes ? (
         <div
-          className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-red-500"
+          className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-destructive"
           style={{ top: (nowMinutes - gridStartMinute) * (CALENDAR_HOUR_HEIGHT / 60) }}
         />
       ) : null}
