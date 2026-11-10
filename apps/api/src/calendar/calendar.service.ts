@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lte, or, sql, gte } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   DEFAULT_CALENDAR_SETTINGS,
@@ -28,19 +28,20 @@ import {
   calendarFeedTokens,
   workspaceApps,
   workspaceMembers,
-  type CalendarEvent,
   type User,
 } from '../db/schema.js';
 import {
   DOMAIN_EVENTS,
   type AppInstalledEvent,
   type MemberRemovedEvent,
-  type TaskDomainEvent,
 } from '../common/events/domain-events.js';
 import { createSessionToken, hashToken, toIso } from '../common/utils/crypto.js';
 import { AppsService } from '../apps/apps.service.js';
 import { LinksService } from '../links/links.service.js';
 import { TaskReferencesService } from '../tasks/task-references.service.js';
+import { addCalendarDays, calendarEventToDto } from './calendar-mappers.js';
+import { CalendarSeriesService } from './calendar-series.service.js';
+import { CalendarTaskBlocksService } from './calendar-task-blocks.service.js';
 import { serializeIcsCalendar } from './ics.js';
 import { RecurrenceService } from './recurrence.service.js';
 
@@ -54,6 +55,8 @@ export class CalendarService {
     private readonly linksService: LinksService,
     private readonly taskReferencesService: TaskReferencesService,
     private readonly recurrenceService: RecurrenceService,
+    private readonly seriesService: CalendarSeriesService,
+    private readonly taskBlocksService: CalendarTaskBlocksService,
   ) {}
 
   async getSettings(workspaceId: string): Promise<CalendarSettings> {
@@ -149,7 +152,7 @@ export class CalendarService {
       for (const task of dueTasks) {
         if (!task.dueAt) continue;
         const dueDate = calendarDateKeyInTimeZone(new Date(task.dueAt), query.tz);
-        const nextDate = this.addDays(dueDate, 1);
+        const nextDate = addCalendarDays(dueDate, 1);
         occurrences.push({
           eventId: task.id,
           occurrenceStart: dueDate,
@@ -200,7 +203,7 @@ export class CalendarService {
         source: 'local',
       })
       .returning();
-    return this.toDto(row);
+    return calendarEventToDto(row);
   }
 
   async update(workspaceId: string, eventId: string, user: User, input: UpdateCalendarEventInput) {
@@ -208,7 +211,7 @@ export class CalendarService {
     const scope = input.scope ?? 'all';
 
     if (!event.rrule || scope === 'all') {
-      return this.patchMaster(workspaceId, event, input);
+      return this.seriesService.patchMaster(workspaceId, event, input);
     }
 
     if (!input.occurrenceStart) {
@@ -217,7 +220,7 @@ export class CalendarService {
     const occurrenceStart = new Date(input.occurrenceStart);
 
     if (scope === 'this') {
-      await this.upsertException(workspaceId, event, occurrenceStart, {
+      await this.seriesService.upsertException(workspaceId, event, occurrenceStart, {
         cancelled: false,
         title: input.title,
         description: input.description,
@@ -229,10 +232,10 @@ export class CalendarService {
         startDate: input.startDate === undefined ? undefined : input.startDate,
         endDate: input.endDate === undefined ? undefined : input.endDate,
       });
-      return this.toDto(event);
+      return calendarEventToDto(event);
     }
 
-    return this.splitFollowing(workspaceId, event, user, input, occurrenceStart);
+    return this.seriesService.splitFollowing(workspaceId, event, user, input, occurrenceStart);
   }
 
   async remove(workspaceId: string, eventId: string, input: DeleteCalendarEventInput) {
@@ -253,7 +256,7 @@ export class CalendarService {
     const occurrenceStart = new Date(input.occurrenceStart);
 
     if (scope === 'this') {
-      await this.upsertException(workspaceId, event, occurrenceStart, { cancelled: true });
+      await this.seriesService.upsertException(workspaceId, event, occurrenceStart, { cancelled: true });
       return {
         ok: true,
         undo: {
@@ -299,7 +302,7 @@ export class CalendarService {
       .where(and(eq(calendarEvents.id, eventId), eq(calendarEvents.workspaceId, workspaceId)))
       .returning();
     if (!row) throw new NotFoundException('Event not found');
-    return this.toDto(row);
+    return calendarEventToDto(row);
   }
 
   async undoDelete(workspaceId: string, input: UndoCalendarDeleteInput) {
@@ -350,32 +353,11 @@ export class CalendarService {
       )
       .returning();
     if (!row) throw new NotFoundException('Event not found');
-    return { event: this.toDto(row) };
+    return { event: calendarEventToDto(row) };
   }
 
   async createTimeBlock(workspaceId: string, user: User, input: CreateTimeBlockInput) {
-    const task = await this.taskReferencesService.assertTaskInWorkspace(workspaceId, input.taskId);
-    const event = await this.create(workspaceId, user, {
-      title: task.title,
-      description: null,
-      location: null,
-      isAllDay: false,
-      startAt: input.start,
-      endAt: input.end,
-      timezone: 'UTC',
-      kind: 'time_block',
-      rrule: null,
-      color: null,
-    });
-    await this.linksService.create({
-      workspaceId,
-      sourceApp: 'calendar',
-      sourceRef: event.id,
-      targetApp: 'tasks',
-      targetRef: task.id,
-      linkType: 'time_block',
-    });
-    return event;
+    return this.taskBlocksService.createTimeBlock(workspaceId, user, input);
   }
 
   async getIcsTokenStatus(workspaceId: string, userId: string) {
@@ -510,43 +492,6 @@ export class CalendarService {
     await this.appsService.updateConfig(event.workspaceId, 'calendar', DEFAULT_CALENDAR_SETTINGS);
   }
 
-  @OnEvent(DOMAIN_EVENTS.taskUpdated)
-  async onTaskUpdated(event: TaskDomainEvent) {
-    const links = await this.linksService.listByTarget(
-      event.workspaceId,
-      'tasks',
-      event.taskId,
-      'time_block',
-    );
-    for (const link of links) {
-      await this.db
-        .update(calendarEvents)
-        .set({ title: event.title, updatedAt: new Date() })
-        .where(
-          and(
-            eq(calendarEvents.id, link.sourceRef),
-            eq(calendarEvents.workspaceId, event.workspaceId),
-            eq(calendarEvents.kind, 'time_block'),
-            isNull(calendarEvents.deletedAt),
-          ),
-        );
-    }
-  }
-
-  @OnEvent(DOMAIN_EVENTS.taskDeleted)
-  onTaskDeleted(event: TaskDomainEvent) {
-    this.logger.debug(`task.deleted ${event.taskId} — linked time blocks kept`);
-  }
-
-  @OnEvent(DOMAIN_EVENTS.taskRestored)
-  onTaskRestored(event: TaskDomainEvent) {
-    this.logger.debug(`task.restored ${event.taskId}`);
-  }
-
-  @OnEvent(DOMAIN_EVENTS.taskCompleted)
-  onTaskCompleted(event: TaskDomainEvent) {
-    this.logger.debug(`task.completed ${event.taskId}`);
-  }
 
   private async loadMastersInRange(workspaceId: string, from: Date, to: Date) {
     const fromDate = calendarDateKeyInTimeZone(from, 'UTC');
@@ -599,253 +544,6 @@ export class CalendarService {
     });
   }
 
-  private async splitFollowing(
-    workspaceId: string,
-    event: CalendarEvent,
-    user: User,
-    input: UpdateCalendarEventInput,
-    occurrenceStart: Date,
-  ) {
-    if (!event.rrule) throw new BadRequestException('Event is not recurring');
-    const untilRrule = this.recurrenceService.untilBeforeOccurrence(
-      event.rrule,
-      occurrenceStart,
-      event.timezone,
-      event.isAllDay,
-    );
-    const createInput = this.buildCreateFromPatch(event, input, occurrenceStart);
-    const seriesStart = event.isAllDay
-      ? new Date(`${event.startDate}T00:00:00.000Z`)
-      : event.startAt!;
-    const remaining = this.recurrenceService.remainingCountAfterSplit(
-      event.rrule,
-      seriesStart,
-      occurrenceStart,
-      event.timezone,
-      event.isAllDay,
-    );
-    if (remaining != null && createInput.rrule) {
-      createInput.rrule = this.recurrenceService.withCount(createInput.rrule, remaining);
-    }
-
-    return this.db.transaction(async (tx) => {
-      await tx
-        .update(calendarEvents)
-        .set({ rrule: untilRrule, updatedAt: new Date() })
-        .where(and(eq(calendarEvents.id, event.id), eq(calendarEvents.workspaceId, workspaceId)));
-
-      const [created] = await tx
-        .insert(calendarEvents)
-        .values({
-          workspaceId,
-          title: createInput.title.trim(),
-          description: createInput.description?.trim() || null,
-          location: createInput.location?.trim() || null,
-          isAllDay: createInput.isAllDay,
-          startAt: createInput.isAllDay ? null : new Date(createInput.startAt),
-          endAt: createInput.isAllDay ? null : new Date(createInput.endAt),
-          startDate: createInput.isAllDay ? createInput.startDate : null,
-          endDate: createInput.isAllDay ? createInput.endDate : null,
-          timezone: createInput.timezone,
-          rrule: createInput.rrule ?? null,
-          kind: createInput.kind ?? 'event',
-          color: createInput.color ?? null,
-          createdByUserId: user.id,
-          source: 'local',
-        })
-        .returning();
-
-      const exceptions = await tx
-        .select()
-        .from(calendarEventExceptions)
-        .where(
-          and(
-            eq(calendarEventExceptions.eventId, event.id),
-            eq(calendarEventExceptions.workspaceId, workspaceId),
-            gte(calendarEventExceptions.originalOccurrenceStart, occurrenceStart),
-          ),
-        );
-      for (const exception of exceptions) {
-        await tx
-          .update(calendarEventExceptions)
-          .set({ eventId: created.id, updatedAt: new Date() })
-          .where(eq(calendarEventExceptions.id, exception.id));
-      }
-      return this.toDto(created);
-    });
-  }
-
-  private async patchMaster(workspaceId: string, event: CalendarEvent, input: UpdateCalendarEventInput) {
-    const isAllDay = input.isAllDay ?? event.isAllDay;
-    const nextStartAt = isAllDay
-      ? null
-      : input.startAt
-        ? new Date(input.startAt)
-        : event.startAt;
-    const startDeltaMs =
-      !isAllDay && event.startAt && nextStartAt
-        ? nextStartAt.getTime() - event.startAt.getTime()
-        : 0;
-
-    return this.db.transaction(async (tx) => {
-      const [row] = await tx
-        .update(calendarEvents)
-        .set({
-          ...(input.title !== undefined ? { title: input.title.trim() } : {}),
-          ...(input.description !== undefined ? { description: input.description?.trim() || null } : {}),
-          ...(input.location !== undefined ? { location: input.location?.trim() || null } : {}),
-          ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
-          ...(input.rrule !== undefined ? { rrule: input.rrule } : {}),
-          ...(input.color !== undefined ? { color: input.color } : {}),
-          isAllDay,
-          startAt: nextStartAt,
-          endAt: isAllDay ? null : input.endAt ? new Date(input.endAt) : event.endAt,
-          startDate: isAllDay ? (input.startDate ?? event.startDate) : null,
-          endDate: isAllDay ? (input.endDate ?? event.endDate) : null,
-          updatedAt: new Date(),
-        })
-        .where(and(eq(calendarEvents.id, event.id), eq(calendarEvents.workspaceId, workspaceId)))
-        .returning();
-      if (!row) throw new NotFoundException('Event not found');
-
-      if (startDeltaMs !== 0) {
-        const exceptions = await tx
-          .select()
-          .from(calendarEventExceptions)
-          .where(eq(calendarEventExceptions.eventId, event.id));
-        for (const exception of exceptions) {
-          await tx
-            .update(calendarEventExceptions)
-            .set({
-              originalOccurrenceStart: new Date(
-                exception.originalOccurrenceStart.getTime() + startDeltaMs,
-              ),
-              startAt: exception.startAt
-                ? new Date(exception.startAt.getTime() + startDeltaMs)
-                : exception.startAt,
-              endAt: exception.endAt
-                ? new Date(exception.endAt.getTime() + startDeltaMs)
-                : exception.endAt,
-              updatedAt: new Date(),
-            })
-            .where(eq(calendarEventExceptions.id, exception.id));
-        }
-      }
-      return this.toDto(row);
-    });
-  }
-
-  private async upsertException(
-    workspaceId: string,
-    event: CalendarEvent,
-    occurrenceStart: Date,
-    patch: {
-      cancelled: boolean;
-      title?: string;
-      description?: string | null;
-      location?: string | null;
-      timezone?: string;
-      isAllDay?: boolean;
-      startAt?: Date | null;
-      endAt?: Date | null;
-      startDate?: string | null;
-      endDate?: string | null;
-    },
-  ) {
-    const [existing] = await this.db
-      .select()
-      .from(calendarEventExceptions)
-      .where(
-        and(
-          eq(calendarEventExceptions.eventId, event.id),
-          eq(calendarEventExceptions.originalOccurrenceStart, occurrenceStart),
-        ),
-      );
-    if (existing) {
-      await this.db
-        .update(calendarEventExceptions)
-        .set({
-          cancelled: patch.cancelled,
-          ...(patch.title !== undefined ? { title: patch.title } : {}),
-          ...(patch.description !== undefined ? { description: patch.description } : {}),
-          ...(patch.location !== undefined ? { location: patch.location } : {}),
-          ...(patch.timezone !== undefined ? { timezone: patch.timezone } : {}),
-          ...(patch.isAllDay !== undefined ? { isAllDay: patch.isAllDay } : {}),
-          ...(patch.startAt !== undefined ? { startAt: patch.startAt } : {}),
-          ...(patch.endAt !== undefined ? { endAt: patch.endAt } : {}),
-          ...(patch.startDate !== undefined ? { startDate: patch.startDate } : {}),
-          ...(patch.endDate !== undefined ? { endDate: patch.endDate } : {}),
-          updatedAt: new Date(),
-        })
-        .where(eq(calendarEventExceptions.id, existing.id));
-      return;
-    }
-    await this.db.insert(calendarEventExceptions).values({
-      eventId: event.id,
-      workspaceId,
-      originalOccurrenceStart: occurrenceStart,
-      cancelled: patch.cancelled,
-      title: patch.title ?? null,
-      description: patch.description ?? null,
-      location: patch.location ?? null,
-      timezone: patch.timezone ?? null,
-      isAllDay: patch.isAllDay ?? null,
-      startAt: patch.startAt ?? null,
-      endAt: patch.endAt ?? null,
-      startDate: patch.startDate ?? null,
-      endDate: patch.endDate ?? null,
-    });
-  }
-
-  private buildCreateFromPatch(
-    event: CalendarEvent,
-    input: UpdateCalendarEventInput,
-    occurrenceStart: Date,
-  ): CreateCalendarEventInput {
-    const isAllDay = input.isAllDay ?? event.isAllDay;
-    const title = input.title ?? event.title;
-    const timezone = input.timezone ?? event.timezone;
-    const rrule = input.rrule === undefined ? event.rrule : input.rrule;
-    if (isAllDay) {
-      const startDate =
-        input.startDate ??
-        (event.isAllDay ? event.startDate! : calendarDateKeyInTimeZone(occurrenceStart, timezone));
-      const endDate =
-        input.endDate ??
-        (event.isAllDay
-          ? event.endDate!
-          : this.addDays(calendarDateKeyInTimeZone(occurrenceStart, timezone), 1));
-      return {
-        title,
-        description: input.description === undefined ? event.description : input.description,
-        location: input.location === undefined ? event.location : input.location,
-        isAllDay: true,
-        startDate,
-        endDate,
-        timezone,
-        rrule,
-        kind: event.kind === 'time_block' ? 'time_block' : 'event',
-        color: input.color === undefined ? event.color : input.color,
-      };
-    }
-    const startAt = input.startAt ?? occurrenceStart.toISOString();
-    const duration =
-      event.startAt && event.endAt ? event.endAt.getTime() - event.startAt.getTime() : 60 * 60_000;
-    const endAt = input.endAt ?? new Date(new Date(startAt).getTime() + duration).toISOString();
-    return {
-      title,
-      description: input.description === undefined ? event.description : input.description,
-      location: input.location === undefined ? event.location : input.location,
-      isAllDay: false,
-      startAt,
-      endAt,
-      timezone,
-      rrule,
-      kind: event.kind === 'time_block' ? 'time_block' : 'event',
-      color: input.color === undefined ? event.color : input.color,
-    };
-  }
-
   private async findActive(workspaceId: string, eventId: string) {
     const [event] = await this.db
       .select()
@@ -888,34 +586,7 @@ export class CalendarService {
     return Boolean(row);
   }
 
-  private addDays(dateKey: string, days: number): string {
-    const [year, month, day] = dateKey.split('-').map(Number);
-    const utc = new Date(Date.UTC(year, month - 1, day + days));
-    return `${utc.getUTCFullYear()}-${String(utc.getUTCMonth() + 1).padStart(2, '0')}-${String(utc.getUTCDate()).padStart(2, '0')}`;
-  }
-
-  toDto(event: CalendarEvent) {
-    return {
-      id: event.id,
-      workspaceId: event.workspaceId,
-      title: event.title,
-      description: event.description,
-      location: event.location,
-      isAllDay: event.isAllDay,
-      startAt: toIso(event.startAt),
-      endAt: toIso(event.endAt),
-      startDate: event.startDate,
-      endDate: event.endDate,
-      timezone: event.timezone,
-      rrule: event.rrule,
-      kind: event.kind as 'event' | 'time_block',
-      color: event.color,
-      source: event.source,
-      externalId: event.externalId,
-      createdByUserId: event.createdByUserId,
-      deletedAt: toIso(event.deletedAt),
-      createdAt: toIso(event.createdAt)!,
-      updatedAt: toIso(event.updatedAt)!,
-    };
+  toDto(event: Parameters<typeof calendarEventToDto>[0]) {
+    return calendarEventToDto(event);
   }
 }

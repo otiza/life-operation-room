@@ -1,7 +1,49 @@
 import { NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CalendarSeriesService } from './calendar-series.service.js';
 import { CalendarService } from './calendar.service.js';
+import { CalendarTaskBlocksService } from './calendar-task-blocks.service.js';
 import { RecurrenceService } from './recurrence.service.js';
+
+function buildCalendarService(deps: {
+  db: unknown;
+  appsService?: unknown;
+  linksService?: unknown;
+  taskReferencesService?: unknown;
+}) {
+  const recurrence = new RecurrenceService();
+  const series = new CalendarSeriesService(deps.db as never, recurrence);
+  const linksService =
+    deps.linksService ?? { create: vi.fn(), listBySource: vi.fn(), listByTarget: vi.fn() };
+  const taskReferencesService =
+    deps.taskReferencesService ?? {
+      assertTaskInWorkspace: vi.fn(),
+      findTaskInWorkspace: vi.fn(),
+      listDueInRange: vi.fn(),
+    };
+  const appsService = deps.appsService ?? { assertInstalled: vi.fn(), updateConfig: vi.fn() };
+  let service!: CalendarService;
+  const taskBlocks = new CalendarTaskBlocksService(
+    deps.db as never,
+    linksService as never,
+    taskReferencesService as never,
+    new Proxy({} as CalendarService, {
+      get(_target, property, receiver) {
+        return Reflect.get(service, property, receiver);
+      },
+    }),
+  );
+  service = new CalendarService(
+    deps.db as never,
+    appsService as never,
+    linksService as never,
+    taskReferencesService as never,
+    recurrence,
+    series,
+    taskBlocks,
+  );
+  return service;
+}
 
 describe('CalendarService time blocks', () => {
   let service: CalendarService;
@@ -58,13 +100,7 @@ describe('CalendarService time blocks', () => {
       select: vi.fn(),
       update: vi.fn(),
     };
-    service = new CalendarService(
-      db as never,
-      appsService as never,
-      linksService as never,
-      taskReferencesService as never,
-      new RecurrenceService(),
-    );
+    service = buildCalendarService({ db, appsService, linksService, taskReferencesService });
   });
 
   it('rejects creating a time block for a task outside the workspace', async () => {
@@ -197,13 +233,7 @@ describe('CalendarService recurrence mutations', () => {
       insert: vi.fn(),
       update: vi.fn(),
     };
-    const service = new CalendarService(
-      db as never,
-      { assertInstalled: vi.fn(), updateConfig: vi.fn() } as never,
-      { create: vi.fn(), listBySource: vi.fn(), listByTarget: vi.fn() } as never,
-      { assertTaskInWorkspace: vi.fn(), findTaskInWorkspace: vi.fn(), listDueInRange: vi.fn() } as never,
-      new RecurrenceService(),
-    );
+    const service = buildCalendarService({ db });
 
     const result = await service.update(workspaceId, eventId, { id: userId } as never, {
       scope: 'following',
@@ -264,13 +294,7 @@ describe('CalendarService recurrence mutations', () => {
       insert: vi.fn(),
       update: vi.fn(),
     };
-    const service = new CalendarService(
-      db as never,
-      { assertInstalled: vi.fn(), updateConfig: vi.fn() } as never,
-      { create: vi.fn(), listBySource: vi.fn(), listByTarget: vi.fn() } as never,
-      { assertTaskInWorkspace: vi.fn(), findTaskInWorkspace: vi.fn(), listDueInRange: vi.fn() } as never,
-      new RecurrenceService(),
-    );
+    const service = buildCalendarService({ db });
 
     await service.update(workspaceId, eventId, { id: userId } as never, {
       scope: 'all',
