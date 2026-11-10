@@ -14,7 +14,7 @@ import type { Project } from '../projects/projects-api';
 import type { ProjectTaskCount, TaskViewCounts } from './tasks-api';
 import { cn } from '../../lib/utils';
 
-const SMART_VIEWS: { key: TaskView; label: string; icon: typeof Inbox }[] = [
+export const SMART_VIEWS: { key: TaskView; label: string; icon: typeof Inbox }[] = [
   { key: 'inbox', label: 'Inbox', icon: Inbox },
   { key: 'today', label: 'Today', icon: Sun },
   { key: 'upcoming', label: 'Upcoming', icon: CalendarDays },
@@ -30,6 +30,7 @@ export function TasksNav({
   views,
   projects,
   projectCounts,
+  variant = 'nested',
 }: {
   workspaceId: string;
   activeView?: TaskView | null;
@@ -37,12 +38,29 @@ export function TasksNav({
   views?: TaskViewCounts;
   projects: Project[];
   projectCounts?: Record<string, ProjectTaskCount>;
+  /** `shell` uses sidebar tokens; `nested` is for in-page use when shell does not own the rail. */
+  variant?: 'shell' | 'nested';
 }) {
   const base = `/w/${workspaceId}/tasks`;
   const activeProjects = projects.filter((project) => project.status === 'active');
+  const linkBase =
+    variant === 'shell'
+      ? 'flex min-h-9 items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent'
+      : 'flex h-10 items-center gap-2 rounded-lg px-2.5 text-sm transition-colors text-foreground hover:bg-accent';
+  const linkActive =
+    variant === 'shell'
+      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+      : 'bg-accent text-accent-foreground';
 
   return (
-    <nav className="flex w-full shrink-0 flex-col gap-4 md:w-52">
+    <nav
+      className={cn(
+        'flex w-full shrink-0 flex-col gap-3',
+        variant === 'nested' && 'md:w-52',
+        variant === 'shell' && 'gap-1 pl-2',
+      )}
+      aria-label="Tasks"
+    >
       <div className="space-y-0.5">
         {SMART_VIEWS.map((item) => {
           const Icon = item.icon;
@@ -50,16 +68,7 @@ export function TasksNav({
           const href = `${base}?view=${item.key}`;
           const active = activeView === item.key && !activeProjectId;
           return (
-            <Link
-              key={item.key}
-              href={href}
-              className={cn(
-                'flex h-10 items-center gap-2 rounded-lg px-2.5 text-sm transition-colors',
-                active
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-foreground hover:bg-accent',
-              )}
-            >
+            <Link key={item.key} href={href} className={cn(linkBase, active && linkActive)}>
               <Icon className="h-4 w-4 shrink-0 opacity-80" />
               <span className="min-w-0 flex-1 truncate">{item.label}</span>
               {count > 0 ? (
@@ -73,24 +82,21 @@ export function TasksNav({
       </div>
       {activeProjects.length > 0 ? (
         <div className="space-y-0.5">
-          <p className="px-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <Link
+            href={`/w/${workspaceId}/projects`}
+            className={cn(
+              'block px-2.5 text-xs font-medium tracking-wide text-muted-foreground hover:text-foreground',
+              variant === 'shell' && 'px-3',
+            )}
+          >
             Projects
-          </p>
+          </Link>
           {activeProjects.map((project) => {
             const open = projectCounts?.[project.id]?.open ?? 0;
             const href = `/w/${workspaceId}/projects/${project.id}`;
             const active = activeProjectId === project.id;
             return (
-              <Link
-                key={project.id}
-                href={href}
-                className={cn(
-                  'flex h-10 items-center gap-2 rounded-lg px-2.5 text-sm transition-colors',
-                  active
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-foreground hover:bg-accent',
-                )}
-              >
+              <Link key={project.id} href={href} className={cn(linkBase, active && linkActive)}>
                 <span className="min-w-0 flex-1 truncate">{project.name}</span>
                 {open > 0 ? (
                   <span className={cn('tabular-nums text-xs', active ? 'opacity-90' : 'text-muted-foreground')}>

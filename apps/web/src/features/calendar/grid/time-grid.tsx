@@ -5,12 +5,14 @@ import { useDroppable } from '@dnd-kit/core';
 import type { CalendarOccurrenceDto } from '../calendar-api';
 import {
   CALENDAR_HOUR_HEIGHT,
+  formatClockTime,
   minutesSinceMidnight,
   snapMinute,
   toDateKey,
 } from '../calendar-range';
 import { EventBlock } from './event-block';
 import { layoutTimedEvents } from './overlap';
+import { cn } from '../../../lib/utils';
 
 export type TimedOccurrenceChange = {
   occurrence: CalendarOccurrenceDto;
@@ -28,7 +30,15 @@ type TimeGridProps = {
   onTimedOccurrenceChange?: (change: TimedOccurrenceChange) => void;
 };
 
-function AllDayDropCell({ dateKey, children }: { dateKey: string; children: React.ReactNode }) {
+function AllDayDropCell({
+  dateKey,
+  isToday,
+  children,
+}: {
+  dateKey: string;
+  isToday?: boolean;
+  children: React.ReactNode;
+}) {
   const { setNodeRef, isOver } = useDroppable({
     id: `day:${dateKey}`,
     data: { dateKey, kind: 'all-day' },
@@ -36,7 +46,11 @@ function AllDayDropCell({ dateKey, children }: { dateKey: string; children: Reac
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-10 space-y-1 border-b border-l border-border p-1 ${isOver ? 'bg-accent/40' : ''}`}
+      className={cn(
+        'min-h-10 space-y-1 border-b border-l border-border p-1',
+        isToday && 'bg-primary/5',
+        isOver && 'bg-accent/40',
+      )}
     >
       {children}
     </div>
@@ -71,7 +85,11 @@ function DroppableDayColumn({
     <div
       ref={setNodeRef}
       data-date-key={dateKey}
-      className={`relative border-l border-border ${isOver ? 'bg-accent/40' : ''}`}
+      className={cn(
+        'relative border-l border-border',
+        isToday && 'bg-primary/5',
+        isOver && 'bg-accent/40',
+      )}
       style={{ height: hours.length * CALENDAR_HOUR_HEIGHT }}
       onClick={(event) => {
         const rect = (event.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -253,14 +271,30 @@ export function TimeGrid({
     <div className="overflow-auto rounded-xl border border-border bg-card">
       <div className="grid min-w-[640px]" style={{ gridTemplateColumns: `56px repeat(${days.length}, minmax(0, 1fr))` }}>
         <div className="border-b border-border" />
-        {days.map((day) => (
-          <div key={day.toISOString()} className="border-b border-l border-border px-2 py-2 text-center text-sm">
-            <div className="font-medium">
-              {day.toLocaleDateString(undefined, { weekday: 'short' })}
+        {days.map((day) => {
+          const isToday = toDateKey(now) === toDateKey(day);
+          return (
+            <div
+              key={day.toISOString()}
+              className={cn(
+                'border-b border-l border-border px-2 py-2 text-center text-sm',
+                isToday && 'bg-primary/5',
+              )}
+            >
+              <div className={cn('font-medium', isToday && 'text-primary')}>
+                {day.toLocaleDateString(undefined, { weekday: 'short' })}
+              </div>
+              <div
+                className={cn(
+                  'mx-auto mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground',
+                  isToday && 'bg-primary text-primary-foreground',
+                )}
+              >
+                {day.getDate()}
+              </div>
             </div>
-            <div className="text-muted-foreground">{day.getDate()}</div>
-          </div>
-        ))}
+          );
+        })}
 
         <div className="relative border-b border-border px-1 py-1">
           <div className="text-[10px] text-muted-foreground">All day</div>
@@ -271,7 +305,7 @@ export function TimeGrid({
             (item) => item.isAllDay && item.startDate && item.startDate <= key && (item.endDate ?? item.startDate) > key,
           );
           return (
-            <AllDayDropCell key={`allday-${day.toISOString()}`} dateKey={key}>
+            <AllDayDropCell key={`allday-${day.toISOString()}`} dateKey={key} isToday={toDateKey(now) === key}>
               {allDay.map((occurrence) => (
                 <EventBlock
                   key={`${occurrence.eventId}-${occurrence.occurrenceStart}`}
@@ -292,15 +326,10 @@ export function TimeGrid({
               className="absolute right-1 text-[10px] text-muted-foreground"
               style={{ top: (hour * 60 - gridStartMinute) * (CALENDAR_HOUR_HEIGHT / 60) - 6 }}
             >
-              {String(hour).padStart(2, '0')}:00
+              {formatClockTime(new Date(new Date().setHours(hour, 0, 0, 0)))}
               {secondaryTimeZone ? (
                 <div className="text-[9px] opacity-70">
-                  {new Date(new Date().setHours(hour, 0, 0, 0)).toLocaleTimeString(undefined, {
-                    timeZone: secondaryTimeZone,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hourCycle: 'h23',
-                  })}
+                  {formatClockTime(new Date(new Date().setHours(hour, 0, 0, 0)), secondaryTimeZone)}
                 </div>
               ) : null}
             </div>

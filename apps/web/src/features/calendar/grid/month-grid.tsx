@@ -4,6 +4,7 @@ import { useDroppable } from '@dnd-kit/core';
 import type { CalendarOccurrenceDto } from '../calendar-api';
 import { toDateKey } from '../calendar-range';
 import { EventBlock } from './event-block';
+import { cn } from '../../../lib/utils';
 
 type MonthGridProps = {
   days: Date[];
@@ -16,11 +17,13 @@ type MonthGridProps = {
 function DroppableMonthDay({
   day,
   inMonth,
+  isToday,
   children,
   onSelectDay,
 }: {
   day: Date;
   inMonth: boolean;
+  isToday: boolean;
   children: React.ReactNode;
   onSelectDay: (day: Date) => void;
 }) {
@@ -38,9 +41,19 @@ function DroppableMonthDay({
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') onSelectDay(day);
       }}
-      className={`min-h-24 border-b border-r border-border p-1 text-left hover:bg-muted/40 ${isOver ? 'bg-accent/40' : ''}`}
+      className={cn(
+        'min-h-24 border-b border-r border-border p-1 text-left hover:bg-muted/40',
+        isToday && 'bg-primary/5',
+        isOver && 'bg-accent/40',
+      )}
     >
-      <div className={`mb-1 text-xs ${inMonth ? 'text-foreground' : 'text-muted-foreground'}`}>
+      <div
+        className={cn(
+          'mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs',
+          inMonth ? 'text-foreground' : 'text-muted-foreground',
+          isToday && 'bg-primary text-primary-foreground',
+        )}
+      >
         {day.getDate()}
       </div>
       <div className="space-y-1">{children}</div>
@@ -50,6 +63,7 @@ function DroppableMonthDay({
 
 export function MonthGrid({ days, anchor, events, onSelectOccurrence, onSelectDay }: MonthGridProps) {
   const month = anchor.getMonth();
+  const todayKey = toDateKey(new Date());
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">
       <div className="grid grid-cols-7 border-b border-border text-center text-xs text-muted-foreground">
@@ -74,6 +88,7 @@ export function MonthGrid({ days, anchor, events, onSelectOccurrence, onSelectDa
               key={day.toISOString()}
               day={day}
               inMonth={day.getMonth() === month}
+              isToday={key === todayKey}
               onSelectDay={onSelectDay}
             >
               {dayEvents.map((occurrence) => (

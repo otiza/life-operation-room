@@ -9,6 +9,8 @@ import { deleteProject, getProject, updateProject } from '../../../../../feature
 import { TasksWorkspace } from '../../../../../features/tasks/tasks-workspace';
 import { Button } from '../../../../../components/ui/button';
 import { Dialog } from '../../../../../components/ui/dialog';
+import { Menu } from '../../../../../components/ui/menu';
+import { Skeleton, SkeletonText } from '../../../../../components/ui/skeleton';
 import { PageContainer, PageHeader } from '../../../../../components/layout/page-container';
 import { ApiError } from '../../../../../lib/api';
 
@@ -17,7 +19,11 @@ export default function ProjectDetailPage() {
     <Suspense
       fallback={
         <PageContainer size="md">
-          <PageHeader title="Project" description="Loading…" />
+          <div className="space-y-3" aria-busy="true" aria-label="Loading project">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-8 w-56" />
+            <SkeletonText lines={2} />
+          </div>
         </PageContainer>
       }
     >
@@ -33,7 +39,6 @@ function ProjectDetailContent() {
   const queryClient = useQueryClient();
   const [name, setName] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +74,11 @@ function ProjectDetailContent() {
   if (projectQuery.isLoading) {
     return (
       <PageContainer size="md">
-        <PageHeader title="Project" description="Loading…" />
+        <div className="space-y-3" aria-busy="true" aria-label="Loading project">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-8 w-56" />
+          <SkeletonText lines={2} />
+        </div>
       </PageContainer>
     );
   }
@@ -77,13 +86,17 @@ function ProjectDetailContent() {
   if (projectQuery.isError || !projectQuery.data?.project) {
     return (
       <PageContainer size="md">
-        <PageHeader title="Project" description="Not found" />
+        <PageHeader
+          title="Project"
+          description="Not found"
+          breadcrumb={[
+            { label: 'Projects', href: `/w/${workspaceId}/projects` },
+            { label: 'Not found' },
+          ]}
+        />
         <p className="text-sm text-destructive">
           {projectQuery.error instanceof ApiError ? projectQuery.error.message : 'Project not found'}
         </p>
-        <Link href={`/w/${workspaceId}/projects`} className="text-sm text-foreground underline">
-          Back to projects
-        </Link>
       </PageContainer>
     );
   }
@@ -98,16 +111,39 @@ function ProjectDetailContent() {
         workspaceId={workspaceId}
         lockedProjectId={projectId}
         header={
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1">
+              <nav aria-label="Breadcrumb" className="mb-2">
+                <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                  <li>
+                    <Link
+                      href={`/w/${workspaceId}/projects`}
+                      className="rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Projects
+                    </Link>
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <span aria-hidden="true" className="text-border">
+                      /
+                    </span>
+                    <span className="text-foreground" aria-current="page">
+                      {displayName}
+                    </span>
+                  </li>
+                </ol>
+              </nav>
               <input
-                className="w-full bg-transparent text-xl font-semibold tracking-tight text-foreground outline-none sm:text-2xl"
+                className="w-full bg-transparent text-page-title text-foreground outline-none"
                 value={displayName}
                 aria-label="Project name"
                 onChange={(event) => setName(event.target.value)}
                 onBlur={() => {
                   const next = displayName.trim();
-                  if (!next || next === project.name) return;
+                  if (!next || next === project.name) {
+                    setName(null);
+                    return;
+                  }
                   saveMutation.mutate({ name: next });
                 }}
               />
@@ -126,41 +162,28 @@ function ProjectDetailContent() {
               />
               {error ? <p className="mt-1 text-sm text-destructive">{error}</p> : null}
             </div>
-            <div className="relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Project actions"
-                aria-expanded={menuOpen}
-                onClick={() => setMenuOpen((open) => !open)}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-              {menuOpen ? (
-                <div className="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-border bg-popover py-1 shadow-lg">
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      saveMutation.mutate({ status: project.status === 'archived' ? 'active' : 'archived' });
-                    }}
-                  >
-                    {project.status === 'archived' ? 'Restore' : 'Archive'}
-                  </button>
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-2 text-left text-sm text-destructive hover:bg-danger-soft"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setConfirmDelete(true);
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            <Menu
+              aria-label="Project actions"
+              align="end"
+              triggerClassName="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              trigger={<MoreHorizontal className="h-4 w-4" />}
+              items={[
+                {
+                  id: 'archive',
+                  label: project.status === 'archived' ? 'Restore' : 'Archive',
+                  onSelect: () =>
+                    saveMutation.mutate({
+                      status: project.status === 'archived' ? 'active' : 'archived',
+                    }),
+                },
+                {
+                  id: 'delete',
+                  label: 'Delete',
+                  destructive: true,
+                  onSelect: () => setConfirmDelete(true),
+                },
+              ]}
+            />
           </div>
         }
       />

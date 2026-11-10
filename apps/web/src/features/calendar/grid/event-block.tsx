@@ -2,6 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import type { CalendarOccurrenceDto } from '../calendar-api';
+import { formatClockTime } from '../calendar-range';
 import { eventColorFor } from '../event-colors';
 import { cn } from '../../../lib/utils';
 
@@ -79,11 +80,8 @@ export function EventBlock({
         {isDeleted ? `${occurrence.title} (task deleted)` : occurrence.title}
       </div>
       {!compact && !occurrence.isAllDay && occurrence.startAt ? (
-        <div className="truncate text-[10px] text-muted-foreground">
-          {new Date(occurrence.startAt).toLocaleTimeString(undefined, {
-            hour: 'numeric',
-            minute: '2-digit',
-          })}
+        <div className="truncate text-[10px] opacity-70">
+          {formatClockTime(new Date(occurrence.startAt))}
         </div>
       ) : null}
       {resizable && canInteract && !occurrence.isAllDay ? (

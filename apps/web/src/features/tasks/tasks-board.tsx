@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GripVertical } from 'lucide-react';
+import { Flag, GripVertical } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -37,6 +37,7 @@ import {
   statusColor,
   statusLabel,
 } from './task-status';
+import { Button } from '../../components/ui/button';
 import { cn } from '../../lib/utils';
 
 type BoardColumns = Record<string, Task[]>;
@@ -66,6 +67,7 @@ export function TasksBoard({
   settings,
   projectName,
   memberLabel,
+  showAssignee = true,
   onMove,
   onOpenTask,
   onCreate,
@@ -74,18 +76,29 @@ export function TasksBoard({
   settings: TaskSettings;
   projectName: (projectId: string | null) => string;
   memberLabel: (userId: string | null) => string;
+  showAssignee?: boolean;
   onMove: (moves: TaskBoardMove[]) => void;
   onOpenTask: (taskId: string) => void;
   onCreate?: (status: string, title: string) => void;
 }) {
   const statusOptions = useMemo(() => enabledStatuses(settings), [settings]);
-  const statusKeys = useMemo(() => statusOptions.map((item) => item.key), [statusOptions]);
+  const cancelledOption = statusOptions.find((item) => item.key === 'cancelled');
+  const [showCancelled, setShowCancelled] = useState(false);
+  const visibleStatuses = useMemo(
+    () => statusOptions.filter((item) => item.key !== 'cancelled' || showCancelled),
+    [showCancelled, statusOptions],
+  );
+  const statusKeys = useMemo(() => visibleStatuses.map((item) => item.key), [visibleStatuses]);
   const serverColumns = useMemo(() => buildColumns(tasks, statusKeys), [tasks, statusKeys]);
   const [draftColumns, setDraftColumns] = useState<BoardColumns | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const columns = draftColumns ?? serverColumns;
   const columnsRef = useRef(columns);
   const suppressClickRef = useRef(false);
+  const cancelledCount = useMemo(
+    () => tasks.filter((task) => task.status === 'cancelled').length,
+    [tasks],
+  );
   useEffect(() => {
     columnsRef.current = columns;
   }, [columns]);
@@ -195,43 +208,60 @@ export function TasksBoard({
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={collisionDetection}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
-      <div className="flex min-h-[min(70vh,52rem)] gap-3 overflow-x-auto pb-2">
-        {statusOptions.map((status) => (
-          <BoardColumn
-            key={status.key}
-            statusKey={status.key}
-            label={status.label}
-            color={status.color}
-            tasks={columns[status.key] ?? []}
-            settings={settings}
-            projectName={projectName}
-            memberLabel={memberLabel}
-            onOpenTask={onOpenTask}
-            onCreate={onCreate}
-            shouldSuppressClick={() => suppressClickRef.current}
-          />
-        ))}
-      </div>
-      <DragOverlay dropAnimation={{ duration: 140, easing: 'ease-out' }}>
-        {activeTask ? (
-          <TaskCardContent
-            task={activeTask}
-            settings={settings}
-            projectLabel={projectName(activeTask.projectId)}
-            assigneeLabel={memberLabel(activeTask.assigneeUserId)}
-            dragging
-          />
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+    <div className="space-y-3">
+      {cancelledOption ? (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={showCancelled}
+            onClick={() => setShowCancelled((value) => !value)}
+          >
+            {showCancelled ? 'Hide cancelled' : `Show cancelled${cancelledCount ? ` (${cancelledCount})` : ''}`}
+          </Button>
+        </div>
+      ) : null}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collisionDetection}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <div className="flex w-max max-w-full items-start gap-3 overflow-x-auto pb-2">
+          {visibleStatuses.map((status) => (
+            <BoardColumn
+              key={status.key}
+              statusKey={status.key}
+              label={status.label}
+              color={status.color}
+              tasks={columns[status.key] ?? []}
+              settings={settings}
+              projectName={projectName}
+              memberLabel={memberLabel}
+              showAssignee={showAssignee}
+              onOpenTask={onOpenTask}
+              onCreate={onCreate}
+              shouldSuppressClick={() => suppressClickRef.current}
+            />
+          ))}
+        </div>
+        <DragOverlay dropAnimation={{ duration: 140, easing: 'ease-out' }}>
+          {activeTask ? (
+            <TaskCardContent
+              task={activeTask}
+              settings={settings}
+              projectLabel={projectName(activeTask.projectId)}
+              assigneeLabel={memberLabel(activeTask.assigneeUserId)}
+              showAssignee={showAssignee}
+              dragging
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }
 
@@ -243,6 +273,7 @@ function BoardColumn({
   settings,
   projectName,
   memberLabel,
+  showAssignee,
   onOpenTask,
   onCreate,
   shouldSuppressClick,
@@ -254,16 +285,19 @@ function BoardColumn({
   settings: TaskSettings;
   projectName: (projectId: string | null) => string;
   memberLabel: (userId: string | null) => string;
+  showAssignee: boolean;
   onOpenTask: (taskId: string) => void;
   onCreate?: (status: string, title: string) => void;
   shouldSuppressClick: () => boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: statusKey });
+  const isEmpty = tasks.length === 0;
   return (
     <section
       ref={setNodeRef}
       className={cn(
         'flex w-[min(18.5rem,82vw)] shrink-0 flex-col rounded-2xl border bg-muted/90 transition-colors',
+        isEmpty ? 'self-start' : 'min-h-[12rem]',
         isOver ? 'border-ring bg-muted/90 ring-1 ring-ring' : 'border-border/80',
       )}
     >
@@ -275,7 +309,8 @@ function BoardColumn({
         </span>
       </header>
       <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-1 flex-col gap-2 px-2 pb-3 pt-0.5">
+        <div className="flex flex-col gap-2 px-2 pb-3 pt-0.5">
+          {onCreate ? <ColumnComposer onCreate={(title) => onCreate(statusKey, title)} /> : null}
           {tasks.map((task) => (
             <SortableTaskCard
               key={task.id}
@@ -283,21 +318,21 @@ function BoardColumn({
               settings={settings}
               projectLabel={projectName(task.projectId)}
               assigneeLabel={memberLabel(task.assigneeUserId)}
+              showAssignee={showAssignee}
               onOpenTask={onOpenTask}
               shouldSuppressClick={shouldSuppressClick}
             />
           ))}
-          {tasks.length === 0 ? (
+          {isEmpty ? (
             <div
               className={cn(
-                'flex flex-1 items-center justify-center rounded-xl border border-dashed px-3 py-8 text-center text-xs',
+                'rounded-xl border border-dashed px-3 py-3 text-center text-xs',
                 isOver ? 'border-ring text-muted-foreground' : 'border-border text-muted-foreground',
               )}
             >
               Drop here
             </div>
           ) : null}
-          {onCreate ? <ColumnComposer onCreate={(title) => onCreate(statusKey, title)} /> : null}
         </div>
       </SortableContext>
     </section>
@@ -309,6 +344,7 @@ function SortableTaskCard({
   settings,
   projectLabel,
   assigneeLabel,
+  showAssignee,
   onOpenTask,
   shouldSuppressClick,
 }: {
@@ -316,6 +352,7 @@ function SortableTaskCard({
   settings: TaskSettings;
   projectLabel: string;
   assigneeLabel: string;
+  showAssignee: boolean;
   onOpenTask: (taskId: string) => void;
   shouldSuppressClick: () => boolean;
 }) {
@@ -343,6 +380,7 @@ function SortableTaskCard({
         settings={settings}
         projectLabel={projectLabel}
         assigneeLabel={assigneeLabel}
+        showAssignee={showAssignee}
       />
     </div>
   );
@@ -353,19 +391,21 @@ function TaskCardContent({
   settings,
   projectLabel,
   assigneeLabel,
+  showAssignee,
   dragging,
 }: {
   task: Task;
   settings: TaskSettings;
   projectLabel: string;
   assigneeLabel: string;
+  showAssignee: boolean;
   dragging?: boolean;
 }) {
   const overdue = isOverdue(task.dueAt, task.status, settings);
   const initials = assigneeInitials(assigneeLabel);
   const accent = priorityColor(settings, task.priority);
   const priorityName = priorityLabel(settings, task.priority);
-  const showAccent = task.priority !== 'none';
+  const showPriority = task.priority !== 'none';
   const done = isDoneStatus(settings, task.status);
 
   return (
@@ -378,27 +418,28 @@ function TaskCardContent({
         done && 'opacity-80',
       )}
     >
-      {showAccent ? (
+      {showPriority ? (
         <span
           className="absolute inset-y-0 left-0 w-1 rounded-l-xl"
           style={{ backgroundColor: accent }}
           aria-hidden
         />
       ) : null}
-      <div className={cn('flex items-start gap-1.5', showAccent && 'pl-1.5')}>
+      <div className={cn('flex items-start gap-1.5', showPriority && 'pl-1.5')}>
         <span className="mt-0.5 flex h-5 w-4 shrink-0 items-center justify-center text-border" aria-hidden>
           <GripVertical className="h-4 w-4" />
         </span>
         <p className="min-w-0 flex-1 break-words text-sm font-medium leading-snug text-foreground">{task.title}</p>
       </div>
-      <div className={cn('mt-2.5 flex items-center gap-2', showAccent && 'pl-2')}>
+      <div className={cn('mt-2.5 flex items-center gap-2', showPriority && 'pl-2')}>
         <span className="min-w-0 truncate text-[11px] text-muted-foreground">{projectLabel}</span>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          {showAccent ? (
+          {showPriority ? (
             <span
-              className="rounded-md px-1.5 py-0.5 text-[11px] font-medium"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium"
               style={{ backgroundColor: `${accent}22`, color: accent }}
             >
+              <Flag className="h-3 w-3" aria-hidden />
               {priorityName}
             </span>
           ) : null}
@@ -410,17 +451,19 @@ function TaskCardContent({
             dueAt={task.dueAt}
             overdue={overdue}
           />
-          <span
-            title={assigneeLabel}
-            className={cn(
-              'flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold',
-              assigneeLabel === 'Unassigned'
-                ? 'bg-muted text-muted-foreground'
-                : 'bg-primary text-primary-foreground',
-            )}
-          >
-            {initials}
-          </span>
+          {showAssignee ? (
+            <span
+              title={assigneeLabel}
+              className={cn(
+                'flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold',
+                assigneeLabel === 'Unassigned'
+                  ? 'bg-muted text-muted-foreground'
+                  : 'bg-primary text-primary-foreground',
+              )}
+            >
+              {initials}
+            </span>
+          ) : null}
         </div>
       </div>
       <span className="sr-only">{statusLabel(settings, task.status)}</span>
@@ -433,7 +476,6 @@ function ColumnComposer({ onCreate }: { onCreate: (title: string) => void }) {
   const [title, setTitle] = useState('');
   return (
     <form
-      className="mt-1"
       onSubmit={(event) => {
         event.preventDefault();
         const next = title.trim();

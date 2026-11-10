@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { calendarDateKeyInTimeZone, type TaskSettings } from '@erp-tiza/shared';
-import { CalendarDays, Flag } from 'lucide-react';
+import { CalendarDays, Flag, FolderKanban, CircleDot, UserRound } from 'lucide-react';
 import { deleteTask, getTask, updateTask, type Task } from './tasks-api';
 import {
   dueLocalFromDateInput,
@@ -23,6 +23,8 @@ import {
 import { listProjects } from '../projects/projects-api';
 import { listMembers } from '../workspaces/workspaces-api';
 import { Button } from '../../components/ui/button';
+import { PropertyField } from '../../components/ui/property-field';
+import { Skeleton, SkeletonText } from '../../components/ui/skeleton';
 import { ApiError } from '../../lib/api';
 import { cn } from '../../lib/utils';
 
@@ -94,11 +96,13 @@ export function TaskEditForm({
   workspaceId,
   taskId,
   settings,
+  showAssignee = true,
   onDeleted,
 }: {
   workspaceId: string;
   taskId: string;
   settings: TaskSettings;
+  showAssignee?: boolean;
   onDeleted?: (task: Task) => void;
 }) {
   const queryClient = useQueryClient();
@@ -191,7 +195,15 @@ export function TaskEditForm({
   });
 
   if (taskQuery.isLoading || !draft) {
-    return <p className="p-6 text-sm text-muted-foreground">Loading task…</p>;
+    return (
+      <div className="space-y-4 p-6" aria-busy="true" aria-label="Loading task">
+        <Skeleton className="h-7 w-3/5" />
+        <SkeletonText lines={3} />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-4/5" />
+      </div>
+    );
   }
 
   if (taskQuery.isError || !taskQuery.data?.task) {
@@ -223,10 +235,10 @@ export function TaskEditForm({
     activeMembers.find((member) => member.userId === draft.assigneeUserId)?.name?.trim() ||
     activeMembers.find((member) => member.userId === draft.assigneeUserId)?.email ||
     'Unassigned';
-  const dueLabel = formatDueAtShort(fromDatetimeLocalValue(draft.dueLocal)) ?? 'Deadline';
+  const dueLabel = formatDueAtShort(fromDatetimeLocalValue(draft.dueLocal)) ?? 'None';
   const whenLabel = draft.isSomeday
     ? 'Someday'
-    : formatWhenDateShort(draft.whenDate || null, draft.whenEvening) ?? 'When';
+    : formatWhenDateShort(draft.whenDate || null, draft.whenEvening) ?? 'None';
 
   function patch(partial: Partial<Draft>) {
     setDraft((current) => (current ? { ...current, ...partial } : current));
@@ -250,12 +262,14 @@ export function TaskEditForm({
           aria-label="Description"
           onChange={(event) => patch({ description: event.target.value })}
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="space-y-1">
           <PropertyMenu
             menuKey="status"
             openKey={openMenu}
             setOpenKey={setOpenMenu}
-            label={statusLabel(settings, draft.status)}
+            label="Status"
+            value={statusLabel(settings, draft.status)}
+            icon={<CircleDot className="h-4 w-4" />}
             options={statusOptions.map((item) => ({ value: item.key, label: item.label }))}
             onSelect={(value) => patch({ status: value })}
           />
@@ -263,7 +277,9 @@ export function TaskEditForm({
             menuKey="priority"
             openKey={openMenu}
             setOpenKey={setOpenMenu}
-            label={priorityLabel(settings, draft.priority)}
+            label="Priority"
+            value={priorityLabel(settings, draft.priority)}
+            icon={<Flag className="h-4 w-4" />}
             options={priorityOptions.map((item) => ({ value: item.key, label: item.label }))}
             onSelect={(value) => patch({ priority: value })}
           />
@@ -271,7 +287,9 @@ export function TaskEditForm({
             menuKey="project"
             openKey={openMenu}
             setOpenKey={setOpenMenu}
-            label={projectName}
+            label="Project"
+            value={projectName}
+            icon={<FolderKanban className="h-4 w-4" />}
             options={[
               { value: '', label: 'Inbox' },
               ...projects.map((project) => ({
@@ -281,25 +299,30 @@ export function TaskEditForm({
             ]}
             onSelect={(value) => patch({ projectId: value })}
           />
-          <PropertyMenu
-            menuKey="assignee"
-            openKey={openMenu}
-            setOpenKey={setOpenMenu}
-            label={assigneeLabel}
-            options={[
-              { value: '', label: 'Unassigned' },
-              ...activeMembers.map((member) => ({
-                value: member.userId!,
-                label: member.name?.trim() || member.email,
-              })),
-            ]}
-            onSelect={(value) => patch({ assigneeUserId: value })}
-          />
+          {showAssignee ? (
+            <PropertyMenu
+              menuKey="assignee"
+              openKey={openMenu}
+              setOpenKey={setOpenMenu}
+              label="Assignee"
+              value={assigneeLabel}
+              icon={<UserRound className="h-4 w-4" />}
+              options={[
+                { value: '', label: 'Unassigned' },
+                ...activeMembers.map((member) => ({
+                  value: member.userId!,
+                  label: member.name?.trim() || member.email,
+                })),
+              ]}
+              onSelect={(value) => patch({ assigneeUserId: value })}
+            />
+          ) : null}
           <DueMenu
             open={openMenu === 'when'}
             setOpen={(next) => setOpenMenu(next ? 'when' : null)}
-            label={whenLabel}
-            icon="when"
+            label="When"
+            value={whenLabel}
+            icon={<CalendarDays className="h-4 w-4" />}
             dateValue={draft.whenDate}
             onToday={() => patch({ whenDate: todayDateKey(), whenEvening: false, isSomeday: false })}
             onTomorrow={() => patch({ whenDate: tomorrowDateKey(), whenEvening: false, isSomeday: false })}
@@ -327,8 +350,9 @@ export function TaskEditForm({
           <DueMenu
             open={openMenu === 'due'}
             setOpen={(next) => setOpenMenu(next ? 'due' : null)}
-            label={dueLabel}
-            icon="due"
+            label="Deadline"
+            value={dueLabel}
+            icon={<Flag className="h-4 w-4" />}
             dateValue={draft.dueLocal.slice(0, 10)}
             onToday={() => patch({ dueLocal: dueLocalOnDay(0) })}
             onTomorrow={() => patch({ dueLocal: dueLocalOnDay(1) })}
@@ -395,7 +419,8 @@ function DueMenu({
   open,
   setOpen,
   label,
-  icon = 'due',
+  value,
+  icon,
   dateValue,
   onToday,
   onTomorrow,
@@ -406,7 +431,8 @@ function DueMenu({
   open: boolean;
   setOpen: (open: boolean) => void;
   label: string;
-  icon?: 'when' | 'due';
+  value: string;
+  icon: ReactNode;
   dateValue: string;
   onToday: () => void;
   onTomorrow: () => void;
@@ -414,16 +440,16 @@ function DueMenu({
   onPickDate: (value: string) => void;
   extraActions?: ReactNode;
 }) {
-  const Icon = icon === 'when' ? CalendarDays : Flag;
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<MenuBox | null>(null);
 
   useEffect(() => {
-    if (!open || !buttonRef.current) return;
-    const button = buttonRef.current;
+    if (!open || !fieldRef.current) return;
+    const button = fieldRef.current.querySelector('button');
+    if (!button) return;
     function place() {
-      setBox(placeMenu(button));
+      setBox(placeMenu(button as HTMLButtonElement));
     }
     place();
     window.addEventListener('resize', place);
@@ -439,7 +465,7 @@ function DueMenu({
     function onPointerDown(event: PointerEvent) {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      if (fieldRef.current?.contains(target) || menuRef.current?.contains(target)) return;
       setOpen(false);
     }
     document.addEventListener('pointerdown', onPointerDown);
@@ -448,17 +474,9 @@ function DueMenu({
 
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
-        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent"
-        aria-expanded={open}
-        aria-label={icon === 'when' ? `When: ${label}` : `Deadline: ${label}`}
-        onClick={() => setOpen(!open)}
-      >
-        <Icon className="h-3.5 w-3.5 opacity-80" aria-hidden />
-        <span>{icon === 'when' ? (label === 'When' ? 'When' : `When: ${label}`) : label}</span>
-      </button>
+      <div ref={fieldRef}>
+        <PropertyField label={label} value={value} icon={icon} onClick={() => setOpen(!open)} />
+      </div>
       {open && box
         ? createPortal(
             <div
@@ -500,6 +518,8 @@ function PropertyMenu({
   openKey,
   setOpenKey,
   label,
+  value,
+  icon,
   options,
   onSelect,
 }: {
@@ -507,19 +527,22 @@ function PropertyMenu({
   openKey: string | null;
   setOpenKey: (key: string | null) => void;
   label: string;
+  value: string;
+  icon: ReactNode;
   options: { value: string; label: string }[];
   onSelect: (value: string) => void;
 }) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<MenuBox | null>(null);
   const open = openKey === menuKey;
 
   useEffect(() => {
-    if (!open || !buttonRef.current) return;
-    const button = buttonRef.current;
+    if (!open || !fieldRef.current) return;
+    const button = fieldRef.current.querySelector('button');
+    if (!button) return;
     function place() {
-      setBox(placeMenu(button));
+      setBox(placeMenu(button as HTMLButtonElement));
     }
     place();
     window.addEventListener('resize', place);
@@ -535,7 +558,7 @@ function PropertyMenu({
     function onPointerDown(event: PointerEvent) {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      if (fieldRef.current?.contains(target) || menuRef.current?.contains(target)) return;
       setOpenKey(null);
     }
     document.addEventListener('pointerdown', onPointerDown);
@@ -544,15 +567,14 @@ function PropertyMenu({
 
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
-        className="inline-flex h-8 max-w-44 items-center truncate rounded-full bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent"
-        aria-expanded={open}
-        onClick={() => setOpenKey(open ? null : menuKey)}
-      >
-        {label}
-      </button>
+      <div ref={fieldRef}>
+        <PropertyField
+          label={label}
+          value={value}
+          icon={icon}
+          onClick={() => setOpenKey(open ? null : menuKey)}
+        />
+      </div>
       {open && box
         ? createPortal(
             <div

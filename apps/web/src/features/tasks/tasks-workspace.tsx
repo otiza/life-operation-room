@@ -1,8 +1,9 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { Settings, X } from 'lucide-react';
 import type { TaskView } from '@erp-tiza/shared';
 import { parseTaskQuickAdd } from '@erp-tiza/shared';
 import {
@@ -19,9 +20,10 @@ import {
   isDoneStatus,
 } from './task-status';
 import { TaskEditForm } from './task-edit-form';
-import { emptyStateCopy, TasksNav } from './tasks-nav';
+import { emptyStateCopy } from './tasks-nav';
 import { Card, CardContent } from '../../components/ui/card';
 import { Sheet } from '../../components/ui/sheet';
+import { Skeleton, SkeletonText } from '../../components/ui/skeleton';
 import { useToast } from '../../components/ui/toast';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { ApiError } from '../../lib/api';
@@ -76,7 +78,6 @@ export function TasksWorkspace({
     workspaceQuery,
     membersQuery,
     tasksQuery,
-    countsQuery,
     tasksListLoading,
     settings,
     statusOptions,
@@ -625,10 +626,16 @@ export function TasksWorkspace({
     });
   }
 
+  const showAssignee = workspaceQuery.data?.workspace.kind !== 'personal';
+
   if (installedQuery.isLoading) {
     return (
       <PageContainer size="full">
-        <PageHeader title="Tasks" description="Loading…" />
+        <div className="space-y-3" aria-busy="true" aria-label="Loading tasks">
+          <Skeleton className="h-8 w-40" />
+          <SkeletonText lines={2} />
+          <Skeleton className="mt-4 h-24 w-full" />
+        </div>
       </PageContainer>
     );
   }
@@ -668,88 +675,94 @@ export function TasksWorkspace({
           title={viewTitle}
           description={
             workspaceQuery.data?.workspace.kind === 'personal'
-              ? 'Open work across your projects.'
+              ? 'Capture and finish personal work.'
               : 'Shared work across projects.'
+          }
+          actions={
+            <Link
+              href={`/w/${workspaceId}/tasks/settings`}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Tasks settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
           }
         />
       )}
 
-      <div className="flex flex-col gap-6 md:flex-row">
-        {!lockedProjectId ? (
-          <TasksNav
-            workspaceId={workspaceId}
-            activeView={smartView}
-            views={countsQuery.data?.counts.views}
-            projects={projects}
-            projectCounts={countsQuery.data?.counts.projects}
-          />
-        ) : null}
-        <div className="min-w-0 flex-1 space-y-4">
-          <TasksComposer
-            composerRef={composerRef}
-            composerTitle={composerTitle}
-            setComposerTitle={setComposerTitle}
-            composerProjectId={composerProjectId}
-            setComposerProjectId={setComposerProjectId}
-            lockedProjectId={lockedProjectId}
-            activeProjects={activeProjects}
-            isPending={createMutation.isPending}
-            error={error}
-            onSubmit={onCreate}
-          />
+      <div className="min-w-0 space-y-4">
+        <TasksComposer
+          composerRef={composerRef}
+          composerTitle={composerTitle}
+          setComposerTitle={setComposerTitle}
+          composerProjectId={composerProjectId}
+          setComposerProjectId={setComposerProjectId}
+          lockedProjectId={lockedProjectId}
+          activeProjects={activeProjects}
+          isPending={createMutation.isPending}
+          error={error}
+          onSubmit={onCreate}
+        />
 
-          <TasksFiltersBar
-            smartView={smartView}
-            isBoard={isBoard}
-            setLayout={setLayout}
-            searchRef={searchRef}
-            searchText={searchText}
-            setSearchText={setSearchText}
-            assignee={assignee}
-            replaceParams={replaceParams}
-            isLoading={tasksListLoading}
-            listedCount={listedTasks.length}
-            openCount={openCount}
-          />
+        <TasksFiltersBar
+          smartView={smartView}
+          isBoard={isBoard}
+          setLayout={setLayout}
+          searchRef={searchRef}
+          searchText={searchText}
+          setSearchText={setSearchText}
+          assignee={assignee}
+          replaceParams={replaceParams}
+          isLoading={tasksListLoading}
+          listedCount={listedTasks.length}
+          openCount={openCount}
+          showAssigneeFilter={showAssignee}
+        />
 
-          <TasksListSection
-            tasksQueryIsLoading={tasksListLoading}
-            settingsQueryIsLoading={false}
-            tasksQueryIsError={tasksQuery.isError}
-            tasksQueryError={tasksQuery.error}
-            isBoard={isBoard}
-            boardTasks={boardTasks}
-            listedTasks={listedTasks}
-            completedTasks={completedTasks}
-            hasSearch={hasSearch}
-            emptyCopy={emptyCopy}
-            settings={settings}
-            projectName={projectName}
-            memberLabel={memberLabel}
-            onMove={moveTasks}
-            onOpenTask={openTask}
-            onCreate={(status, title) =>
-              createMutation.mutate({
-                title,
-                projectId: defaultComposerProjectId,
-                status,
-                whenDate: defaultWhenDate ?? null,
-              })
-            }
-            groups={groups}
-            lockedProjectId={lockedProjectId}
-            smartView={smartView}
-            safeFocusedTaskId={safeFocusedTaskId}
-            pendingCompleteIds={pendingCompleteIds}
-            onFocusTask={setFocusedTaskId}
-            onToggleDone={toggleComplete}
-            completedOpen={completedOpen}
-            setCompletedOpen={setCompletedOpen}
-          />
-        </div>
+        <TasksListSection
+          tasksQueryIsLoading={tasksListLoading}
+          settingsQueryIsLoading={false}
+          tasksQueryIsError={tasksQuery.isError}
+          tasksQueryError={tasksQuery.error}
+          isBoard={isBoard}
+          boardTasks={boardTasks}
+          listedTasks={listedTasks}
+          completedTasks={completedTasks}
+          hasSearch={hasSearch}
+          emptyCopy={emptyCopy}
+          settings={settings}
+          projectName={projectName}
+          memberLabel={memberLabel}
+          showAssignee={showAssignee}
+          onMove={moveTasks}
+          onOpenTask={openTask}
+          onCreate={(status, title) =>
+            createMutation.mutate({
+              title,
+              projectId: defaultComposerProjectId,
+              status,
+              whenDate: defaultWhenDate ?? null,
+            })
+          }
+          onAddTask={() =>
+            openQuickAdd({
+              ...(lockedProjectId ? { projectId: lockedProjectId } : {}),
+              ...(smartView === 'today' ? { whenDate: new Date().toISOString().slice(0, 10) } : {}),
+            })
+          }
+          groups={groups}
+          lockedProjectId={lockedProjectId}
+          smartView={smartView}
+          safeFocusedTaskId={safeFocusedTaskId}
+          pendingCompleteIds={pendingCompleteIds}
+          onFocusTask={setFocusedTaskId}
+          onToggleDone={toggleComplete}
+          completedOpen={completedOpen}
+          setCompletedOpen={setCompletedOpen}
+        />
       </div>
 
-      <Sheet open={Boolean(selectedTaskId)} onClose={closeTask}>
+      <Sheet open={Boolean(selectedTaskId)} onClose={closeTask} modal={false}>
         <div className="flex items-center justify-end border-b border-border px-3 py-2">
           <button
             type="button"
@@ -765,6 +778,7 @@ export function TasksWorkspace({
             workspaceId={workspaceId}
             taskId={selectedTaskId}
             settings={settings}
+            showAssignee={showAssignee}
             onDeleted={(task) => {
               closeTask();
               showUndo({ kind: 'delete', task, label: `Deleted “${task.title}”` });

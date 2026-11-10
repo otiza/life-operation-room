@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useId, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,8 +12,11 @@ import {
 } from '../../../../features/tasks/task-counts';
 import { listInstalledApps } from '../../../../features/apps/apps-api';
 import { Button } from '../../../../components/ui/button';
+import { Dialog } from '../../../../components/ui/dialog';
+import { EmptyState } from '../../../../components/ui/empty-state';
 import { Input } from '../../../../components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { Skeleton, SkeletonCard } from '../../../../components/ui/skeleton';
+import { Card, CardContent } from '../../../../components/ui/card';
 import { PageContainer, PageHeader } from '../../../../components/layout/page-container';
 import { ApiError } from '../../../../lib/api';
 
@@ -25,6 +28,7 @@ export default function ProjectsPage() {
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const createTitleId = useId();
 
   const installedQuery = useQuery({
     queryKey: ['installed-apps', workspaceId],
@@ -68,10 +72,23 @@ export default function ProjectsPage() {
     createMutation.mutate();
   }
 
+  function openCreate() {
+    setError(null);
+    setShowCreate(true);
+  }
+
   if (installedQuery.isLoading) {
     return (
       <PageContainer size="full">
-        <PageHeader title="Projects" description="Loading…" />
+        <div className="space-y-3" aria-busy="true" aria-label="Loading projects">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-4 w-64" />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        </div>
       </PageContainer>
     );
   }
@@ -79,7 +96,7 @@ export default function ProjectsPage() {
   if (!installed) {
     return (
       <PageContainer size="md">
-        <PageHeader title="Projects" description="Organize work into projects." />
+        <PageHeader title="Projects" description="Group related tasks into projects." />
         <Card>
           <CardContent className="space-y-4 pt-6">
             <p className="text-sm text-muted-foreground">Projects is not installed in this workspace.</p>
@@ -99,72 +116,87 @@ export default function ProjectsPage() {
   const activeProjects = projects.filter((project) => project.status === 'active');
   const archivedProjects = projects.filter((project) => project.status === 'archived');
   const counts = countsQuery.data?.counts;
+  const showEmpty = !projectsQuery.isLoading && !projectsQuery.isError && projects.length === 0 && !showCreate;
 
   return (
     <PageContainer size="full">
       <PageHeader
         title="Projects"
-        description="Hubs for work. Tasks attach here; other apps can link later."
+        description="Group related tasks into projects."
         actions={
-          <Button className="h-11 w-full sm:w-auto" onClick={() => setShowCreate((value) => !value)}>
-            {showCreate ? 'Cancel' : 'New project'}
+          <Button className="h-11 w-full sm:w-auto" onClick={openCreate}>
+            New project
           </Button>
         }
       />
-      {showCreate ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create project</CardTitle>
-            <CardDescription>Give it a clear name. Description is optional.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-3" onSubmit={onCreate}>
-              <Input
-                className="h-11"
-                placeholder="Project name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                required
-                autoFocus
-              />
-              <textarea
-                className="min-h-24 w-full rounded-md border border-border bg-card px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
-                placeholder="Description (optional)"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-              />
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              <Button className="h-11 w-full sm:w-auto" disabled={createMutation.isPending}>
-                {createMutation.isPending ? 'Creating…' : 'Create'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      ) : null}
+      <Dialog
+        open={showCreate}
+        onClose={() => {
+          if (createMutation.isPending) return;
+          setShowCreate(false);
+        }}
+        className="sm:max-w-lg"
+        aria-labelledby={createTitleId}
+      >
+        <form className="flex flex-col gap-4 p-5" onSubmit={onCreate}>
+          <div className="space-y-1">
+            <h2 id={createTitleId} className="text-base font-semibold text-foreground">
+              Create project
+            </h2>
+            <p className="text-sm text-muted-foreground">Give it a clear name. Description is optional.</p>
+          </div>
+          <Input
+            data-autofocus
+            className="h-11"
+            placeholder="Project name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+          />
+          <textarea
+            className="min-h-24 w-full rounded-md border border-border bg-card px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
+            placeholder="Description (optional)"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={createMutation.isPending}
+              onClick={() => setShowCreate(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!name.trim() || createMutation.isPending}>
+              {createMutation.isPending ? 'Creating…' : 'Create'}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
       {projectsQuery.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading projects…</p>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Loading projects">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
       ) : projectsQuery.isError ? (
         <p className="text-sm text-destructive">
           {projectsQuery.error instanceof ApiError
             ? projectsQuery.error.message
             : 'Failed to load projects'}
         </p>
-      ) : projects.length === 0 ? (
-        <Card>
-          <CardContent className="space-y-3 py-10 text-center">
-            <p className="text-base font-semibold text-foreground">No projects yet</p>
-            <p className="mx-auto max-w-md text-sm text-muted-foreground">
-              Create a project to group tasks. Installing Projects also seeds an Inbox.
-            </p>
-            <Button className="h-11" onClick={() => setShowCreate(true)}>
-              Create your first project
-            </Button>
-          </CardContent>
-        </Card>
+      ) : showEmpty ? (
+        <EmptyState
+          title="No projects yet"
+          description="Create a project to group related tasks."
+          primaryAction={{ label: 'Create project', onClick: openCreate }}
+        />
       ) : (
         <div className="space-y-6">
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Active</h2>
+            <h2 className="text-sm font-semibold tracking-wide text-muted-foreground">Active</h2>
             {activeProjects.length === 0 ? (
               <p className="text-sm text-muted-foreground">No active projects.</p>
             ) : (
@@ -199,7 +231,7 @@ export default function ProjectsPage() {
           </section>
           {archivedProjects.length > 0 ? (
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              <h2 className="text-sm font-semibold tracking-wide text-muted-foreground">
                 Archived
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

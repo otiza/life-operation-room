@@ -3,14 +3,19 @@
 import { Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import { TasksWorkspace } from '../../../../features/tasks/tasks-workspace';
-import { PageContainer, PageHeader } from '../../../../components/layout/page-container';
+import { PageContainer } from '../../../../components/layout/page-container';
+import { Skeleton, SkeletonText } from '../../../../components/ui/skeleton';
 
 export default function TasksPage() {
   return (
     <Suspense
       fallback={
         <PageContainer size="full">
-          <PageHeader title="Tasks" description="Loading…" />
+          <div className="space-y-3" aria-busy="true" aria-label="Loading tasks">
+            <Skeleton className="h-8 w-40" />
+            <SkeletonText lines={2} />
+            <Skeleton className="mt-4 h-24 w-full" />
+          </div>
         </PageContainer>
       }
     >

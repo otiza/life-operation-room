@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import {
@@ -9,8 +10,11 @@ import {
   type CalendarMutationScope,
   type CalendarView,
 } from '@erp-tiza/shared';
+import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { Button } from '../../components/ui/button';
+import { SegmentedControl } from '../../components/ui/segmented-control';
+import { Skeleton } from '../../components/ui/skeleton';
 import { useToast } from '../../components/ui/toast';
 import { listInstalledApps } from '../apps/apps-api';
 import { listProjects } from '../projects/projects-api';
@@ -27,9 +31,10 @@ import {
   viewerTimeZone,
 } from './calendar-api';
 import {
-  addDays,
   CALENDAR_HOUR_HEIGHT,
+  formatRangeTitle,
   rangeForView,
+  shiftAnchorForView,
   shiftDateKey,
   shiftIsoByDays,
   snapToQuarterHour,
@@ -45,6 +50,13 @@ import { EventEditor, type EventEditorSaveInput } from './event-editor';
 import { ScopePrompt } from './scope-prompt';
 import { scheduledTaskIdsFromOccurrences } from './scheduled-tasks';
 import { registerAppCommands } from '../shell/command-registry';
+
+const VIEW_OPTIONS = [
+  { value: 'day', label: 'Day' },
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
+  { value: 'agenda', label: 'Agenda' },
+] as const;
 
 type MovePrevious = {
   startAt: string | null;
@@ -208,8 +220,8 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
       if (event.key === 'm') setView('month');
       if (event.key === 'a') setView('agenda');
       if (event.key === 't') setAnchor(startOfDay(new Date()));
-      if (event.key === 'j' || event.key === 'ArrowRight') setAnchor((value) => addDays(value, view === 'month' ? 7 : 1));
-      if (event.key === 'k' || event.key === 'ArrowLeft') setAnchor((value) => addDays(value, view === 'month' ? -7 : -1));
+      if (event.key === 'j' || event.key === 'ArrowRight') setAnchor((value) => shiftAnchorForView(view, value, 1));
+      if (event.key === 'k' || event.key === 'ArrowLeft') setAnchor((value) => shiftAnchorForView(view, value, -1));
       if (event.key === 'n') {
         event.preventDefault();
         focusQuickAdd();
@@ -460,7 +472,18 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
   if (installedQuery.isLoading) {
     return (
       <PageContainer size="full">
-        <PageHeader title="Calendar" description="Loading…" />
+        <PageHeader title="Calendar" />
+        <div className="space-y-3" aria-busy="true" aria-label="Loading calendar">
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-9 w-9" />
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-9 w-9" />
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="ml-auto h-9 w-64" />
+          </div>
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-[28rem] w-full rounded-xl" />
+        </div>
       </PageContainer>
     );
   }
@@ -476,37 +499,56 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
     );
   }
 
+  const rangeTitle = formatRangeTitle(view, anchor, range.days);
+
   return (
     <PageContainer size="full">
       <PageHeader
         title="Calendar"
-        description="Day, week, month, and agenda — keyboard-first."
         actions={
-          <div className="flex flex-wrap gap-2">
-            {(['day', 'week', 'month', 'agenda'] as CalendarView[]).map((item) => (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1">
               <Button
-                key={item}
-                size="sm"
-                variant={view === item ? 'default' : 'outline'}
-                onClick={() => setView(item)}
+                size="icon"
+                variant="outline"
+                aria-label="Previous"
+                onClick={() => setAnchor((value) => shiftAnchorForView(view, value, -1))}
               >
-                {item}
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-            ))}
-            <Button size="sm" variant="outline" onClick={() => setAnchor(startOfDay(new Date()))}>
-              Today
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setAnchor((value) => addDays(value, view === 'month' ? -7 : -1))}>
-              Prev
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setAnchor((value) => addDays(value, view === 'month' ? 7 : 1))}>
-              Next
-            </Button>
+              <h2 className="min-w-[10rem] px-1 text-center text-sm font-medium tabular-nums sm:min-w-[12rem]">
+                {rangeTitle}
+              </h2>
+              <Button
+                size="icon"
+                variant="outline"
+                aria-label="Next"
+                onClick={() => setAnchor((value) => shiftAnchorForView(view, value, 1))}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setAnchor(startOfDay(new Date()))}>
+                Today
+              </Button>
+            </div>
+            <SegmentedControl
+              aria-label="Calendar view"
+              options={[...VIEW_OPTIONS]}
+              value={view}
+              onChange={(next) => setView(next as CalendarView)}
+            />
             {tasksInstalled ? (
               <Button size="sm" variant="outline" onClick={() => setSidebarOpen((value) => !value)}>
                 Tasks
               </Button>
             ) : null}
+            <Link
+              href={`/w/${workspaceId}/calendar/settings`}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Calendar settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
           </div>
         }
       />
@@ -523,7 +565,12 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="flex flex-col gap-3 lg:flex-row">
           <div className="min-w-0 flex-1">
-            {view === 'month' ? (
+            {eventsQuery.isLoading || settingsQuery.isLoading ? (
+              <div aria-busy="true" aria-label="Loading calendar events">
+                <Skeleton className="h-[28rem] w-full rounded-xl" />
+              </div>
+            ) : null}
+            {!eventsQuery.isLoading && !settingsQuery.isLoading && view === 'month' ? (
               <MonthGrid
                 days={range.days}
                 anchor={anchor}
@@ -538,7 +585,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
                 }}
               />
             ) : null}
-            {view === 'agenda' ? (
+            {!eventsQuery.isLoading && !settingsQuery.isLoading && view === 'agenda' ? (
               <AgendaList
                 days={range.days}
                 events={events}
@@ -548,7 +595,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
                 }}
               />
             ) : null}
-            {view === 'day' || view === 'week' ? (
+            {!eventsQuery.isLoading && !settingsQuery.isLoading && (view === 'day' || view === 'week') ? (
               <TimeGrid
                 days={view === 'day' ? [anchor] : range.days}
                 events={events}

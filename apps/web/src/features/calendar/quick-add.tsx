@@ -5,6 +5,7 @@ import { parseQuickAdd } from '@erp-tiza/shared';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { viewerTimeZone } from './calendar-api';
+import { formatClockTime } from './calendar-range';
 
 export type QuickAddDraft = {
   title: string;
@@ -102,14 +103,9 @@ export function QuickAdd({ onSubmit, inputRef }: QuickAddProps) {
           {draft.isAllDay && draft.startDate ? <span>{draft.startDate}</span> : null}
           {!draft.isAllDay && draft.startAt ? (
             <span>
-              {new Date(draft.startAt).toLocaleString(undefined, {
-                weekday: 'short',
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
-              {draft.endAt
-                ? ` – ${new Date(draft.endAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
-                : ''}
+              {new Date(draft.startAt).toLocaleDateString(undefined, { weekday: 'short' })}{' '}
+              {formatClockTime(new Date(draft.startAt))}
+              {draft.endAt ? ` – ${formatClockTime(new Date(draft.endAt))}` : ''}
             </span>
           ) : null}
           {draft.location ? <span>at {draft.location}</span> : null}

@@ -47,6 +47,52 @@ export function formatDayLabel(date: Date): string {
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+/** Locale-aware clock time (hour + minute); never hardcode 12h/24h. */
+export function formatClockTime(date: Date, timeZone?: string): string {
+  return date.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    ...(timeZone ? { timeZone } : {}),
+  });
+}
+
+export function formatRangeTitle(view: CalendarView, anchor: Date, days: Date[]): string {
+  if (view === 'day') {
+    return anchor.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+  if (view === 'month') {
+    return anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  }
+  const start = days[0] ?? anchor;
+  const end = days[days.length - 1] ?? anchor;
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  const sameYear = start.getFullYear() === end.getFullYear();
+  if (sameMonth) {
+    const month = start.toLocaleDateString(undefined, { month: 'short' });
+    return `${month} ${start.getDate()} – ${end.getDate()}, ${start.getFullYear()}`;
+  }
+  if (sameYear) {
+    const startLabel = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const endLabel = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return `${startLabel} – ${endLabel}, ${start.getFullYear()}`;
+  }
+  const startLabel = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const endLabel = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${startLabel} – ${endLabel}`;
+}
+
+export function addMonths(date: Date, months: number): Date {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return startOfDay(next);
+}
+
+export function shiftAnchorForView(view: CalendarView, anchor: Date, direction: -1 | 1): Date {
+  if (view === 'month') return addMonths(anchor, direction);
+  if (view === 'week' || view === 'agenda') return addDays(anchor, direction * 7);
+  return addDays(anchor, direction);
+}
+
 export function toDateKey(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');

@@ -2,7 +2,8 @@
 
 import type { TaskSettings, TaskView } from '@erp-tiza/shared';
 import { ApiError } from '../../lib/api';
-import { Card, CardContent } from '../../components/ui/card';
+import { EmptyState } from '../../components/ui/empty-state';
+import { SkeletonRow } from '../../components/ui/skeleton';
 import { TasksBoard, type TaskBoardMove } from './tasks-board';
 import { TaskRows } from './task-rows';
 import type { Task } from './tasks-api';
@@ -23,9 +24,11 @@ export function TasksListSection({
   settings,
   projectName,
   memberLabel,
+  showAssignee = true,
   onMove,
   onOpenTask,
   onCreate,
+  onAddTask,
   groups,
   lockedProjectId,
   smartView,
@@ -49,9 +52,11 @@ export function TasksListSection({
   settings: TaskSettings;
   projectName: (id: string | null) => string;
   memberLabel: (userId: string | null) => string;
+  showAssignee?: boolean;
   onMove: (moves: TaskBoardMove[]) => void;
   onOpenTask: (taskId: string) => void;
   onCreate: (status: string, title: string) => void;
+  onAddTask?: () => void;
   groups: TaskGroup[];
   lockedProjectId?: string;
   smartView: TaskView | null;
@@ -63,7 +68,14 @@ export function TasksListSection({
   setCompletedOpen: (updater: (open: boolean) => boolean) => void;
 }) {
   if (tasksQueryIsLoading || settingsQueryIsLoading) {
-    return <p className="text-sm text-muted-foreground">Loading tasks…</p>;
+    return (
+      <div className="space-y-2" aria-busy="true" aria-label="Loading tasks">
+        <SkeletonRow />
+        <SkeletonRow />
+        <SkeletonRow />
+        <SkeletonRow className="hidden sm:flex" />
+      </div>
+    );
   }
   if (tasksQueryIsError) {
     return (
@@ -74,16 +86,15 @@ export function TasksListSection({
   }
   if ((isBoard ? boardTasks : listedTasks).length === 0 && completedTasks.length === 0) {
     return (
-      <Card>
-        <CardContent className="space-y-2 py-10 text-center">
-          <p className="text-base font-semibold text-foreground">
-            {hasSearch ? 'No matches' : emptyCopy.title}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {hasSearch ? 'Try another title.' : emptyCopy.body}
-          </p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        title={hasSearch ? 'No matches' : emptyCopy.title}
+        description={hasSearch ? 'Try another title.' : emptyCopy.body}
+        primaryAction={
+          !hasSearch && onAddTask
+            ? { label: 'Add task', onClick: onAddTask }
+            : undefined
+        }
+      />
     );
   }
   if (isBoard) {
@@ -93,6 +104,7 @@ export function TasksListSection({
         settings={settings}
         projectName={projectName}
         memberLabel={memberLabel}
+        showAssignee={showAssignee}
         onMove={onMove}
         onOpenTask={onOpenTask}
         onCreate={onCreate}
@@ -108,6 +120,7 @@ export function TasksListSection({
             tasks={group.tasks}
             settings={settings}
             showProject={!lockedProjectId && (group.key.startsWith('status:') || Boolean(smartView))}
+            showAssignee={showAssignee}
             focusedTaskId={safeFocusedTaskId}
             pendingCompleteIds={pendingCompleteIds}
             projectName={projectName}
@@ -133,6 +146,7 @@ export function TasksListSection({
               tasks={completedTasks}
               settings={settings}
               showProject={false}
+              showAssignee={showAssignee}
               focusedTaskId={safeFocusedTaskId}
               pendingCompleteIds={pendingCompleteIds}
               projectName={projectName}

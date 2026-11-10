@@ -1,9 +1,11 @@
 'use client';
 
+import { Fragment } from 'react';
+import { Flag } from 'lucide-react';
 import type { TaskSettings } from '@erp-tiza/shared';
 import type { Task } from './tasks-api';
 import { TaskDateChips } from './task-date-chips';
-import { isDoneStatus, isOverdue, priorityColor, statusLabel } from './task-status';
+import { isDoneStatus, isOverdue, priorityColor, priorityLabel, statusLabel } from './task-status';
 import { cn } from '../../lib/utils';
 
 export function ScopeButton({
@@ -30,10 +32,17 @@ export function ScopeButton({
   );
 }
 
+function isDefaultTodoStatus(settings: TaskSettings, statusKey: string) {
+  if (statusKey === 'todo') return true;
+  const label = statusLabel(settings, statusKey).trim().toLowerCase();
+  return label === 'to do' || label === 'todo';
+}
+
 export function TaskRows({
   tasks,
   settings,
   showProject,
+  showAssignee = true,
   focusedTaskId,
   pendingCompleteIds,
   projectName,
@@ -45,6 +54,7 @@ export function TaskRows({
   tasks: Task[];
   settings: TaskSettings;
   showProject: boolean;
+  showAssignee?: boolean;
   focusedTaskId: string | null;
   pendingCompleteIds: Set<string>;
   projectName: (id: string | null) => string;
@@ -60,8 +70,32 @@ export function TaskRows({
         const pending = pendingCompleteIds.has(task.id);
         const done = isDoneStatus(settings, task.status) || pending;
         const accent = priorityColor(settings, task.priority);
-        const showAccent = task.priority !== 'none';
+        const showPriority = task.priority !== 'none';
+        const priorityName = priorityLabel(settings, task.priority);
         const focused = focusedTaskId === task.id;
+        const showStatus = !isDefaultTodoStatus(settings, task.status);
+        const metaItems: { key: string; node: React.ReactNode }[] = [];
+        if (showStatus) metaItems.push({ key: 'status', node: statusLabel(settings, task.status) });
+        if (showProject) {
+          metaItems.push({
+            key: 'project',
+            node: <span className="truncate">{projectName(task.projectId)}</span>,
+          });
+        }
+        if (showAssignee && task.assigneeUserId) {
+          metaItems.push({ key: 'assignee', node: memberLabel(task.assigneeUserId) });
+        }
+        if (showPriority) {
+          metaItems.push({
+            key: 'priority',
+            node: (
+              <span className="inline-flex items-center gap-1" style={{ color: accent }}>
+                <Flag className="h-3 w-3" aria-hidden />
+                {priorityName}
+              </span>
+            ),
+          });
+        }
         return (
           <div
             key={task.id}
@@ -75,7 +109,7 @@ export function TaskRows({
               pending && 'motion-safe:translate-x-1 motion-safe:opacity-40',
             )}
           >
-            {showAccent ? (
+            {showPriority ? (
               <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accent }} aria-hidden />
             ) : null}
             <button
@@ -104,21 +138,16 @@ export function TaskRows({
               <p className={cn('truncate text-sm font-medium text-foreground', done && 'text-muted-foreground line-through')}>
                 {task.title}
               </p>
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
-                <span>{statusLabel(settings, task.status)}</span>
-                {showProject ? (
-                  <>
-                    <span className="text-border">·</span>
-                    <span className="truncate">{projectName(task.projectId)}</span>
-                  </>
-                ) : null}
-                {task.assigneeUserId ? (
-                  <>
-                    <span className="text-border">·</span>
-                    <span>{memberLabel(task.assigneeUserId)}</span>
-                  </>
-                ) : null}
-              </div>
+              {metaItems.length > 0 ? (
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+                  {metaItems.map((item, itemIndex) => (
+                    <Fragment key={item.key}>
+                      {itemIndex > 0 ? <span className="text-border">·</span> : null}
+                      {item.node}
+                    </Fragment>
+                  ))}
+                </div>
+              ) : null}
             </button>
             <TaskDateChips
               className="shrink-0"

@@ -14,7 +14,8 @@ import { defaultTaskSettings, slugifyKey, sortByOrder } from '../../../../../fea
 import { listMembers } from '../../../../../features/workspaces/workspaces-api';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
-import { PageContainer } from '../../../../../components/layout/page-container';
+import { Skeleton, SkeletonText } from '../../../../../components/ui/skeleton';
+import { PageContainer, PageHeader } from '../../../../../components/layout/page-container';
 import { ApiError } from '../../../../../lib/api';
 import { cn } from '../../../../../lib/utils';
 
@@ -175,8 +176,12 @@ export default function TasksSettingsPage() {
   if (settingsQuery.isLoading || membersQuery.isLoading || meQuery.isLoading) {
     return (
       <PageContainer size="full">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Settings</h1>
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <div className="space-y-4" aria-busy="true" aria-label="Loading settings">
+          <Skeleton className="h-8 w-40" />
+          <SkeletonText lines={2} />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
       </PageContainer>
     );
   }
@@ -184,10 +189,10 @@ export default function TasksSettingsPage() {
   if (!canManageSettings) {
     return (
       <PageContainer size="full">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Settings</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Only workspace owners and admins can edit task statuses and priorities.
-        </p>
+        <PageHeader
+          title="Settings"
+          description="Only workspace owners and admins can edit task statuses and priorities."
+        />
       </PageContainer>
     );
   }
@@ -197,15 +202,13 @@ export default function TasksSettingsPage() {
 
   return (
     <PageContainer size="full">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Settings</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Board columns and priority colors for this workspace.</p>
-        </div>
-        <p className="shrink-0 pt-1 text-xs text-muted-foreground">
-          {saveMutation.isPending ? 'Saving…' : 'Saved'}
-        </p>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Board columns and priority colors for this workspace."
+        actions={
+          <p className="text-xs text-muted-foreground">{saveMutation.isPending ? 'Saving…' : 'Saved'}</p>
+        }
+      />
       {error ? (
         <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-soft-foreground">{error}</p>
       ) : null}
