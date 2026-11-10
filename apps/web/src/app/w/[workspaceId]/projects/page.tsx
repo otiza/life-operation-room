@@ -5,7 +5,11 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createProject, listProjects } from '../../../../features/projects/projects-api';
-import { countsByProject } from '../../../../features/tasks/tasks-api';
+import { taskCounts } from '../../../../features/tasks/tasks-api';
+import {
+  projectStatsFromUnifiedCounts,
+  taskCountsQueryKey,
+} from '../../../../features/tasks/task-counts';
 import { listInstalledApps } from '../../../../features/apps/apps-api';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
@@ -35,8 +39,8 @@ export default function ProjectsPage() {
     enabled: Boolean(installed),
   });
   const countsQuery = useQuery({
-    queryKey: ['task-counts', workspaceId],
-    queryFn: () => countsByProject(workspaceId),
+    queryKey: taskCountsQueryKey(workspaceId),
+    queryFn: () => taskCounts(workspaceId),
     enabled: Boolean(tasksInstalled),
   });
 
@@ -94,7 +98,7 @@ export default function ProjectsPage() {
   const projects = projectsQuery.data?.projects ?? [];
   const activeProjects = projects.filter((project) => project.status === 'active');
   const archivedProjects = projects.filter((project) => project.status === 'archived');
-  const counts = countsQuery.data?.counts ?? {};
+  const counts = countsQuery.data?.counts;
 
   return (
     <PageContainer size="full">
@@ -166,7 +170,7 @@ export default function ProjectsPage() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {activeProjects.map((project) => {
-                  const stats = counts[project.id] ?? { total: 0, open: 0 };
+                  const stats = projectStatsFromUnifiedCounts(counts, project.id);
                   const done = Math.max(stats.total - stats.open, 0);
                   const progress = stats.total ? Math.round((done / stats.total) * 100) : 0;
                   return (
@@ -199,22 +203,23 @@ export default function ProjectsPage() {
                 Archived
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {archivedProjects.map((project) => (
-                  <Link
-                    key={project.id}
-                    href={`/w/${workspaceId}/projects/${project.id}`}
-                    className="block min-w-0 rounded-xl border border-border bg-muted/50 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="truncate text-base font-medium text-foreground">{project.name}</h3>
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {tasksInstalled
-                        ? `${counts[project.id]?.open ?? 0} open · ${counts[project.id]?.total ?? 0} tasks`
-                        : project.status}
-                    </p>
-                  </Link>
-                ))}
+                {archivedProjects.map((project) => {
+                  const stats = projectStatsFromUnifiedCounts(counts, project.id);
+                  return (
+                    <Link
+                      key={project.id}
+                      href={`/w/${workspaceId}/projects/${project.id}`}
+                      className="block min-w-0 rounded-xl border border-border bg-muted/50 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="truncate text-base font-medium text-foreground">{project.name}</h3>
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {tasksInstalled ? `${stats.open} open · ${stats.total} tasks` : project.status}
+                      </p>
+                    </Link>
+                  );
+                })}
               </div>
             </section>
           ) : null}

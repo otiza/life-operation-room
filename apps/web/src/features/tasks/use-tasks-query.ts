@@ -7,6 +7,7 @@ import { me } from '../auth/auth-api';
 import { listProjects } from '../projects/projects-api';
 import { getWorkspace, listMembers } from '../workspaces/workspaces-api';
 import { getTaskSettings, listTasks, taskCounts } from './tasks-api';
+import { taskCountsQueryKey } from './task-counts';
 import { defaultTaskSettings, enabledStatuses } from './task-status';
 
 export function useTasksQuery(workspaceId: string, lockedProjectId: string | undefined, smartView: TaskView | null) {
@@ -51,7 +52,7 @@ export function useTasksQuery(workspaceId: string, lockedProjectId: string | und
     enabled: Boolean(tasksInstalled),
   });
   const countsQuery = useQuery({
-    queryKey: ['task-counts', workspaceId],
+    queryKey: taskCountsQueryKey(workspaceId),
     queryFn: () => taskCounts(workspaceId),
     enabled: Boolean(tasksInstalled),
   });
@@ -60,6 +61,9 @@ export function useTasksQuery(workspaceId: string, lockedProjectId: string | und
   const statusOptions = enabledStatuses(settings);
   const projects = projectsQuery.data?.projects ?? [];
   const activeProjects = projects.filter((project) => project.status === 'active');
+  // Avoid flashing the empty state before we know Tasks is installed / the list has loaded.
+  const tasksListLoading =
+    installedQuery.isLoading || (Boolean(tasksInstalled) && (tasksQuery.isLoading || settingsQuery.isLoading));
 
   return {
     installedQuery,
@@ -72,6 +76,7 @@ export function useTasksQuery(workspaceId: string, lockedProjectId: string | und
     membersQuery,
     tasksQuery,
     countsQuery,
+    tasksListLoading,
     settings,
     statusOptions,
     projects,

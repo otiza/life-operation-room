@@ -488,6 +488,30 @@ describe('TasksService', () => {
     });
   });
 
+  describe('project counts and list', () => {
+    it('counts open tasks per project and list(projectId) returns the same non-deleted rows', async () => {
+      const openTask = makeTask({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'todo', position: 0 });
+      const doneTask = makeTask({
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        status: 'done',
+        position: 1,
+        completedAt: new Date('2024-01-15T12:00:00.000Z'),
+      });
+      dbMock.state.selectRows = [
+        { projectId, status: 'todo', value: 1 },
+        { projectId, status: 'done', value: 1 },
+      ];
+
+      const counts = await service.countsByProject(workspaceId);
+      expect(counts[projectId]).toEqual({ total: 2, open: 1 });
+
+      dbMock.state.selectRows = [openTask, doneTask];
+      const listed = await service.list(workspaceId, userId, { projectId, tz: 'UTC' });
+      expect(listed.map((task) => task.id)).toEqual([openTask.id, doneTask.id]);
+      expect(listed.every((task) => task.projectId === projectId)).toBe(true);
+    });
+  });
+
   describe('smart views', () => {
     it('includes when_date on or before today in the today view (rollover)', async () => {
       vi.useFakeTimers();

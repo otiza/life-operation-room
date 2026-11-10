@@ -73,10 +73,10 @@ export function TasksWorkspace({
     tasksInstalled,
     meQuery,
     workspaceQuery,
-    settingsQuery,
     membersQuery,
     tasksQuery,
     countsQuery,
+    tasksListLoading,
     settings,
     statusOptions,
     projects,
@@ -547,14 +547,14 @@ export function TasksWorkspace({
             setSearchText={setSearchText}
             assignee={assignee}
             replaceParams={replaceParams}
-            isLoading={tasksQuery.isLoading}
+            isLoading={tasksListLoading}
             listedCount={listedTasks.length}
             openCount={openCount}
           />
 
           <TasksListSection
-            tasksQueryIsLoading={tasksQuery.isLoading}
-            settingsQueryIsLoading={settingsQuery.isLoading}
+            tasksQueryIsLoading={tasksListLoading}
+            settingsQueryIsLoading={false}
             tasksQueryIsError={tasksQuery.isError}
             tasksQueryError={tasksQuery.error}
             isBoard={isBoard}
