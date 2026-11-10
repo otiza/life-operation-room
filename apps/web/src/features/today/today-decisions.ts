@@ -36,7 +36,10 @@ export function dueKeepsTaskOnToday(dueAt: string | null, startOfTomorrow: Date)
 }
 
 export function enabledDoneStatusKey(settings: TaskSettings | null | undefined) {
-  return settings?.statuses.find((status) => status.enabled && status.isDone)?.key ?? null;
+  return (
+    settings?.statuses.find((status) => status.enabled && status.isDone && status.key !== 'cancelled')?.key ??
+    null
+  );
 }
 
 /** Scheduling decisions. Done is a status change and is applied separately. */

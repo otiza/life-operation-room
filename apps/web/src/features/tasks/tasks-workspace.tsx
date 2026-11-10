@@ -38,6 +38,7 @@ import { TasksFiltersBar } from './tasks-filters-bar';
 import { TasksListSection } from './tasks-list-section';
 import { useTaskKeyboardShortcuts } from './use-task-keyboard-shortcuts';
 import { useTaskSelection } from './use-task-selection';
+import { enabledDoneStatusKey } from '../today/today-decisions';
 import { useTasksQuery } from './use-tasks-query';
 
 type UndoAction =
@@ -187,7 +188,7 @@ export function TasksWorkspace({
   function toggleComplete(task: Task) {
     const done = isDoneStatus(settings, task.status);
     const fallbackOpen = statusOptions.find((item) => !item.isDone)?.key ?? task.status;
-    const doneStatus = settings.statuses.find((item) => item.isDone && item.enabled)?.key ?? task.status;
+    const doneStatus = enabledDoneStatusKey(settings) ?? task.status;
     if (done || pendingCompleteIds.has(task.id)) {
       clearPendingComplete(task.id);
       statusMutation.mutate({ taskId: task.id, nextStatus: fallbackOpen });
