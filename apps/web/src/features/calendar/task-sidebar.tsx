@@ -52,7 +52,7 @@ export function TaskSidebar({ tasks, projectsById, blockedTaskIds }: TaskSidebar
     <aside className="flex h-full w-full flex-col gap-3 rounded-xl border border-border bg-card p-3 lg:w-72">
       <div>
         <h2 className="text-sm font-medium">Unscheduled tasks</h2>
-        <p className="text-xs text-muted-foreground">Drag onto the grid to time-block</p>
+        <p className="text-xs text-muted-foreground">Open tasks with no calendar time block</p>
       </div>
       <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tasks" />
       <div className="min-h-0 flex-1 space-y-4 overflow-auto">

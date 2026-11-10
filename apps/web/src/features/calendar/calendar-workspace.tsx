@@ -43,6 +43,7 @@ import { CommandPalette, type CalendarCommand } from './command-palette';
 import { TaskSidebar } from './task-sidebar';
 import { EventEditor, type EventEditorSaveInput } from './event-editor';
 import { ScopePrompt } from './scope-prompt';
+import { scheduledTaskIdsFromOccurrences } from './scheduled-tasks';
 import { registerAppCommands } from '../shell/command-registry';
 
 type MovePrevious = {
@@ -151,17 +152,8 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
     enabled: calendarInstalled && projectsInstalled,
   });
 
-  const blockedTaskIds = useMemo(() => {
-    const now = Date.now();
-    const ids = new Set<string>();
-    for (const occurrence of events) {
-      if (occurrence.kind !== 'time_block' || !occurrence.task || occurrence.task.deleted) continue;
-      if (occurrence.startAt && new Date(occurrence.startAt).getTime() >= now) {
-        ids.add(occurrence.task.taskId);
-      }
-    }
-    return ids;
-  }, [events]);
+  // Unscheduled = no calendar time_block / cross-app link. Due chips do not count.
+  const blockedTaskIds = useMemo(() => scheduledTaskIdsFromOccurrences(events), [events]);
 
   const projectsById = useMemo(() => {
     const map: Record<string, string> = {};
