@@ -22,9 +22,9 @@ export class WorkspacesService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async createPersonalWorkspace(user: User): Promise<Workspace> {
-    return this.db.transaction(async (tx) => {
-      const [workspace] = await tx
+  async createPersonalWorkspace(user: User, tx?: NodePgDatabase): Promise<Workspace> {
+    const run = async (client: NodePgDatabase) => {
+      const [workspace] = await client
         .insert(workspaces)
         .values({
           name: `${user.name}'s space`,
@@ -33,7 +33,7 @@ export class WorkspacesService {
           ownerUserId: user.id,
         })
         .returning();
-      await tx.insert(workspaceMembers).values({
+      await client.insert(workspaceMembers).values({
         workspaceId: workspace.id,
         userId: user.id,
         email: user.email,
@@ -41,7 +41,9 @@ export class WorkspacesService {
         status: 'active',
       });
       return workspace;
-    });
+    };
+    if (tx) return run(tx);
+    return this.db.transaction(run);
   }
 
   async createSharedWorkspace(user: User, input: CreateWorkspaceInput): Promise<Workspace> {
