@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { DrizzleModule } from '@nestjs/drizzle';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, minutes } from '@nestjs/throttler';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { AppsModule } from './apps/apps.module.js';
@@ -25,6 +26,7 @@ import * as schema from './db/schema.js';
       envFilePath: ['../../.env', '.env'],
     }),
     EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot({
       throttlers: [{ name: 'default', ttl: minutes(1), limit: 10 }],
     }),

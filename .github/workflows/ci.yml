@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tiza
+          POSTGRES_PASSWORD: tiza
+          POSTGRES_DB: tiza
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tiza -d tiza"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PORT: 3001
+      CORS_ORIGIN: http://localhost:3000
+      DATABASE_URL: postgresql://tiza:tiza@localhost:5432/tiza
+      REDIS_URL: redis://localhost:6379
+      SESSION_SECRET: change-me-in-production-use-a-long-random-string
+      COOKIE_SECURE: "false"
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        # version comes from root package.json packageManager field
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare env file for migrate scripts
+        run: cp .env.example .env
+
+      - name: Build shared package
+        run: pnpm --filter @erp-tiza/shared build
+
+      - name: Run database migrations
+        run: pnpm db:migrate
+
+      - name: Typecheck
+        run: pnpm build
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: E2E tests
+        run: pnpm --filter api test:e2e

@@ -19,8 +19,8 @@ export class UsersService {
     return user;
   }
 
-  async create(data: Omit<NewUser, 'id' | 'createdAt'>): Promise<User> {
-    const [created] = await this.db
+  async create(data: Omit<NewUser, 'id' | 'createdAt'>, tx: NodePgDatabase = this.db): Promise<User> {
+    const [created] = await tx
       .insert(users)
       .values({ ...data, email: data.email.toLowerCase() })
       .returning();
