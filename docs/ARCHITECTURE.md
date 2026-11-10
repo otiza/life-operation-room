@@ -5,6 +5,8 @@ This document is the source of truth for how the life-manager shell is structure
 Companion docs:
 
 - [ADDING_APPS.md](./ADDING_APPS.md) — how to ship a new mini-app
+- [DESIGN.md](./DESIGN.md) — identity, tokens, primitives, and UI rules
+- [UI.md](./UI.md) — list-shaped work-surface behavior
 - [../README.md](../README.md) — setup and run commands
 
 ---
@@ -43,6 +45,8 @@ erp_tiza/
   docs/
     ARCHITECTURE.md      this file
     ADDING_APPS.md
+    DESIGN.md
+    UI.md
   docker-compose.yml     postgres + redis
   .env.example
 ```

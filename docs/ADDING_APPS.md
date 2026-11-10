@@ -34,7 +34,7 @@ Create `apps/web/src/features/<app>/` for API helpers and UI.
 
 Add a real route under `apps/web/src/app/w/[workspaceId]/<app>/` (the dynamic `[appKey]` placeholder can stay for stubs).
 
-Follow [UI.md](./UI.md). A list-shaped app copies `TasksWorkspace`: the page is the work, edits autosave over the list, and scope stays separate from list or board.
+Follow [UI.md](./UI.md) for work-surface behavior and [DESIGN.md](./DESIGN.md) for tokens, primitives, and copy rules. A list-shaped app copies `TasksWorkspace`: the page is the work, edits autosave over the list, and scope stays separate from list or board.
 
 Shell nav comes from installed manifests automatically after install. Use `manifest.nav.icon`.
 
