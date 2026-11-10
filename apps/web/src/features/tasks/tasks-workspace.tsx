@@ -22,6 +22,7 @@ import { TaskEditForm } from './task-edit-form';
 import { emptyStateCopy, TasksNav } from './tasks-nav';
 import { Card, CardContent } from '../../components/ui/card';
 import { Sheet } from '../../components/ui/sheet';
+import { useToast } from '../../components/ui/toast';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { ApiError } from '../../lib/api';
 import { cn } from '../../lib/utils';
@@ -88,12 +89,19 @@ export function TasksWorkspace({
   const [searchText, setSearchText] = useState(urlQuery);
   const [completedOpen, setCompletedOpen] = useState(false);
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
-  const [undo, setUndo] = useState<UndoAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picker, setPicker] = useState<null | 'status' | 'priority' | 'due' | 'when' | 'move' | 'assignee'>(null);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [pendingCompleteIds, setPendingCompleteIds] = useState<Set<string>>(new Set());
   const pendingTimers = useRef<Map<string, number>>(new Map());
+  const undoRef = useRef<UndoAction | null>(null);
+  const taskActionsRef = useRef<{
+    toggleComplete: (task: Task) => void;
+    deleteTaskAndUndo: (task: Task) => void | Promise<void>;
+  }>({
+    toggleComplete: () => undefined,
+    deleteTaskAndUndo: () => undefined,
+  });
+  const { toast } = useToast();
   const openQuickAdd = useShellStore((state) => state.openQuickAdd);
   const prefersReducedMotion =
     typeof window !== 'undefined' &&
@@ -119,12 +127,6 @@ export function TasksWorkspace({
     }, 200);
     return () => window.clearTimeout(handle);
   }, [searchText, urlQuery]);
-
-  useEffect(() => {
-    if (!undo) return;
-    const handle = window.setTimeout(() => setUndo(null), 5000);
-    return () => window.clearTimeout(handle);
-  }, [undo]);
 
   const createMutation = useMutation({
     mutationFn: (input: {
@@ -197,7 +199,7 @@ export function TasksWorkspace({
     setPendingCompleteIds((current) => new Set(current).add(task.id));
     const timer = window.setTimeout(() => {
       statusMutation.mutate({ taskId: task.id, nextStatus: doneStatus });
-      setUndo({
+      showUndo({
         kind: 'complete',
         task,
         previousStatus: task.status,
@@ -308,14 +310,158 @@ export function TasksWorkspace({
   const selectedOrFocusedId = selectedTaskId ?? safeFocusedTaskId;
   const activeTask = listedTasks.find((task) => task.id === selectedOrFocusedId) ?? null;
 
+  async function deleteTaskAndUndo(task: Task) {
+    await deleteTask(workspaceId, task.id);
+    showUndo({ kind: 'delete', task, label: `Deleted “${task.title}”` });
+    if (selectedTaskId === task.id) closeTask();
+    await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
+    await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
+  }
+
   useEffect(() => {
+    taskActionsRef.current.toggleComplete = toggleComplete;
+    taskActionsRef.current.deleteTaskAndUndo = deleteTaskAndUndo;
+  });
+
+  useEffect(() => {
+    function focusTaskByDelta(delta: 1 | -1) {
+      if (isBoard || navigableTaskIds.length === 0) return;
+      const currentIndex = safeFocusedTaskId ? navigableTaskIds.indexOf(safeFocusedTaskId) : -1;
+      const nextIndex =
+        currentIndex < 0
+          ? delta > 0
+            ? 0
+            : navigableTaskIds.length - 1
+          : Math.min(navigableTaskIds.length - 1, Math.max(0, currentIndex + delta));
+      const nextId = navigableTaskIds[nextIndex] ?? null;
+      setFocusedTaskId(nextId);
+      if (selectedTaskId && nextId) openTask(nextId);
+    }
     return registerAppCommands('tasks', () => [
       {
         id: 'tasks-new',
         appKey: 'tasks',
         label: 'New task',
         keywords: 'create add capture',
+        shortcut: 'q',
         run: () => openQuickAdd(smartView === 'today' ? { whenDate: new Date().toISOString().slice(0, 10) } : {}),
+      },
+      {
+        id: 'tasks-search',
+        appKey: 'tasks',
+        label: 'Focus search',
+        keywords: 'search find filter',
+        shortcut: '/',
+        run: () => {
+          searchRef.current?.focus();
+          searchRef.current?.select();
+        },
+      },
+      {
+        id: 'tasks-next',
+        appKey: 'tasks',
+        label: 'Next task',
+        keywords: 'down navigate',
+        shortcut: 'j',
+        run: () => focusTaskByDelta(1),
+      },
+      {
+        id: 'tasks-prev',
+        appKey: 'tasks',
+        label: 'Previous task',
+        keywords: 'up navigate',
+        shortcut: 'k',
+        run: () => focusTaskByDelta(-1),
+      },
+      {
+        id: 'tasks-status',
+        appKey: 'tasks',
+        label: 'Change status',
+        keywords: 'status',
+        shortcut: 's',
+        run: () => {
+          if (activeTask) setPicker('status');
+        },
+      },
+      {
+        id: 'tasks-priority',
+        appKey: 'tasks',
+        label: 'Change priority',
+        keywords: 'priority',
+        shortcut: 'p',
+        run: () => {
+          if (activeTask) setPicker('priority');
+        },
+      },
+      {
+        id: 'tasks-due',
+        appKey: 'tasks',
+        label: 'Set due date',
+        keywords: 'due date',
+        shortcut: 'd',
+        run: () => {
+          if (activeTask) setPicker('due');
+        },
+      },
+      {
+        id: 'tasks-when',
+        appKey: 'tasks',
+        label: 'Set when',
+        keywords: 'when schedule',
+        shortcut: 'w',
+        run: () => {
+          if (activeTask) setPicker('when');
+        },
+      },
+      {
+        id: 'tasks-move',
+        appKey: 'tasks',
+        label: 'Move to project',
+        keywords: 'move project',
+        shortcut: 'm',
+        run: () => {
+          if (activeTask) setPicker('move');
+        },
+      },
+      {
+        id: 'tasks-assign',
+        appKey: 'tasks',
+        label: 'Assign',
+        keywords: 'assignee assign',
+        shortcut: 'a',
+        run: () => {
+          if (activeTask) setPicker('assignee');
+        },
+      },
+      {
+        id: 'tasks-complete',
+        appKey: 'tasks',
+        label: 'Toggle complete',
+        keywords: 'done complete',
+        shortcut: 'x',
+        run: () => {
+          if (activeTask) taskActionsRef.current.toggleComplete(activeTask);
+        },
+      },
+      {
+        id: 'tasks-edit',
+        appKey: 'tasks',
+        label: 'Edit task',
+        keywords: 'edit open',
+        shortcut: 'e',
+        run: () => {
+          if (activeTask) openTask(activeTask.id);
+        },
+      },
+      {
+        id: 'tasks-delete',
+        appKey: 'tasks',
+        label: 'Delete task',
+        keywords: 'delete remove',
+        shortcut: 'Backspace',
+        run: () => {
+          if (activeTask) void taskActionsRef.current.deleteTaskAndUndo(activeTask);
+        },
       },
       ...(['inbox', 'today', 'upcoming', 'anytime', 'someday', 'logbook'] as TaskView[]).map((view) => ({
         id: `tasks-view-${view}`,
@@ -332,15 +478,19 @@ export function TasksWorkspace({
         run: () => router.push(`/w/${workspaceId}/projects/${project.id}`),
       })),
     ]);
-  }, [activeProjects, openQuickAdd, router, smartView, workspaceId]);
-
-  async function deleteTaskAndUndo(task: Task) {
-    await deleteTask(workspaceId, task.id);
-    setUndo({ kind: 'delete', task, label: `Deleted “${task.title}”` });
-    if (selectedTaskId === task.id) closeTask();
-    await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
-    await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
-  }
+  }, [
+    activeProjects,
+    activeTask,
+    isBoard,
+    navigableTaskIds,
+    openQuickAdd,
+    openTask,
+    router,
+    safeFocusedTaskId,
+    selectedTaskId,
+    smartView,
+    workspaceId,
+  ]);
 
   useTaskKeyboardShortcuts({
     isBoard,
@@ -350,7 +500,6 @@ export function TasksWorkspace({
     activeTask,
     searchRef,
     setFocusedTaskId,
-    setShortcutsOpen,
     setPicker,
     openTask,
     toggleComplete,
@@ -430,14 +579,11 @@ export function TasksWorkspace({
         return task ? { id: task.id, status: task.status, position: task.position } : null;
       })
       .filter((item): item is { id: string; status: string; position: number } => Boolean(item));
-    if (previous.length) setUndo({ kind: 'move', previous, label: 'Task moved' });
+    if (previous.length) showUndo({ kind: 'move', previous, label: 'Task moved' });
     moveMutation.mutate(moves);
   }
 
-  async function runUndo() {
-    if (!undo) return;
-    const action = undo;
-    setUndo(null);
+  async function runUndoLogic(action: UndoAction) {
     if (action.kind === 'delete') {
       await restoreTask(workspaceId, action.task.id);
     } else if (action.kind === 'complete') {
@@ -453,6 +599,20 @@ export function TasksWorkspace({
     }
     await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
     await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
+  }
+
+  function showUndo(action: UndoAction) {
+    undoRef.current = action;
+    toast({
+      title: action.label,
+      actionLabel: 'Undo',
+      onAction: () => {
+        const pending = undoRef.current;
+        if (!pending) return;
+        undoRef.current = null;
+        void runUndoLogic(pending);
+      },
+    });
   }
 
   function onCreate(event: FormEvent) {
@@ -607,7 +767,7 @@ export function TasksWorkspace({
             settings={settings}
             onDeleted={(task) => {
               closeTask();
-              setUndo({ kind: 'delete', task, label: `Deleted “${task.title}”` });
+              showUndo({ kind: 'delete', task, label: `Deleted “${task.title}”` });
             }}
           />
         ) : null}
@@ -619,17 +779,7 @@ export function TasksWorkspace({
         activeProjects={activeProjects}
         members={membersQuery.data?.members ?? []}
         onSelect={(value) => void applyPickerValue(value)}
-        shortcutsOpen={shortcutsOpen}
-        setShortcutsOpen={setShortcutsOpen}
       />
-      {undo ? (
-        <div className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-primary px-4 py-2 text-sm text-primary-foreground shadow-lg">
-          <span>{undo.label}</span>
-          <button type="button" className="font-semibold underline" onClick={() => void runUndo()}>
-            Undo
-          </button>
-        </div>
-      ) : null}
     </PageContainer>
   );
 }

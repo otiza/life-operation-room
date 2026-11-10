@@ -22,6 +22,7 @@ import { createWorkspace, listWorkspaces } from '../workspaces/workspaces-api';
 import { useShellStore } from './shell-store';
 import { TaskQuickAddDialog } from '../tasks/task-quick-add-dialog';
 import { ShellCommandPalette } from './command-palette';
+import { ShortcutsSheet } from './shortcuts-sheet';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { ThemeToggle } from '../../components/theme-toggle';
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   } = useShellStore();
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const meQuery = useQuery({
     queryKey: ['me'],
@@ -113,8 +115,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         return;
       }
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (event.key !== 'q' && event.key !== 'Q') return;
       if (isTypingTarget(event.target)) return;
+      if (event.key === '?') {
+        event.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
+      if (event.key !== 'q' && event.key !== 'Q') return;
       if (!tasksInstalled || !currentWorkspaceId) return;
       event.preventDefault();
       openQuickAdd(quickAddDefaultsFromPath(pathname));
@@ -393,6 +400,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ShellCommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
+        installedAppKeys={(appsQuery.data?.apps ?? []).map((app) => app.appKey)}
+      />
+      <ShortcutsSheet
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
         installedAppKeys={(appsQuery.data?.apps ?? []).map((app) => app.appKey)}
       />
     </div>

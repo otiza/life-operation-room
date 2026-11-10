@@ -10,20 +10,24 @@ export function ShellCommandPalette({
   onClose,
   installedAppKeys,
   extraCommands = [],
+  onCalendarDate,
 }: {
   open: boolean;
   onClose: () => void;
   installedAppKeys: string[];
   extraCommands?: ShellCommand[];
+  /** When calendar is installed, YYYY-MM-DD in the query jumps to that day. */
+  onCalendarDate?: (date: Date) => void;
 }) {
   return (
-    <Dialog open={open} onClose={onClose} className="sm:max-w-lg">
+    <Dialog open={open} onClose={onClose} className="sm:max-w-lg" aria-labelledby="command-palette-title">
       {open ? (
         <PaletteBody
           key="open"
           onClose={onClose}
           installedAppKeys={installedAppKeys}
           extraCommands={extraCommands}
+          onCalendarDate={installedAppKeys.includes('calendar') ? onCalendarDate : undefined}
         />
       ) : null}
     </Dialog>
@@ -34,10 +38,12 @@ function PaletteBody({
   onClose,
   installedAppKeys,
   extraCommands,
+  onCalendarDate,
 }: {
   onClose: () => void;
   installedAppKeys: string[];
   extraCommands: ShellCommand[];
+  onCalendarDate?: (date: Date) => void;
 }) {
   const [query, setQuery] = useState('');
   const commands = useMemo(
@@ -56,14 +62,25 @@ function PaletteBody({
 
   return (
     <div className="space-y-3 p-4">
-      <h2 className="text-base font-medium">Command palette</h2>
+      <h2 id="command-palette-title" className="text-section-title text-foreground">
+        Command palette
+      </h2>
       <Input
         autoFocus
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search commands…"
+        placeholder={
+          onCalendarDate ? 'Search commands or type a date (YYYY-MM-DD)' : 'Search commands…'
+        }
         onKeyDown={(event) => {
-          if (event.key === 'Enter' && filtered[0]) {
+          if (event.key !== 'Enter') return;
+          const dateMatch = query.trim().match(/^(\d{4}-\d{2}-\d{2})$/);
+          if (dateMatch && onCalendarDate) {
+            onCalendarDate(new Date(`${dateMatch[1]}T12:00:00`));
+            onClose();
+            return;
+          }
+          if (filtered[0]) {
             filtered[0].run();
             onClose();
           }
@@ -81,7 +98,13 @@ function PaletteBody({
               }}
             >
               <span>{item.label}</span>
-              <span className="ml-2 text-xs text-muted-foreground">{item.appKey}</span>
+              {item.shortcut ? (
+                <kbd className="ml-2 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                  {item.shortcut}
+                </kbd>
+              ) : (
+                <span className="ml-2 text-xs text-muted-foreground">{item.appKey}</span>
+              )}
             </button>
           </li>
         ))}

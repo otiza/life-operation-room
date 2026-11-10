@@ -14,7 +14,6 @@ export function useTaskKeyboardShortcuts(options: {
   activeTask: Task | null;
   searchRef: RefObject<HTMLInputElement | null>;
   setFocusedTaskId: (taskId: string | null) => void;
-  setShortcutsOpen: (open: boolean) => void;
   setPicker: (picker: PickerKind | null) => void;
   openTask: (taskId: string) => void;
   toggleComplete: (task: Task) => void;
@@ -28,7 +27,6 @@ export function useTaskKeyboardShortcuts(options: {
     activeTask,
     searchRef,
     setFocusedTaskId,
-    setShortcutsOpen,
     setPicker,
     openTask,
     toggleComplete,
@@ -39,12 +37,7 @@ export function useTaskKeyboardShortcuts(options: {
     function onKeyDown(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
-      if (event.key === '?' ) {
-        event.preventDefault();
-        setShortcutsOpen(true);
-        return;
-      }
-      if (event.key === '/' ) {
+      if (event.key === '/') {
         event.preventDefault();
         searchRef.current?.focus();
         searchRef.current?.select();
@@ -113,7 +106,6 @@ export function useTaskKeyboardShortcuts(options: {
     selectedTaskId,
     setFocusedTaskId,
     setPicker,
-    setShortcutsOpen,
     toggleComplete,
   ]);
 }

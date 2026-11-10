@@ -1,8 +1,6 @@
 'use client';
 
 import type { TaskSettings } from '@erp-tiza/shared';
-import { Dialog } from '../../components/ui/dialog';
-import { TASK_SHORTCUTS } from '../../lib/keyboard';
 import { TaskActionPicker } from './task-action-picker';
 import { enabledPriorities, enabledStatuses } from './task-status';
 import type { Project } from '../projects/projects-api';
@@ -23,8 +21,6 @@ export function TasksActionPickers({
   activeProjects,
   members,
   onSelect,
-  shortcutsOpen,
-  setShortcutsOpen,
 }: {
   picker: PickerKind | null;
   setPicker: (picker: PickerKind | null) => void;
@@ -32,8 +28,6 @@ export function TasksActionPickers({
   activeProjects: Project[];
   members: MemberRow[];
   onSelect: (value: string) => void;
-  shortcutsOpen: boolean;
-  setShortcutsOpen: (open: boolean) => void;
 }) {
   return (
     <>
@@ -102,19 +96,6 @@ export function TasksActionPickers({
         onSelect={onSelect}
         onClose={() => setPicker(null)}
       />
-      <Dialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} className="sm:max-w-md">
-        <div className="space-y-3 p-4">
-          <h2 className="text-base font-semibold">Keyboard shortcuts</h2>
-          <ul className="space-y-2">
-            {TASK_SHORTCUTS.map((item) => (
-              <li key={item.key} className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">{item.description}</span>
-                <kbd className="rounded border border-border bg-muted px-2 py-0.5 font-mono text-xs">{item.label}</kbd>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </Dialog>
     </>
   );
 }

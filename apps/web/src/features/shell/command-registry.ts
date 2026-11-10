@@ -3,7 +3,16 @@ export type ShellCommand = {
   appKey: string;
   label: string;
   keywords?: string;
+  /** Display string for the ? cheat sheet, e.g. "q" or "⌘K". */
+  shortcut?: string;
   run: () => void;
+};
+
+export type ShortcutEntry = {
+  id: string;
+  appKey: string;
+  label: string;
+  shortcut: string;
 };
 
 type CommandProvider = () => ShellCommand[];
@@ -25,4 +34,15 @@ export function listRegisteredCommands(installedAppKeys: string[]) {
     commands.push(...provider());
   }
   return commands;
+}
+
+export function listRegisteredShortcuts(installedAppKeys: string[]): ShortcutEntry[] {
+  return listRegisteredCommands(installedAppKeys)
+    .filter((command): command is ShellCommand & { shortcut: string } => Boolean(command.shortcut))
+    .map((command) => ({
+      id: command.id,
+      appKey: command.appKey,
+      label: command.label,
+      shortcut: command.shortcut,
+    }));
 }

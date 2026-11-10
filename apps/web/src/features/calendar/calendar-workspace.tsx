@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@erp-tiza/shared';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { Button } from '../../components/ui/button';
+import { useToast } from '../../components/ui/toast';
 import { listInstalledApps } from '../apps/apps-api';
 import { listProjects } from '../projects/projects-api';
 import { listTasks, updateTask } from '../tasks/tasks-api';
@@ -39,7 +40,6 @@ import { AgendaList } from './grid/agenda-list';
 import { MonthGrid } from './grid/month-grid';
 import { TimeGrid } from './grid/time-grid';
 import { QuickAdd, type QuickAddDraft } from './quick-add';
-import { CommandPalette, type CalendarCommand } from './command-palette';
 import { TaskSidebar } from './task-sidebar';
 import { EventEditor, type EventEditorSaveInput } from './event-editor';
 import { ScopePrompt } from './scope-prompt';
@@ -117,18 +117,13 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
   const setView = (next: CalendarView) => setViewOverride(next);
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [paletteOpen, setPaletteOpen] = useState(false);
   const [selected, setSelected] = useState<CalendarOccurrenceDto | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [undo, setUndo] = useState<UndoAction | null>(null);
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CalendarOccurrenceDto | null>(null);
-
-  useEffect(() => {
-    if (!undo) return;
-    const timer = window.setTimeout(() => setUndo(null), 5000);
-    return () => window.clearTimeout(timer);
-  }, [undo]);
+  const undoRef = useRef<UndoAction | null>(null);
+  const quickAddRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const range = useMemo(() => rangeForView(view, anchor, weekStartsOn), [view, anchor, weekStartsOn]);
   const tz = viewerTimeZone();
@@ -195,6 +190,10 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
+  function focusQuickAdd() {
+    quickAddRef.current?.focus();
+  }
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -203,7 +202,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         target?.tagName === 'TEXTAREA' ||
         target?.tagName === 'SELECT' ||
         target?.isContentEditable;
-      if (typing || event.metaKey || event.ctrlKey || event.altKey || editorOpen || paletteOpen) return;
+      if (typing || event.metaKey || event.ctrlKey || event.altKey || editorOpen) return;
       if (event.key === 'd') setView('day');
       if (event.key === 'w') setView('week');
       if (event.key === 'm') setView('month');
@@ -211,7 +210,10 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
       if (event.key === 't') setAnchor(startOfDay(new Date()));
       if (event.key === 'j' || event.key === 'ArrowRight') setAnchor((value) => addDays(value, view === 'month' ? 7 : 1));
       if (event.key === 'k' || event.key === 'ArrowLeft') setAnchor((value) => addDays(value, view === 'month' ? -7 : -1));
-      if (event.key === 'n') setPaletteOpen(true);
+      if (event.key === 'n') {
+        event.preventDefault();
+        focusQuickAdd();
+      }
       if (event.key === 'e' && selected) setEditorOpen(true);
       if (event.key === 'Backspace' && selected && selected.kind !== 'due_chip') {
         event.preventDefault();
@@ -223,12 +225,44 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   });
 
+  function showUndo(action: UndoAction) {
+    undoRef.current = action;
+    toast({
+      title: action.label,
+      actionLabel: 'Undo',
+      onAction: () => {
+        const pending = undoRef.current;
+        if (!pending) return;
+        undoRef.current = null;
+        void runUndoLogic(pending);
+      },
+    });
+  }
+
+  async function runUndoLogic(action: UndoAction) {
+    if (action.kind === 'delete') {
+      await undoCalendarDelete(workspaceId, action.undo);
+    } else {
+      await updateCalendarEvent(workspaceId, action.eventId, {
+        scope: action.scope,
+        occurrenceStart: action.occurrenceStart,
+        isAllDay: action.previous.isAllDay,
+        timezone: action.previous.timezone,
+        startAt: action.previous.startAt ?? undefined,
+        endAt: action.previous.endAt ?? undefined,
+        startDate: action.previous.startDate ?? undefined,
+        endDate: action.previous.endDate ?? undefined,
+      });
+    }
+    await invalidateEvents();
+  }
+
   async function handleDelete(occurrence: CalendarOccurrenceDto, scope: CalendarMutationScope) {
     const result = await deleteCalendarEvent(workspaceId, occurrence.eventId, {
       scope,
       occurrenceStart: occurrenceStartPayload(occurrence),
     });
-    setUndo({ kind: 'delete', undo: result.undo, label: `Deleted “${occurrence.title}”` });
+    showUndo({ kind: 'delete', undo: result.undo, label: `Deleted “${occurrence.title}”` });
     setSelected(null);
     await invalidateEvents();
   }
@@ -262,7 +296,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         startDate: next.startDate ?? undefined,
         endDate: next.endDate ?? undefined,
       });
-      setUndo({
+      showUndo({
         kind: 'move',
         eventId: response.event.id,
         scope: scope === 'following' ? 'all' : scope,
@@ -290,14 +324,6 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
     void applyOccurrenceChange(occurrence, next, 'all', label);
   }
 
-  async function handleCommand(command: CalendarCommand) {
-    if (command.type === 'new-event') setPaletteOpen(false);
-    if (command.type === 'today') setAnchor(startOfDay(new Date()));
-    if (command.type === 'view') setView(command.view);
-    if (command.type === 'toggle-sidebar') setSidebarOpen((value) => !value);
-    if (command.type === 'go-date') setAnchor(startOfDay(command.date));
-  }
-
   useEffect(() => {
     return registerAppCommands('calendar', () => [
       {
@@ -305,13 +331,15 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         appKey: 'calendar',
         label: 'New event',
         keywords: 'create event',
-        run: () => setPaletteOpen(true),
+        shortcut: 'n',
+        run: () => focusQuickAdd(),
       },
       {
         id: 'calendar-today',
         appKey: 'calendar',
         label: 'Jump to today',
         keywords: 'today',
+        shortcut: 't',
         run: () => setAnchor(startOfDay(new Date())),
       },
       {
@@ -319,6 +347,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         appKey: 'calendar',
         label: 'Day view',
         keywords: 'day',
+        shortcut: 'd',
         run: () => setView('day'),
       },
       {
@@ -326,6 +355,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         appKey: 'calendar',
         label: 'Week view',
         keywords: 'week',
+        shortcut: 'w',
         run: () => setView('week'),
       },
       {
@@ -333,6 +363,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         appKey: 'calendar',
         label: 'Month view',
         keywords: 'month',
+        shortcut: 'm',
         run: () => setView('month'),
       },
       {
@@ -340,6 +371,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         appKey: 'calendar',
         label: 'Agenda view',
         keywords: 'agenda',
+        shortcut: 'a',
         run: () => setView('agenda'),
       },
       {
@@ -481,6 +513,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
 
       <div className="mb-3">
         <QuickAdd
+          inputRef={quickAddRef}
           onSubmit={async (draft) => {
             await createMutation.mutateAsync(draft);
           }}
@@ -562,7 +595,6 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
         </div>
       </DndContext>
 
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} onCommand={handleCommand} />
       <EventEditor
         occurrence={selected}
         open={editorOpen}
@@ -598,7 +630,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
             previous.isAllDay !== next.isAllDay ||
             previous.timezone !== next.timezone;
           if (timesChanged) {
-            setUndo({
+            showUndo({
               kind: 'move',
               eventId: selected.eventId,
               scope: input.scope === 'following' ? 'all' : input.scope,
@@ -652,37 +684,6 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
           void handleDelete(occurrence, scope);
         }}
       />
-
-      {undo ? (
-        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-popover px-4 py-2 text-sm shadow-lg">
-          <span>{undo.label}</span>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={async () => {
-              if (undo.kind === 'delete') {
-                await undoCalendarDelete(workspaceId, undo.undo);
-              }
-              if (undo.kind === 'move') {
-                await updateCalendarEvent(workspaceId, undo.eventId, {
-                  scope: undo.scope,
-                  occurrenceStart: undo.occurrenceStart,
-                  isAllDay: undo.previous.isAllDay,
-                  timezone: undo.previous.timezone,
-                  startAt: undo.previous.startAt ?? undefined,
-                  endAt: undo.previous.endAt ?? undefined,
-                  startDate: undo.previous.startDate ?? undefined,
-                  endDate: undo.previous.endDate ?? undefined,
-                });
-              }
-              setUndo(null);
-              await invalidateEvents();
-            }}
-          >
-            Undo
-          </Button>
-        </div>
-      ) : null}
     </PageContainer>
   );
 }

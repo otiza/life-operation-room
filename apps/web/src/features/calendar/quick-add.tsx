@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type RefObject } from 'react';
 import { parseQuickAdd } from '@erp-tiza/shared';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -20,13 +20,14 @@ export type QuickAddDraft = {
 
 type QuickAddProps = {
   onSubmit: (draft: QuickAddDraft) => Promise<void> | void;
+  inputRef?: RefObject<HTMLInputElement | null>;
 };
 
 function toDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-export function QuickAdd({ onSubmit }: QuickAddProps) {
+export function QuickAdd({ onSubmit, inputRef }: QuickAddProps) {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const parsed = useMemo(() => parseQuickAdd(text), [text]);
@@ -78,6 +79,7 @@ export function QuickAdd({ onSubmit }: QuickAddProps) {
   return (
     <div className="space-y-2 rounded-xl border border-border bg-card p-3">
       <Input
+        ref={inputRef}
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder='Quick add: "Lunch with Sam fri 1pm for 90m at Café Kitsuné every week"'
