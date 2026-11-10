@@ -1,5 +1,6 @@
 import {
   DEFAULT_TASK_SETTINGS,
+  calendarDateKeyInTimeZone,
   getDayBoundsInTimeZone,
   type TaskPriorityOption,
   type TaskSettings,
@@ -8,6 +9,12 @@ import {
 
 function clientTimeZone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+function shiftCalendarDateKey(dateKey: string, dayDelta: number) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day + dayDelta));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}-${String(shifted.getUTCDate()).padStart(2, '0')}`;
 }
 
 export function formatDueAt(dueAt: string | null) {
@@ -36,6 +43,47 @@ export function formatDueAtShort(dueAt: string | null) {
   );
   if (due >= startOfYesterday && due < startOfToday) return 'Yesterday';
   return due.toLocaleDateString(undefined, { timeZone, month: 'short', day: 'numeric' });
+}
+
+/** Plan-to-do date (when), distinct from the deadline (dueAt). */
+export function formatWhenDateShort(whenDate: string | null, whenEvening = false) {
+  if (!whenDate) return null;
+  const timeZone = clientTimeZone();
+  const todayKey = calendarDateKeyInTimeZone(new Date(), timeZone);
+  if (whenDate === todayKey) return whenEvening ? 'This evening' : 'Today';
+  if (whenDate === shiftCalendarDateKey(todayKey, 1)) return whenEvening ? 'Tomorrow evening' : 'Tomorrow';
+  if (whenDate === shiftCalendarDateKey(todayKey, -1)) return 'Yesterday';
+  const [year, month, day] = whenDate.split('-').map(Number);
+  if (!year || !month || !day) return whenDate;
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    timeZone,
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+export type TaskDateChip = {
+  kind: 'when' | 'due';
+  label: string;
+};
+
+/** Visual chips for rows/cards: when (plan) vs due (deadline) stay distinct. */
+export function taskDateChips(input: {
+  whenDate: string | null;
+  whenEvening?: boolean;
+  isSomeday?: boolean;
+  dueAt: string | null;
+}): TaskDateChip[] {
+  const chips: TaskDateChip[] = [];
+  if (input.isSomeday) {
+    chips.push({ kind: 'when', label: 'Someday' });
+  } else {
+    const whenLabel = formatWhenDateShort(input.whenDate, Boolean(input.whenEvening));
+    if (whenLabel) chips.push({ kind: 'when', label: whenLabel });
+  }
+  const dueLabel = formatDueAtShort(input.dueAt);
+  if (dueLabel) chips.push({ kind: 'due', label: dueLabel });
+  return chips;
 }
 
 export function isDueToday(dueAt: string | null) {

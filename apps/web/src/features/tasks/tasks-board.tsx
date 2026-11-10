@@ -26,10 +26,10 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { TaskSettings } from '@erp-tiza/shared';
 import type { Task } from './tasks-api';
+import { TaskDateChips } from './task-date-chips';
 import {
   assigneeInitials,
   enabledStatuses,
-  formatDueAtShort,
   isDoneStatus,
   isOverdue,
   priorityColor,
@@ -362,7 +362,6 @@ function TaskCardContent({
   dragging?: boolean;
 }) {
   const overdue = isOverdue(task.dueAt, task.status, settings);
-  const dueLabel = formatDueAtShort(task.dueAt);
   const initials = assigneeInitials(assigneeLabel);
   const accent = priorityColor(settings, task.priority);
   const priorityName = priorityLabel(settings, task.priority);
@@ -403,16 +402,14 @@ function TaskCardContent({
               {priorityName}
             </span>
           ) : null}
-          {dueLabel ? (
-            <span
-              className={cn(
-                'rounded-md px-1.5 py-0.5 text-[11px] font-medium',
-                overdue ? 'bg-red-100 text-red-700' : 'bg-muted text-muted-foreground',
-              )}
-            >
-              {dueLabel}
-            </span>
-          ) : null}
+          <TaskDateChips
+            compact
+            whenDate={task.whenDate}
+            whenEvening={task.whenEvening}
+            isSomeday={task.isSomeday}
+            dueAt={task.dueAt}
+            overdue={overdue}
+          />
           <span
             title={assigneeLabel}
             className={cn(

@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { TaskSettings } from '@erp-tiza/shared';
+import { calendarDateKeyInTimeZone, type TaskSettings } from '@erp-tiza/shared';
+import { CalendarDays, Flag } from 'lucide-react';
 import { deleteTask, getTask, updateTask, type Task } from './tasks-api';
 import {
   dueLocalFromDateInput,
@@ -13,6 +14,7 @@ import {
   findPriority,
   findStatus,
   formatDueAtShort,
+  formatWhenDateShort,
   fromDatetimeLocalValue,
   priorityLabel,
   statusLabel,
@@ -31,6 +33,9 @@ type Draft = {
   status: string;
   priority: string;
   dueLocal: string;
+  whenDate: string;
+  whenEvening: boolean;
+  isSomeday: boolean;
   assigneeUserId: string;
 };
 
@@ -41,6 +46,9 @@ function draftFromTask(task: {
   status: string;
   priority: string;
   dueAt: string | null;
+  whenDate: string | null;
+  whenEvening: boolean;
+  isSomeday: boolean;
   assigneeUserId: string | null;
 }): Draft {
   return {
@@ -50,6 +58,9 @@ function draftFromTask(task: {
     status: task.status,
     priority: task.priority,
     dueLocal: toDatetimeLocalValue(task.dueAt),
+    whenDate: task.whenDate ?? '',
+    whenEvening: task.whenEvening,
+    isSomeday: task.isSomeday,
     assigneeUserId: task.assigneeUserId ?? '',
   };
 }
@@ -62,8 +73,21 @@ function sameDraft(left: Draft, right: Draft) {
     left.status === right.status &&
     left.priority === right.priority &&
     left.dueLocal === right.dueLocal &&
+    left.whenDate === right.whenDate &&
+    left.whenEvening === right.whenEvening &&
+    left.isSomeday === right.isSomeday &&
     left.assigneeUserId === right.assigneeUserId
   );
+}
+
+function todayDateKey() {
+  return calendarDateKeyInTimeZone(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+}
+
+function tomorrowDateKey() {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  return calendarDateKeyInTimeZone(tomorrow, timeZone);
 }
 
 export function TaskEditForm({
@@ -119,6 +143,9 @@ export function TaskEditForm({
         status: next.status,
         priority: next.priority,
         dueAt: fromDatetimeLocalValue(next.dueLocal),
+        whenDate: next.isSomeday ? null : next.whenDate || null,
+        whenEvening: next.isSomeday ? false : next.whenEvening,
+        isSomeday: next.isSomeday,
         assigneeUserId: next.assigneeUserId || null,
       }),
     onSuccess: async (_result, saved) => {
@@ -196,7 +223,10 @@ export function TaskEditForm({
     activeMembers.find((member) => member.userId === draft.assigneeUserId)?.name?.trim() ||
     activeMembers.find((member) => member.userId === draft.assigneeUserId)?.email ||
     'Unassigned';
-  const dueLabel = formatDueAtShort(fromDatetimeLocalValue(draft.dueLocal)) ?? 'Due';
+  const dueLabel = formatDueAtShort(fromDatetimeLocalValue(draft.dueLocal)) ?? 'Deadline';
+  const whenLabel = draft.isSomeday
+    ? 'Someday'
+    : formatWhenDateShort(draft.whenDate || null, draft.whenEvening) ?? 'When';
 
   function patch(partial: Partial<Draft>) {
     setDraft((current) => (current ? { ...current, ...partial } : current));
@@ -266,9 +296,39 @@ export function TaskEditForm({
             onSelect={(value) => patch({ assigneeUserId: value })}
           />
           <DueMenu
+            open={openMenu === 'when'}
+            setOpen={(next) => setOpenMenu(next ? 'when' : null)}
+            label={whenLabel}
+            icon="when"
+            dateValue={draft.whenDate}
+            onToday={() => patch({ whenDate: todayDateKey(), whenEvening: false, isSomeday: false })}
+            onTomorrow={() => patch({ whenDate: tomorrowDateKey(), whenEvening: false, isSomeday: false })}
+            onClear={() => patch({ whenDate: '', whenEvening: false, isSomeday: false })}
+            onPickDate={(value) => patch({ whenDate: value, whenEvening: false, isSomeday: false })}
+            extraActions={
+              <>
+                <button
+                  type="button"
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent"
+                  onClick={() => patch({ whenDate: todayDateKey(), whenEvening: true, isSomeday: false })}
+                >
+                  This evening
+                </button>
+                <button
+                  type="button"
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent"
+                  onClick={() => patch({ whenDate: '', whenEvening: false, isSomeday: true })}
+                >
+                  Someday
+                </button>
+              </>
+            }
+          />
+          <DueMenu
             open={openMenu === 'due'}
             setOpen={(next) => setOpenMenu(next ? 'due' : null)}
             label={dueLabel}
+            icon="due"
             dateValue={draft.dueLocal.slice(0, 10)}
             onToday={() => patch({ dueLocal: dueLocalOnDay(0) })}
             onTomorrow={() => patch({ dueLocal: dueLocalOnDay(1) })}
@@ -335,21 +395,26 @@ function DueMenu({
   open,
   setOpen,
   label,
+  icon = 'due',
   dateValue,
   onToday,
   onTomorrow,
   onClear,
   onPickDate,
+  extraActions,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
   label: string;
+  icon?: 'when' | 'due';
   dateValue: string;
   onToday: () => void;
   onTomorrow: () => void;
   onClear: () => void;
   onPickDate: (value: string) => void;
+  extraActions?: ReactNode;
 }) {
+  const Icon = icon === 'when' ? CalendarDays : Flag;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<MenuBox | null>(null);
@@ -386,11 +451,13 @@ function DueMenu({
       <button
         ref={buttonRef}
         type="button"
-        className="inline-flex h-8 items-center rounded-full bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent"
         aria-expanded={open}
+        aria-label={icon === 'when' ? `When: ${label}` : `Deadline: ${label}`}
         onClick={() => setOpen(!open)}
       >
-        {label}
+        <Icon className="h-3.5 w-3.5 opacity-80" aria-hidden />
+        <span>{icon === 'when' ? (label === 'When' ? 'When' : `When: ${label}`) : label}</span>
       </button>
       {open && box
         ? createPortal(
@@ -405,6 +472,7 @@ function DueMenu({
               <button type="button" className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent" onClick={onTomorrow}>
                 Tomorrow
               </button>
+              {extraActions}
               <button type="button" className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent" onClick={onClear}>
                 Clear
               </button>

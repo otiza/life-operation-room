@@ -2,13 +2,8 @@
 
 import type { TaskSettings } from '@erp-tiza/shared';
 import type { Task } from './tasks-api';
-import {
-  formatDueAtShort,
-  isDoneStatus,
-  isOverdue,
-  priorityColor,
-  statusLabel,
-} from './task-status';
+import { TaskDateChips } from './task-date-chips';
+import { isDoneStatus, isOverdue, priorityColor, statusLabel } from './task-status';
 import { cn } from '../../lib/utils';
 
 export function ScopeButton({
@@ -64,7 +59,6 @@ export function TaskRows({
         const overdue = isOverdue(task.dueAt, task.status, settings);
         const pending = pendingCompleteIds.has(task.id);
         const done = isDoneStatus(settings, task.status) || pending;
-        const dueLabel = formatDueAtShort(task.dueAt);
         const accent = priorityColor(settings, task.priority);
         const showAccent = task.priority !== 'none';
         const focused = focusedTaskId === task.id;
@@ -126,11 +120,14 @@ export function TaskRows({
                 ) : null}
               </div>
             </button>
-            {dueLabel ? (
-              <span className={cn('shrink-0 text-xs', overdue ? 'font-medium text-red-600' : 'text-muted-foreground')}>
-                {dueLabel}
-              </span>
-            ) : null}
+            <TaskDateChips
+              className="shrink-0"
+              whenDate={task.whenDate}
+              whenEvening={task.whenEvening}
+              isSomeday={task.isSomeday}
+              dueAt={task.dueAt}
+              overdue={overdue}
+            />
           </div>
         );
       })}
