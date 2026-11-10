@@ -50,6 +50,7 @@ export default function WorkspaceHomePage() {
   );
   const tasksInstalled = installedKeys.has('tasks');
   const calendarInstalled = installedKeys.has('calendar');
+  const notesInstalled = installedKeys.has('notes');
 
   const tasksQuery = useQuery({
     queryKey: ['tasks', workspaceId, { view: 'today', tz: timeZone }],
@@ -131,14 +132,27 @@ export default function WorkspaceHomePage() {
         title="Today"
         description={todayLabel}
         actions={
-          tasksInstalled ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => openQuickAdd({ whenDate: todayKey })}
-            >
-              Quick add
-            </Button>
+          notesInstalled || tasksInstalled ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {notesInstalled ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push(`/w/${workspaceId}/notes`)}
+                >
+                  Today's note
+                </Button>
+              ) : null}
+              {tasksInstalled ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => openQuickAdd({ whenDate: todayKey })}
+                >
+                  Quick add
+                </Button>
+              ) : null}
+            </div>
           ) : null
         }
       />

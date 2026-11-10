@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Dialog } from '../../components/ui/dialog';
 import { listRegisteredShortcuts } from './command-registry';
 
@@ -12,10 +13,12 @@ export function ShortcutsSheet({
   open,
   onClose,
   installedAppKeys,
+  manualHref,
 }: {
   open: boolean;
   onClose: () => void;
   installedAppKeys: string[];
+  manualHref?: string;
 }) {
   const appShortcuts = listRegisteredShortcuts(installedAppKeys);
   const rows = [...SHELL_SHORTCUTS, ...appShortcuts];
@@ -34,6 +37,11 @@ export function ShortcutsSheet({
             </li>
           ))}
         </ul>
+        {manualHref ? (
+          <Link href={manualHref} onClick={onClose} className="inline-flex text-sm text-foreground underline-offset-4 hover:underline">
+            Open the manual
+          </Link>
+        ) : null}
       </div>
     </Dialog>
   );

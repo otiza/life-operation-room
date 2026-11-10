@@ -101,12 +101,20 @@ export class CalendarService {
 
     const occurrences = [];
     for (const master of masters) {
-      const expanded = this.recurrenceService.expandEvent(
-        master,
-        exceptionsByEvent.get(master.id) ?? [],
-        from,
-        to,
-      );
+      let expanded;
+      try {
+        expanded = this.recurrenceService.expandEvent(
+          master,
+          exceptionsByEvent.get(master.id) ?? [],
+          from,
+          to,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Skipping calendar event ${master.id}: invalid recurrence (${error instanceof Error ? error.message : 'unknown'})`,
+        );
+        continue;
+      }
       for (const item of expanded) {
         if (item.cancelled) continue;
         const taskId = taskIdByEventId.get(item.eventId);
@@ -181,6 +189,7 @@ export class CalendarService {
 
   async create(workspaceId: string, user: User, input: CreateCalendarEventInput) {
     this.assertTiming(input);
+    this.assertRrule(input.rrule);
     const [row] = await this.db
       .insert(calendarEvents)
       .values({
@@ -207,6 +216,7 @@ export class CalendarService {
   async update(workspaceId: string, eventId: string, user: User, input: UpdateCalendarEventInput) {
     const event = await this.findActive(workspaceId, eventId);
     const scope = input.scope ?? 'all';
+    if (input.rrule !== undefined) this.assertRrule(input.rrule);
 
     if (!event.rrule || scope === 'all') {
       return this.seriesService.patchMaster(workspaceId, event, input);
@@ -356,6 +366,7 @@ export class CalendarService {
 
   async createTimeBlock(workspaceId: string, user: User, input: CreateTimeBlockInput) {
     const task = await this.taskReferencesService.assertTaskInWorkspace(workspaceId, input.taskId);
+    const timezone = input.timezone ?? 'UTC';
     const event = await this.create(workspaceId, user, {
       title: task.title,
       description: null,
@@ -363,7 +374,7 @@ export class CalendarService {
       isAllDay: false,
       startAt: input.start,
       endAt: input.end,
-      timezone: 'UTC',
+      timezone,
       kind: 'time_block',
       rrule: null,
       color: null,
@@ -376,6 +387,8 @@ export class CalendarService {
       targetRef: task.id,
       linkType: 'time_block',
     });
+    const whenDate = calendarDateKeyInTimeZone(new Date(input.start), timezone);
+    await this.taskReferencesService.setWhenDate(workspaceId, task.id, whenDate);
     return event;
   }
 
@@ -587,6 +600,17 @@ export class CalendarService {
     }
     if (input.endAt <= input.startAt) {
       throw new BadRequestException('endAt must be after startAt');
+    }
+  }
+
+  private assertRrule(rrule: string | null | undefined) {
+    if (rrule == null || rrule === '') return;
+    try {
+      this.recurrenceService.assertValidRrule(rrule);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? `Invalid rrule: ${error.message}` : 'Invalid rrule',
+      );
     }
   }
 

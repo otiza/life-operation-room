@@ -25,11 +25,11 @@ ERP Tiza is a **modular life OS**, not a single monolithic feature app.
 | Cross-app links | Generic table for interconnect (Odoo-like). Apps do not share tables. |
 | Platform services | Files / AI / Integrations / Goals — contracts exist; implement when first needed. |
 
-The **shell** plus **Projects**, **Tasks**, and **Calendar** are available mini-apps (`status: available`); other catalog entries remain stubs (`coming_soon`).
+The **shell** plus **Projects**, **Tasks**, **Calendar**, and **Notes** are available mini-apps (`status: available`); other catalog entries remain stubs (`coming_soon`).
 
 Vision roadmap (do not build unless asked):
 
-1. Near-term: notes, costs, chat
+1. Near-term: costs, chat
 2. Mid-term: learning, work finder, goals
 3. Later: AI coach, fitness / wearables
 
@@ -396,7 +396,7 @@ First real apps: **Projects** + **Tasks** — see [apps/TASKS.md](./apps/TASKS.m
 
 ## 10. What is intentionally unfinished
 
-- Remaining domain UIs (notes/costs/…); Projects, Tasks, and Calendar v1 are shipped — see [apps/TASKS.md](./apps/TASKS.md) and [apps/CALENDAR.md](./apps/CALENDAR.md)
+- Remaining domain UIs (costs/…); Projects, Tasks, Calendar, and Notes v1 are shipped — see [apps/TASKS.md](./apps/TASKS.md), [apps/CALENDAR.md](./apps/CALENDAR.md), and [apps/NOTES.md](./apps/NOTES.md)
 - Real `FilesModule` / `AiModule` / `IntegrationsModule` / `GoalsModule` implementations
 - BullMQ workers on Redis
 - OAuth / SSO

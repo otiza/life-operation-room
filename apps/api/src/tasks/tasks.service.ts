@@ -10,6 +10,7 @@ import { and, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   DEFAULT_TASK_SETTINGS,
+  nextTaskOccurrenceDateKey,
   taskSettingsSchema,
   type CreateTaskInput,
   type ListTasksQuery,
@@ -210,7 +211,7 @@ export class TasksService {
           ? user.id
           : null;
     if (assigneeUserId) {
-      await this.workspacesService.requireMembership(workspaceId, assigneeUserId, [...READ_ROLES]);
+      await this.assertAssigneeIsMember(workspaceId, assigneeUserId);
     }
     const dueAt = input.dueAt ? new Date(input.dueAt) : null;
     const isDone = Boolean(settings.statuses.find((item) => item.key === status)?.isDone);
@@ -230,6 +231,7 @@ export class TasksService {
           whenDate: whenFields.whenDate,
           whenEvening: whenFields.whenEvening,
           isSomeday: whenFields.isSomeday,
+          recurrenceRrule: this.normalizeRecurrence(input.recurrenceRrule),
           completedAt: isDone ? new Date() : null,
           assigneeUserId,
           createdByUserId: user.id,
@@ -261,9 +263,7 @@ export class TasksService {
       await this.projectsService.assertProjectInWorkspace(workspaceId, input.projectId);
     }
     if (input.assigneeUserId) {
-      await this.workspacesService.requireMembership(workspaceId, input.assigneeUserId, [
-        ...READ_ROLES,
-      ]);
+      await this.assertAssigneeIsMember(workspaceId, input.assigneeUserId);
     }
     const previousDueAt = existing.dueAt;
     const previousAssigneeUserId = existing.assigneeUserId;
@@ -292,6 +292,12 @@ export class TasksService {
     let completedAt = existing.completedAt;
     if (nextIsDone && !previousIsDone) completedAt = new Date();
     if (!nextIsDone && previousIsDone) completedAt = null;
+    const nextRecurrence =
+      input.recurrenceRrule === undefined
+        ? existing.recurrenceRrule
+        : this.normalizeRecurrence(input.recurrenceRrule);
+    const shouldSpawnNext =
+      Boolean(nextRecurrence) && nextIsDone && !previousIsDone && nextStatus !== 'cancelled';
     const row = await this.db.transaction(async (tx) => {
       let nextPosition = input.position;
       if (projectChanged) {
@@ -318,6 +324,7 @@ export class TasksService {
               }
             : {}),
           ...(input.todayPosition !== undefined ? { todayPosition: input.todayPosition } : {}),
+          ...(input.recurrenceRrule !== undefined ? { recurrenceRrule: nextRecurrence } : {}),
           ...(input.status !== undefined || nextIsDone !== previousIsDone ? { completedAt } : {}),
           ...(projectChanged || input.position !== undefined ? { position: nextPosition } : {}),
           updatedAt: new Date(),
@@ -325,9 +332,15 @@ export class TasksService {
         .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)))
         .returning();
       if (!updated) throw new NotFoundException('Task not found');
-      return updated;
+      const spawned = shouldSpawnNext
+        ? await this.insertNextOccurrence(tx, updated, nextRecurrence!, existing.status)
+        : null;
+      return { updated, spawned };
     });
-    const dto = this.toDto(row);
+    const dto = this.toDto(row.updated);
+    if (row.spawned) {
+      this.emitTaskEvent(DOMAIN_EVENTS.taskUpdated, this.toDto(row.spawned), user.id);
+    }
     this.emitTaskEvent(DOMAIN_EVENTS.taskUpdated, dto, user.id, {
       previousAssigneeUserId,
       previousDueAt: toIso(previousDueAt),
@@ -336,10 +349,10 @@ export class TasksService {
       this.emitTaskEvent(DOMAIN_EVENTS.taskCompleted, dto, user.id);
     }
     const hadDue = Boolean(previousDueAt);
-    const hasDue = Boolean(row.dueAt);
+    const hasDue = Boolean(row.updated.dueAt);
     if (!hadDue && hasDue) this.emitTaskEvent(DOMAIN_EVENTS.taskScheduled, dto, user.id);
     if (hadDue && !hasDue) this.emitTaskEvent(DOMAIN_EVENTS.taskUnscheduled, dto, user.id);
-    if (hadDue && hasDue && previousDueAt?.getTime() !== row.dueAt?.getTime()) {
+    if (hadDue && hasDue && previousDueAt?.getTime() !== row.updated.dueAt?.getTime()) {
       this.emitTaskEvent(DOMAIN_EVENTS.taskScheduled, dto, user.id, {
         previousDueAt: toIso(previousDueAt),
       });
@@ -412,6 +425,15 @@ export class TasksService {
       }
       return dto;
     });
+    for (const { before, after } of changed) {
+      const nextIsDone = Boolean(settings.statuses.find((item) => item.key === after.status)?.isDone);
+      const previousIsDone = Boolean(settings.statuses.find((item) => item.key === before.status)?.isDone);
+      if (!nextIsDone || previousIsDone || after.status === 'cancelled' || !after.recurrenceRrule) continue;
+      const spawned = await this.db.transaction(async (tx) =>
+        this.insertNextOccurrence(tx, after, after.recurrenceRrule!, before.status),
+      );
+      if (spawned) this.emitTaskEvent(DOMAIN_EVENTS.taskUpdated, this.toDto(spawned), user.id);
+    }
     return dtos;
   }
 
@@ -455,7 +477,7 @@ export class TasksService {
     warnOnInvalid = true,
   ): TaskSettings {
     const parsed = taskSettingsSchema.safeParse(config);
-    if (parsed.success) return parsed.data;
+    if (parsed.success) return this.normalizeClosedStatuses(parsed.data);
     const merged = { ...structuredClone(DEFAULT_TASK_SETTINGS), ...config };
     const mergedParsed = taskSettingsSchema.safeParse(merged);
     if (warnOnInvalid) {
@@ -463,7 +485,28 @@ export class TasksService {
         `Invalid tasks config for workspace ${workspaceId}; returning in-memory defaults`,
       );
     }
-    return mergedParsed.success ? mergedParsed.data : structuredClone(DEFAULT_TASK_SETTINGS);
+    const fallback = mergedParsed.success ? mergedParsed.data : structuredClone(DEFAULT_TASK_SETTINGS);
+    return this.normalizeClosedStatuses(fallback);
+  }
+
+  /** Treat cancelled as closed when workspaces still store the pre-isDone default. */
+  private normalizeClosedStatuses(settings: TaskSettings): TaskSettings {
+    let changed = false;
+    const statuses = settings.statuses.map((item) => {
+      if (item.key === 'cancelled' && item.isDone === undefined) {
+        changed = true;
+        return { ...item, isDone: true };
+      }
+      return item;
+    });
+    return changed ? { ...settings, statuses } : settings;
+  }
+
+  private async assertAssigneeIsMember(workspaceId: string, assigneeUserId: string) {
+    const member = await this.workspacesService.findActiveMember(workspaceId, assigneeUserId);
+    if (!member || !(READ_ROLES as readonly string[]).includes(member.role)) {
+      throw new BadRequestException('Assignee must be an active workspace member');
+    }
   }
 
   private assertUniqueKeys(settings: TaskSettings) {
@@ -546,6 +589,51 @@ export class TasksService {
     };
   }
 
+  private normalizeRecurrence(value: string | null | undefined) {
+    if (value == null || value === '') return null;
+    return value;
+  }
+
+  private async insertNextOccurrence(
+    tx: NodePgDatabase,
+    completed: Task,
+    rrule: string,
+    openStatus: string,
+  ) {
+    const planned = completed.whenDate ? String(completed.whenDate).slice(0, 10) : null;
+    const completedKey = (completed.completedAt ?? new Date()).toISOString().slice(0, 10);
+    const anchor = planned && planned > completedKey ? planned : completedKey;
+    const whenDate = nextTaskOccurrenceDateKey(rrule, anchor);
+    if (!whenDate) return null;
+    await this.taskOrderingService.lockProjectPositions(tx, completed.workspaceId, completed.projectId);
+    const position = await this.taskOrderingService.nextPositionInProject(
+      tx,
+      completed.workspaceId,
+      completed.projectId,
+    );
+    const [created] = await tx
+      .insert(tasks)
+      .values({
+        workspaceId: completed.workspaceId,
+        projectId: completed.projectId,
+        title: completed.title,
+        description: completed.description,
+        status: openStatus,
+        priority: completed.priority,
+        dueAt: null,
+        whenDate,
+        whenEvening: completed.whenEvening,
+        isSomeday: false,
+        recurrenceRrule: rrule,
+        completedAt: null,
+        assigneeUserId: completed.assigneeUserId,
+        createdByUserId: completed.createdByUserId,
+        position,
+      })
+      .returning();
+    return created ?? null;
+  }
+
   private emitTaskEvent(
     eventName: string,
     dto: ReturnType<TasksService['toDto']>,
@@ -580,6 +668,7 @@ export class TasksService {
       whenDate: task.whenDate ? String(task.whenDate) : null,
       whenEvening: Boolean(task.whenEvening),
       isSomeday: Boolean(task.isSomeday),
+      recurrenceRrule: task.recurrenceRrule ?? null,
       completedAt: toIso(task.completedAt),
       assigneeUserId: task.assigneeUserId,
       createdByUserId: task.createdByUserId,

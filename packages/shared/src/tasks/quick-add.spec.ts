@@ -134,9 +134,33 @@ describe('parseTaskQuickAdd', () => {
     expect(parse('Ship !urgent').priority).toBe('urgent');
   });
 
-  it('leaves every recurrence words in the title', () => {
+  it('turns every monday into a weekly task', () => {
     const result = parse('Water plants every monday');
-    expect(result.title.toLowerCase()).toContain('every monday');
+    expect(result.title).toBe('Water plants');
+    expect(result.recurrenceRrule).toBe('FREQ=WEEKLY;BYDAY=MO');
+    expect(result.recurrenceHint).toBe('Every Monday');
+    expect(result.whenDate).toBe('2026-11-09');
+  });
+
+  it('turns every morning into a daily task on today', () => {
+    const result = parse('Take meds every morning');
+    expect(result.title).toBe('Take meds');
+    expect(result.recurrenceRrule).toBe('FREQ=DAILY;X-WHEN=MORNING');
+    expect(result.whenEvening).toBe(false);
+    expect(result.whenDate).toBe('2026-11-09');
+  });
+
+  it('turns every evening into this evening and a daily rule', () => {
+    const result = parse('Journal every evening');
+    expect(result.whenEvening).toBe(true);
+    expect(result.recurrenceRrule).toBe('FREQ=DAILY;X-WHEN=EVENING');
+    expect(result.title).toBe('Journal');
+  });
+
+  it('leaves an unsupported every phrase in the title', () => {
+    const result = parse('Water plants every blue moon');
+    expect(result.title.toLowerCase()).toContain('every blue moon');
+    expect(result.recurrenceRrule).toBeNull();
     expect(result.recurrenceHint).toBe('every');
   });
 

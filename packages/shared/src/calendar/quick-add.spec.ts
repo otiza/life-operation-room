@@ -129,4 +129,38 @@ describe('parseQuickAdd', () => {
     expect(result.title.toLowerCase()).toMatch(/ship|release|notes/);
     expect(result.title.toLowerCase()).not.toContain('fri');
   });
+
+  it('parses multi-weekday gym schedule with time', () => {
+    const result = parseQuickAdd('Gym mon wed fri 7am', REF);
+    expect(result.title.toLowerCase()).toBe('gym');
+    expect(result.isAllDay).toBe(false);
+    expect(result.rrule).toBe('FREQ=WEEKLY;BYDAY=MO,WE,FR');
+    expect(result.start).not.toBeNull();
+    expect(result.start!.getHours()).toBe(7);
+  });
+
+  it('treats noon as time not location', () => {
+    const result = parseQuickAdd('Lunch at noon', REF);
+    expect(result.location).toBeNull();
+    expect(result.title.toLowerCase()).toBe('lunch');
+    expect(result.isAllDay).toBe(false);
+    expect(result.start).not.toBeNull();
+    expect(result.start!.getHours()).toBe(12);
+  });
+
+  it('anchors every monday time to the next monday', () => {
+    const result = parseQuickAdd('every monday 10am', REF);
+    expect(result.rrule).toBe('FREQ=WEEKLY;BYDAY=MO');
+    expect(result.start).not.toBeNull();
+    expect(result.start!.getUTCDay() === 1 || result.start!.getDay() === 1).toBe(true);
+    expect(result.start!.getHours()).toBe(10);
+    expect(result.title).toBe('');
+  });
+
+  it('strips stray on before dates', () => {
+    const result = parseQuickAdd('Birthday party on 21/11', REF);
+    expect(result.title.toLowerCase()).toBe('birthday party');
+    expect(result.isAllDay).toBe(true);
+    expect(result.start).not.toBeNull();
+  });
 });

@@ -19,6 +19,7 @@ function buildCalendarService(deps: {
       assertTaskInWorkspace: vi.fn(),
       findTaskInWorkspace: vi.fn(),
       listDueInRange: vi.fn(),
+      setWhenDate: vi.fn(),
     };
   const appsService = deps.appsService ?? { assertInstalled: vi.fn(), updateConfig: vi.fn() };
   return new CalendarService(
@@ -37,6 +38,7 @@ describe('CalendarService time blocks', () => {
     assertTaskInWorkspace: ReturnType<typeof vi.fn>;
     findTaskInWorkspace: ReturnType<typeof vi.fn>;
     listDueInRange: ReturnType<typeof vi.fn>;
+    setWhenDate: ReturnType<typeof vi.fn>;
   };
   let linksService: { create: ReturnType<typeof vi.fn>; listBySource: ReturnType<typeof vi.fn>; listByTarget: ReturnType<typeof vi.fn> };
   let appsService: { assertInstalled: ReturnType<typeof vi.fn>; updateConfig: ReturnType<typeof vi.fn> };
@@ -47,6 +49,7 @@ describe('CalendarService time blocks', () => {
       assertTaskInWorkspace: vi.fn(),
       findTaskInWorkspace: vi.fn(),
       listDueInRange: vi.fn(),
+      setWhenDate: vi.fn(async () => undefined),
     };
     linksService = {
       create: vi.fn(async () => ({ id: 'link' })),
@@ -133,6 +136,11 @@ describe('CalendarService time blocks', () => {
         targetRef: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
         linkType: 'time_block',
       }),
+    );
+    expect(taskReferencesService.setWhenDate).toHaveBeenCalledWith(
+      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      '2026-11-10',
     );
   });
 });

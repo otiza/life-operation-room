@@ -5,6 +5,7 @@ export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgresql://tiza:tiza@localhost:5432/tiza',
+    // Neon: use the direct (non-pooler) URL for migrations; fall back to DATABASE_URL for local Docker.
+    url: process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL ?? 'postgresql://tiza:tiza@localhost:5432/tiza',
   },
 });

@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react';
 import { Flag } from 'lucide-react';
-import type { TaskSettings } from '@erp-tiza/shared';
+import { describeTaskRecurrence, type TaskSettings } from '@erp-tiza/shared';
 import type { Task } from './tasks-api';
 import { TaskDateChips } from './task-date-chips';
 import { isDoneStatus, isOverdue, priorityColor, priorityLabel, statusLabel } from './task-status';
@@ -84,6 +84,10 @@ export function TaskRows({
         }
         if (showAssignee && task.assigneeUserId) {
           metaItems.push({ key: 'assignee', node: memberLabel(task.assigneeUserId) });
+        }
+        if (task.recurrenceRrule) {
+          const repeatLabel = describeTaskRecurrence(task.recurrenceRrule);
+          if (repeatLabel) metaItems.push({ key: 'repeat', node: repeatLabel });
         }
         if (showPriority) {
           metaItems.push({

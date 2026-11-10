@@ -40,13 +40,48 @@ export class CalendarTaskBlocksService {
   }
 
   @OnEvent(DOMAIN_EVENTS.taskDeleted)
-  onTaskDeleted(event: TaskDomainEvent) {
-    this.logger.debug(`task.deleted ${event.taskId} — linked time blocks kept`);
+  async onTaskDeleted(event: TaskDomainEvent) {
+    const links = await this.linksService.listByTarget(
+      event.workspaceId,
+      'tasks',
+      event.taskId,
+      'time_block',
+    );
+    for (const link of links) {
+      await this.db
+        .update(calendarEvents)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(
+          and(
+            eq(calendarEvents.id, link.sourceRef),
+            eq(calendarEvents.workspaceId, event.workspaceId),
+            eq(calendarEvents.kind, 'time_block'),
+            isNull(calendarEvents.deletedAt),
+          ),
+        );
+    }
   }
 
   @OnEvent(DOMAIN_EVENTS.taskRestored)
-  onTaskRestored(event: TaskDomainEvent) {
-    this.logger.debug(`task.restored ${event.taskId}`);
+  async onTaskRestored(event: TaskDomainEvent) {
+    const links = await this.linksService.listByTarget(
+      event.workspaceId,
+      'tasks',
+      event.taskId,
+      'time_block',
+    );
+    for (const link of links) {
+      await this.db
+        .update(calendarEvents)
+        .set({ deletedAt: null, updatedAt: new Date() })
+        .where(
+          and(
+            eq(calendarEvents.id, link.sourceRef),
+            eq(calendarEvents.workspaceId, event.workspaceId),
+            eq(calendarEvents.kind, 'time_block'),
+          ),
+        );
+    }
   }
 
   @OnEvent(DOMAIN_EVENTS.taskCompleted)

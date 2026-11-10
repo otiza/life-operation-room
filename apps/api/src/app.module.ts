@@ -15,6 +15,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
 import { CalendarModule } from './calendar/calendar.module.js';
+import { NotesModule } from './notes/notes.module.js';
 import { UsersModule } from './users/users.module.js';
 import { WorkspacesModule } from './workspaces/workspaces.module.js';
 import * as schema from './db/schema.js';
@@ -23,7 +24,8 @@ import * as schema from './db/schema.js';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['../../.env', '.env'],
+      // Prefer root .env (API + Neon pull). .env.local is also written by `neon deploy`.
+      envFilePath: ['../../.env', '../../.env.local', '.env', '.env.local'],
     }),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
@@ -34,6 +36,7 @@ import * as schema from './db/schema.js';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         drizzle,
+        // Pooled Neon DATABASE_URL for app traffic (see neon-postgres skill).
         connection: configService.getOrThrow<string>('DATABASE_URL'),
         schema,
       }),
@@ -48,6 +51,7 @@ import * as schema from './db/schema.js';
     ProjectsModule,
     TasksModule,
     CalendarModule,
+    NotesModule,
   ],
   providers: [
     {

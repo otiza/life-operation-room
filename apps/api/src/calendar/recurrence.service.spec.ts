@@ -32,6 +32,14 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
 describe('RecurrenceService', () => {
   const service = new RecurrenceService();
 
+  it('rejects invalid frequency on assertValidRrule', () => {
+    expect(() => service.assertValidRrule('FREQ=SOMETIMES')).toThrow(/Invalid frequency/i);
+  });
+
+  it('accepts a weekly rule on assertValidRrule', () => {
+    expect(() => service.assertValidRrule('FREQ=WEEKLY;BYDAY=MO')).not.toThrow();
+  });
+
   it('keeps weekly 09:00 Europe/Paris across spring DST', () => {
     const event = makeEvent();
     const from = new Date('2026-03-20T00:00:00Z');

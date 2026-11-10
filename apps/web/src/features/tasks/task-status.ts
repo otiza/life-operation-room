@@ -125,7 +125,10 @@ export function findPriority(settings: TaskSettings, key: string): TaskPriorityO
 }
 
 export function isDoneStatus(settings: TaskSettings, statusKey: string) {
-  return Boolean(findStatus(settings, statusKey)?.isDone);
+  const status = findStatus(settings, statusKey);
+  if (!status) return statusKey === 'done' || statusKey === 'cancelled';
+  if (status.isDone !== undefined) return Boolean(status.isDone);
+  return statusKey === 'cancelled';
 }
 
 export function isOverdue(dueAt: string | null, statusKey: string, settings?: TaskSettings) {

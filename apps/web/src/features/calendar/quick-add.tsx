@@ -28,54 +28,57 @@ function toDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-export function QuickAdd({ onSubmit, inputRef }: QuickAddProps) {
-  const [text, setText] = useState('');
-  const [saving, setSaving] = useState(false);
-  const parsed = useMemo(() => parseQuickAdd(text), [text]);
-
-  const draft: QuickAddDraft | null = useMemo(() => {
-    if (!parsed.title) return null;
-    const timezone = viewerTimeZone();
-    if (!parsed.start) {
-      return {
-        title: parsed.title,
-        isAllDay: false,
-        startAt: null,
-        endAt: null,
-        startDate: null,
-        endDate: null,
-        location: parsed.location,
-        rrule: parsed.rrule,
-        timezone,
-      };
-    }
-    if (parsed.isAllDay) {
-      const startDate = toDateKey(parsed.start);
-      const endDate = parsed.end ? toDateKey(parsed.end) : toDateKey(new Date(parsed.start.getTime() + 86400000));
-      return {
-        title: parsed.title,
-        isAllDay: true,
-        startAt: null,
-        endAt: null,
-        startDate,
-        endDate: endDate <= startDate ? toDateKey(new Date(parsed.start.getTime() + 86400000)) : endDate,
-        location: parsed.location,
-        rrule: parsed.rrule,
-        timezone,
-      };
-    }
+export function draftFromParsedEvent(
+  parsed: ReturnType<typeof parseQuickAdd>,
+  timezone = viewerTimeZone(),
+): QuickAddDraft | null {
+  if (!parsed.title) return null;
+  if (!parsed.start) {
     return {
       title: parsed.title,
       isAllDay: false,
-      startAt: parsed.start.toISOString(),
-      endAt: (parsed.end ?? new Date(parsed.start.getTime() + 60 * 60_000)).toISOString(),
+      startAt: null,
+      endAt: null,
       startDate: null,
       endDate: null,
       location: parsed.location,
       rrule: parsed.rrule,
       timezone,
     };
-  }, [parsed]);
+  }
+  if (parsed.isAllDay) {
+    const startDate = toDateKey(parsed.start);
+    const endDate = parsed.end ? toDateKey(parsed.end) : toDateKey(new Date(parsed.start.getTime() + 86400000));
+    return {
+      title: parsed.title,
+      isAllDay: true,
+      startAt: null,
+      endAt: null,
+      startDate,
+      endDate: endDate <= startDate ? toDateKey(new Date(parsed.start.getTime() + 86400000)) : endDate,
+      location: parsed.location,
+      rrule: parsed.rrule,
+      timezone,
+    };
+  }
+  return {
+    title: parsed.title,
+    isAllDay: false,
+    startAt: parsed.start.toISOString(),
+    endAt: (parsed.end ?? new Date(parsed.start.getTime() + 60 * 60_000)).toISOString(),
+    startDate: null,
+    endDate: null,
+    location: parsed.location,
+    rrule: parsed.rrule,
+    timezone,
+  };
+}
+
+export function QuickAdd({ onSubmit, inputRef }: QuickAddProps) {
+  const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const parsed = useMemo(() => parseQuickAdd(text), [text]);
+  const draft: QuickAddDraft | null = useMemo(() => draftFromParsedEvent(parsed), [parsed]);
 
   return (
     <div className="space-y-2 rounded-xl border border-border bg-card p-3">

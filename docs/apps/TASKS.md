@@ -17,6 +17,7 @@ Install order is enforced by `dependsOn`. You cannot install Tasks without Proje
 - `tasks.project_id` is a **nullable soft UUID** (no FK into `projects`). **Null = Inbox.** `TasksService` validates a project only when one is given.
 - **When** (`when_date`, `when_evening`) is separate from **due** (`due_at`). Both are optional.
 - `is_someday` parks work without a when date. Setting `when_date` clears `is_someday` and vice versa (Zod + service).
+- `recurrence_rrule` repeats a task. Completing it (any done status except `cancelled`) inserts the next open copy. The deadline is not copied.
 - `completed_at` is set when a task enters an `isDone` status and cleared when it leaves one.
 - `today_position` is the manual order inside the Today view (independent of project `position`).
 - `tasks.status` / `tasks.priority` are text keys; definitions live in `workspace_apps.config` for `appKey=tasks`.
@@ -60,9 +61,9 @@ Shared parser: `parseTaskQuickAdd` in `@erp-tiza/shared` (Calendar keeps `parseQ
 | `due fri`, `by friday`, `due jan 12 5pm` | `due_at` |
 | `#project` | Match existing projects (case-insensitive, fuzzy prefix). Unknown names stay in the title with a warning chip |
 | `!1`–`!4` or `!<priority key>` | Priority from enabled priorities in configured order (skipping `none`) |
-| `every …` | Left in the title (recurrence out of scope; extension point exists) |
+| `every monday`, `every morning`, `every evening`, `every day`, `every weekday`, `every 2 weeks` | `recurrence_rrule` and a first `when_date`. Unsupported `every …` stays in the title. |
 
-Global capture: `q` (when not typing) or shell header `+` when Tasks is installed. Enter creates; Shift/Cmd+Enter creates and keeps the dialog open. Project pages default the project; Today defaults `when_date` to today.
+Global capture: `q` (when not typing) or shell header `+` when Tasks is installed. One field creates a task or, when Calendar is installed, an event. A clock time (`at 5`, `5pm`, `noon`) becomes an event. A date, `#project`, `due`, `someday`, or `every` without a clock time becomes a task. Prefix `todo` or `task` forces a task. Prefix `event` forces an event. Enter creates; Shift/Cmd+Enter creates and keeps the dialog open. Project pages default the project; Today defaults `when_date` to today.
 
 ## Keyboard shortcuts
 
@@ -121,4 +122,4 @@ Completion: check animation, ~1.5s struck-through delay, then leave the list (sk
 
 ## Non-goals (this batch)
 
-Recurring tasks, labels, saved views, sub-tasks, multi-select, comments, mentions, activity log, guided plan-my-day with time estimates and automatic time blocks.
+Labels, saved views, sub-tasks, multi-select, comments, mentions, activity log, guided plan-my-day with time estimates and automatic time blocks.

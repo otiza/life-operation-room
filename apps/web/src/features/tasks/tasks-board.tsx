@@ -24,7 +24,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { TaskSettings } from '@erp-tiza/shared';
+import { describeTaskRecurrence, type TaskSettings } from '@erp-tiza/shared';
 import type { Task } from './tasks-api';
 import { TaskDateChips } from './task-date-chips';
 import {
@@ -429,7 +429,12 @@ function TaskCardContent({
         <span className="mt-0.5 flex h-5 w-4 shrink-0 items-center justify-center text-border" aria-hidden>
           <GripVertical className="h-4 w-4" />
         </span>
-        <p className="min-w-0 flex-1 break-words text-sm font-medium leading-snug text-foreground">{task.title}</p>
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-sm font-medium leading-snug text-foreground">{task.title}</p>
+          {task.recurrenceRrule ? (
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{describeTaskRecurrence(task.recurrenceRrule)}</p>
+          ) : null}
+        </div>
       </div>
       <div className={cn('mt-2.5 flex items-center gap-2', showPriority && 'pl-2')}>
         <span className="min-w-0 truncate text-[11px] text-muted-foreground">{projectLabel}</span>

@@ -465,7 +465,9 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
       taskId,
       start: start.toISOString(),
       end: end.toISOString(),
+      timezone: tz,
     });
+    await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
     await invalidateEvents();
   }
 

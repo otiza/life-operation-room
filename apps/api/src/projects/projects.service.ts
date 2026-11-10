@@ -35,11 +35,13 @@ export class ProjectsService {
   }
 
   async create(workspaceId: string, user: User, input: CreateProjectInput) {
+    const name = input.name.trim();
+    await this.assertUniqueName(workspaceId, name);
     const [row] = await this.db
       .insert(projects)
       .values({
         workspaceId,
-        name: input.name.trim(),
+        name,
         description: input.description?.trim() || null,
         status: input.status ?? 'active',
         createdByUserId: user.id,
@@ -50,6 +52,9 @@ export class ProjectsService {
 
   async update(workspaceId: string, projectId: string, input: UpdateProjectInput) {
     await this.findInWorkspace(workspaceId, projectId);
+    if (input.name !== undefined) {
+      await this.assertUniqueName(workspaceId, input.name.trim(), projectId);
+    }
     const [row] = await this.db
       .update(projects)
       .set({
@@ -95,6 +100,21 @@ export class ProjectsService {
   async onAppUninstalled(event: AppUninstalledEvent) {
     if (event.appKey !== 'projects') return;
     await this.db.delete(projects).where(eq(projects.workspaceId, event.workspaceId));
+  }
+
+  private async assertUniqueName(workspaceId: string, name: string, excludeProjectId?: string) {
+    const rows = await this.db
+      .select({ id: projects.id, name: projects.name })
+      .from(projects)
+      .where(eq(projects.workspaceId, workspaceId));
+    const conflict = rows.find(
+      (row) =>
+        row.name.toLowerCase() === name.toLowerCase() &&
+        (!excludeProjectId || row.id !== excludeProjectId),
+    );
+    if (conflict) {
+      throw new BadRequestException(`A project named "${name}" already exists in this workspace`);
+    }
   }
 
   private async findInWorkspace(workspaceId: string, projectId: string): Promise<Project> {

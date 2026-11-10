@@ -105,6 +105,19 @@ export class TaskReferencesService {
     }));
   }
 
+  /** Align the task plan date with a calendar time block. */
+  async setWhenDate(workspaceId: string, taskId: string, whenDate: string): Promise<void> {
+    await this.db
+      .update(tasks)
+      .set({
+        whenDate,
+        whenEvening: false,
+        isSomeday: false,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt)));
+  }
+
   private async doneStatusKeys(workspaceId: string): Promise<Set<string>> {
     const [installed] = await this.db
       .select({ config: workspaceApps.config })
@@ -114,6 +127,13 @@ export class TaskReferencesService {
     const statuses = parsed.success
       ? parsed.data.statuses
       : taskSettingsSchema.parse(structuredClone(DEFAULT_TASK_SETTINGS)).statuses;
-    return new Set(statuses.filter((item) => item.isDone).map((item) => item.key));
+    return new Set(
+      statuses
+        .map((item) =>
+          item.key === 'cancelled' && item.isDone === undefined ? { ...item, isDone: true } : item,
+        )
+        .filter((item) => item.isDone)
+        .map((item) => item.key),
+    );
   }
 }

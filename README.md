@@ -75,7 +75,8 @@ pnpm --filter api test:e2e
 - Shared workspaces + email invites
 - Installable app catalog with dependency checks
 - In-app notifications + Socket.IO delivery
-- Marketplace stubs for remaining vision apps (notes, costs, chat, learning, work finder, goals, fitness)
+- Notes daily page with checklist → task promotion
+- Marketplace stubs for remaining vision apps (costs, chat, learning, work finder, goals, fitness)
 
 ## Branching & CI
 

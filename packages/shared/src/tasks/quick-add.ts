@@ -1,5 +1,6 @@
 import * as chrono from 'chrono-node';
 import { calendarDateKeyInTimeZone, zonedWallTimeToUtc } from '../utils/timezone.js';
+import { taskRecurrenceFromPhrase } from './recurrence.js';
 
 export type TaskQuickAddProject = { id: string; name: string };
 export type TaskQuickAddPriority = { key: string; order: number; enabled: boolean };
@@ -10,6 +11,7 @@ export type TaskQuickAddTokenKind =
   | 'due'
   | 'priority'
   | 'someday'
+  | 'repeat'
   | 'warning';
 
 export type TaskQuickAddToken = {
@@ -31,8 +33,9 @@ export type TaskQuickAddResult = {
   dueAt: string | null;
   priority: string | null;
   tokens: TaskQuickAddToken[];
-  /** Extension point: recurrence words stay in the title for now. */
+  /** Human label such as "Every Monday", or "every" when the phrase is not a supported rule. */
   recurrenceHint: string | null;
+  recurrenceRrule: string | null;
 };
 
 export type ParseTaskQuickAddOptions = {
@@ -57,6 +60,7 @@ function emptyResult(title = ''): TaskQuickAddResult {
     priority: null,
     tokens: [],
     recurrenceHint: null,
+    recurrenceRrule: null,
   };
 }
 
@@ -141,7 +145,6 @@ export function parseTaskQuickAdd(input: string, options: ParseTaskQuickAddOptio
 
   const tokens: TaskQuickAddToken[] = [];
   const result = emptyResult();
-  result.recurrenceHint = EVERY_HINT_RE.test(working) ? 'every' : null;
 
   // Projects (#name) — strip known ones; keep unknown in title with a warning token.
   const projectRe = /#([^\s#]+)/g;
@@ -215,8 +218,31 @@ export function parseTaskQuickAdd(input: string, options: ParseTaskQuickAddOptio
   }
 
   const todayKey = calendarDateKeyInTimeZone(referenceDate, timeZone);
+  const weekdayToday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(
+    new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short' }).format(referenceDate),
+  );
 
   if (!result.isSomeday) {
+    const recurrence = taskRecurrenceFromPhrase(working, todayKey, weekdayToday < 0 ? 0 : weekdayToday);
+    if (recurrence) {
+      result.recurrenceRrule = recurrence.rrule;
+      result.recurrenceHint = recurrence.label;
+      result.whenDate = recurrence.whenDate;
+      result.whenEvening = recurrence.whenEvening;
+      const start = recurrence.matchText ? working.toLowerCase().indexOf(recurrence.matchText.toLowerCase()) : 0;
+      tokens.push({
+        kind: 'repeat',
+        text: recurrence.matchText,
+        start: Math.max(start, 0),
+        end: Math.max(start, 0) + recurrence.matchText.length,
+        label: recurrence.label,
+      });
+      working = recurrence.remaining;
+    }
+  }
+  if (!result.recurrenceRrule && EVERY_HINT_RE.test(working)) result.recurrenceHint = 'every';
+
+  if (!result.isSomeday && !result.recurrenceRrule) {
     const tonightMatch = findFirst(/\b(tonight|this evening)\b/i, working);
     if (tonightMatch && tonightMatch.index !== undefined) {
       result.whenDate = todayKey;

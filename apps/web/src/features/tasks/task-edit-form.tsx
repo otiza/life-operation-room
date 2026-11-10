@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { calendarDateKeyInTimeZone, type TaskSettings } from '@erp-tiza/shared';
+import { calendarDateKeyInTimeZone, describeTaskRecurrence, type TaskSettings } from '@erp-tiza/shared';
 import { CalendarDays, Flag, FolderKanban, CircleDot, UserRound } from 'lucide-react';
 import { deleteTask, getTask, updateTask, type Task } from './tasks-api';
 import {
@@ -138,6 +138,18 @@ export function TaskEditForm({
     setDraft(next);
   }, [taskQuery.data]);
 
+  const stopRepeatMutation = useMutation({
+    mutationFn: () => updateTask(workspaceId, taskId, { recurrenceRrule: null }),
+    onSuccess: async () => {
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: ['task', workspaceId, taskId] });
+      await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
+    },
+    onError: (err: unknown) => {
+      setError(err instanceof ApiError ? err.message : 'Could not stop repeating');
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: (next: Draft) =>
       updateTask(workspaceId, taskId, {
@@ -262,6 +274,21 @@ export function TaskEditForm({
           aria-label="Description"
           onChange={(event) => patch({ description: event.target.value })}
         />
+        {taskQuery.data?.task.recurrenceRrule ? (
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <span className="text-muted-foreground">
+              {describeTaskRecurrence(taskQuery.data.task.recurrenceRrule) ?? 'Repeats'}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={stopRepeatMutation.isPending}
+              onClick={() => stopRepeatMutation.mutate()}
+            >
+              Stop repeating
+            </Button>
+          </div>
+        ) : null}
         <div className="space-y-1">
           <PropertyMenu
             menuKey="status"

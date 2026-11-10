@@ -26,6 +26,7 @@ function makeTask(overrides: Record<string, unknown> = {}) {
     whenDate: null,
     whenEvening: false,
     isSomeday: false,
+    recurrenceRrule: null,
     completedAt: null,
     assigneeUserId: null,
     createdByUserId: userId,
@@ -56,6 +57,7 @@ function createDbMock() {
     updateRows: [] as unknown[],
     whereClauses: [] as unknown[],
     updates: [] as Array<Record<string, unknown>>,
+    inserts: [] as Array<Record<string, unknown>>,
     transactionCalls: 0,
     failUpdateOnTaskId: null as string | null,
   };
@@ -110,9 +112,15 @@ function createDbMock() {
     select: vi.fn(() => selectBuilder),
     update: vi.fn(() => updateBuilder),
     insert: vi.fn(() => ({
-      values: vi.fn(() => ({
-        returning: vi.fn(async () => state.updateRows),
-      })),
+      values: vi.fn((values: Record<string, unknown>) => {
+        state.inserts.push(values);
+        return {
+          returning: vi.fn(async () => {
+            const base = (state.updateRows[0] ?? {}) as Record<string, unknown>;
+            return [{ ...base, ...values, id: '55555555-5555-4555-8555-555555555555' }];
+          }),
+        };
+      }),
     })),
     execute: vi.fn(async () => undefined),
     transaction: vi.fn(async (fn: (tx: typeof db) => Promise<unknown>) => {
@@ -131,6 +139,7 @@ describe('TasksService', () => {
   let workspacesService: {
     findById: ReturnType<typeof vi.fn>;
     requireMembership: ReturnType<typeof vi.fn>;
+    findActiveMember: ReturnType<typeof vi.fn>;
   };
   let projectsService: { assertProjectInWorkspace: ReturnType<typeof vi.fn> };
   let eventEmitter: { emit: ReturnType<typeof vi.fn> };
@@ -157,6 +166,7 @@ describe('TasksService', () => {
     workspacesService = {
       findById: vi.fn(async () => ({ id: workspaceId, kind: 'shared' })),
       requireMembership: vi.fn(async () => undefined),
+      findActiveMember: vi.fn(async () => ({ role: 'member' })),
     };
     projectsService = {
       assertProjectInWorkspace: vi.fn(async () => undefined),
@@ -468,6 +478,59 @@ describe('TasksService', () => {
       expect(reopened.completedAt).toBeNull();
       expect(dbMock.state.updates[0].completedAt).toBeNull();
       vi.useRealTimers();
+    });
+
+    it('schedules the next occurrence when a repeating task is completed', async () => {
+      const existing = makeTask({
+        status: 'todo',
+        whenDate: '2026-11-09',
+        recurrenceRrule: 'FREQ=WEEKLY;BYDAY=MO',
+      });
+      dbMock.state.selectRows = [existing];
+      dbMock.state.updateRows = [
+        {
+          ...existing,
+          status: 'done',
+          completedAt: new Date('2026-11-09T18:00:00.000Z'),
+        },
+      ];
+
+      await service.update(workspaceId, taskId, { id: userId } as never, { status: 'done' });
+
+      expect(dbMock.state.inserts).toHaveLength(1);
+      expect(dbMock.state.inserts[0]).toMatchObject({
+        title: 'Task',
+        status: 'todo',
+        whenDate: '2026-11-16',
+        recurrenceRrule: 'FREQ=WEEKLY;BYDAY=MO',
+        dueAt: null,
+      });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        DOMAIN_EVENTS.taskUpdated,
+        expect.objectContaining({
+          taskId: '55555555-5555-4555-8555-555555555555',
+          status: 'todo',
+        }),
+      );
+    });
+
+    it('does not schedule a next occurrence when a repeating task is cancelled', async () => {
+      appsService.assertInstalled.mockResolvedValue({
+        workspaceId,
+        appKey: 'tasks',
+        config: DEFAULT_TASK_SETTINGS,
+      });
+      const existing = makeTask({
+        status: 'todo',
+        whenDate: '2026-11-09',
+        recurrenceRrule: 'FREQ=DAILY',
+      });
+      dbMock.state.selectRows = [existing];
+      dbMock.state.updateRows = [{ ...existing, status: 'cancelled' }];
+
+      await service.update(workspaceId, taskId, { id: userId } as never, { status: 'cancelled' });
+
+      expect(dbMock.state.inserts).toHaveLength(0);
     });
 
     it('creates inbox tasks without project validation and locks the inbox bucket', async () => {

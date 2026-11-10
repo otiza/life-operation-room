@@ -2,10 +2,13 @@
 
 import { FormEvent, forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { parseTaskQuickAdd, type TaskQuickAddResult, type TaskQuickAddToken } from '@erp-tiza/shared';
+import { describeTaskRecurrence, parseCapture, type TaskQuickAddToken } from '@erp-tiza/shared';
 import { createTask } from './tasks-api';
 import { getTaskSettings } from './tasks-api';
 import { defaultTaskSettings } from './task-status';
+import { createCalendarEvent } from '../calendar/calendar-api';
+import { draftFromParsedEvent } from '../calendar/quick-add';
+import { formatClockTime } from '../calendar/calendar-range';
 import { listProjects } from '../projects/projects-api';
 import { Dialog } from '../../components/ui/dialog';
 import { Button } from '../../components/ui/button';
@@ -26,11 +29,13 @@ export function TaskQuickAddDialog({
   open,
   onClose,
   defaults,
+  calendarInstalled = false,
 }: {
   workspaceId: string;
   open: boolean;
   onClose: () => void;
   defaults?: QuickAddDefaults;
+  calendarInstalled?: boolean;
 }) {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,15 +58,22 @@ export function TaskQuickAddDialog({
   const settings = settingsQuery.data?.settings ?? defaultTaskSettings();
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const parsed: TaskQuickAddResult = useMemo(
+  const capture = useMemo(
     () =>
-      parseTaskQuickAdd(text, {
+      parseCapture(text, {
         timeZone,
+        allowEvents: calendarInstalled,
         projects: projects.map((project) => ({ id: project.id, name: project.name })),
         priorities: settings.priorities,
       }),
-    [projects, settings.priorities, text, timeZone],
+    [calendarInstalled, projects, settings.priorities, text, timeZone],
   );
+  const parsed = capture.task;
+  const eventDraft = useMemo(
+    () => (capture.kind === 'event' ? draftFromParsedEvent(capture.event, timeZone) : null),
+    [capture.event, capture.kind, timeZone],
+  );
+  const addingEvent = capture.kind === 'event';
 
   useEffect(() => {
     if (!open) return;
@@ -70,8 +82,36 @@ export function TaskQuickAddDialog({
   }, [open]);
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      createTask(workspaceId, {
+    mutationFn: async () => {
+      if (addingEvent) {
+        if (!eventDraft) throw new ApiError('Add a time, like at 5', 400);
+        if (eventDraft.isAllDay && eventDraft.startDate && eventDraft.endDate) {
+          return createCalendarEvent(workspaceId, {
+            title: eventDraft.title,
+            isAllDay: true,
+            startDate: eventDraft.startDate,
+            endDate: eventDraft.endDate,
+            location: eventDraft.location,
+            rrule: eventDraft.rrule,
+            timezone: eventDraft.timezone,
+            kind: 'event',
+          });
+        }
+        if (!eventDraft.startAt || !eventDraft.endAt) {
+          throw new ApiError('Add a time, like at 5', 400);
+        }
+        return createCalendarEvent(workspaceId, {
+          title: eventDraft.title,
+          isAllDay: false,
+          startAt: eventDraft.startAt,
+          endAt: eventDraft.endAt,
+          location: eventDraft.location,
+          rrule: eventDraft.rrule,
+          timezone: eventDraft.timezone,
+          kind: 'event',
+        });
+      }
+      return createTask(workspaceId, {
         title: parsed.title || text.trim(),
         projectId: parsed.projectId ?? defaults?.projectId ?? null,
         whenDate: parsed.whenDate ?? (parsed.isSomeday ? null : defaults?.whenDate ?? null),
@@ -79,11 +119,14 @@ export function TaskQuickAddDialog({
         isSomeday: parsed.isSomeday,
         dueAt: parsed.dueAt,
         priority: parsed.priority ?? undefined,
-      }),
+        recurrenceRrule: parsed.recurrenceRrule,
+      });
+    },
     onSuccess: async () => {
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
       await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
+      await queryClient.invalidateQueries({ queryKey: ['calendar-events', workspaceId] });
       if (keepOpen) {
         setText('');
         setKeepOpen(false);
@@ -93,7 +136,7 @@ export function TaskQuickAddDialog({
       }
     },
     onError: (err: unknown) => {
-      setError(err instanceof ApiError ? err.message : 'Could not create task');
+      setError(err instanceof ApiError ? err.message : addingEvent ? 'Could not create event' : 'Could not create task');
     },
   });
 
@@ -101,28 +144,43 @@ export function TaskQuickAddDialog({
     setText((current) => `${current.slice(0, token.start)}${current.slice(token.end)}`.replace(/\s+/g, ' ').trim());
   }
 
+  const canSubmit = addingEvent
+    ? Boolean(eventDraft?.startAt || eventDraft?.startDate)
+    : Boolean(parsed.title.trim() || text.trim());
+
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!parsed.title.trim() && !text.trim()) return;
+    if (!canSubmit) return;
     createMutation.mutate();
   }
 
-  const chips = parsed.tokens.filter((token) => token.kind !== 'warning' || parsed.unknownProject);
+  const eventWhen = eventDraft?.startAt
+    ? `${new Date(eventDraft.startAt).toLocaleDateString(undefined, { weekday: 'short' })} ${formatClockTime(new Date(eventDraft.startAt))}`
+    : null;
+  const repeatLabel = parsed.recurrenceRrule ? describeTaskRecurrence(parsed.recurrenceRrule) : null;
+
+  const chips = addingEvent
+    ? []
+    : parsed.tokens.filter((token) => token.kind !== 'warning' || parsed.unknownProject);
 
   return (
     <Dialog open={open} onClose={onClose} className="sm:max-w-xl">
       <form className="space-y-3 p-4" onSubmit={onSubmit}>
         <div>
-          <h2 className="text-base font-semibold text-foreground">New task</h2>
+          <h2 className="text-base font-semibold text-foreground">{addingEvent ? 'New event' : 'New task'}</h2>
           <p className="text-xs text-muted-foreground">
-            Try “Call mom tonight #home !2” — Enter to add, Shift+Enter to add another.
+            {addingEvent
+              ? `${eventDraft?.title ?? 'Event'}${eventWhen ? ` · ${eventWhen}` : ''}`
+              : repeatLabel
+                ? `${parsed.title || 'Task'} · ${repeatLabel}`
+                : 'Try “Pay rent every Monday” or “Call Sam at 5”. Enter adds it. Shift+Enter adds another.'}
           </p>
         </div>
         <div className="relative rounded-lg border border-border bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring">
           <HighlightedInput
             ref={inputRef}
             value={text}
-            tokens={parsed.tokens}
+            tokens={addingEvent ? [] : parsed.tokens}
             onChange={setText}
             onKeyDown={(event) => {
               if (event.key === 'Backspace' && text === '' && chips.length) {
@@ -133,7 +191,7 @@ export function TaskQuickAddDialog({
               if (event.key === 'Enter' && (event.shiftKey || event.metaKey || event.ctrlKey)) {
                 event.preventDefault();
                 setKeepOpen(true);
-                if (parsed.title.trim() || text.trim()) createMutation.mutate();
+                if (canSubmit) createMutation.mutate();
               }
             }}
           />
@@ -163,8 +221,8 @@ export function TaskQuickAddDialog({
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={createMutation.isPending || !(parsed.title.trim() || text.trim())}>
-            Add task
+          <Button type="submit" disabled={createMutation.isPending || !canSubmit}>
+            {addingEvent ? 'Add event' : 'Add task'}
           </Button>
         </div>
       </form>
@@ -197,10 +255,10 @@ const HighlightedInput = forwardRef<
         ref={ref}
         className="relative z-10 w-full bg-transparent text-base text-foreground outline-none sm:text-sm"
         value={value}
-        placeholder="Task title with #project, tonight, due fri, !1…"
+        placeholder="Pay rent every Monday, or Call Sam at 5"
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={onKeyDown}
-        aria-label="Quick add task"
+        aria-label="Quick add"
       />
     </div>
   );

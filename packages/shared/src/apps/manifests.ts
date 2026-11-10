@@ -51,7 +51,7 @@ export const APP_MANIFESTS: AppManifest[] = [
     capabilities: ['files'],
     nav: { label: 'Notes', href: '/notes', icon: 'NotebookPen' },
     backendModule: 'NotesModule',
-    status: 'coming_soon',
+    status: 'available',
   },
   {
     key: 'costs',

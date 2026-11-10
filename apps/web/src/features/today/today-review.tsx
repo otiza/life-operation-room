@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getDayBoundsInTimeZone, type UpdateTaskInput } from '@erp-tiza/shared';
+import { describeTaskRecurrence, getDayBoundsInTimeZone, type UpdateTaskInput } from '@erp-tiza/shared';
 import { MoreHorizontal } from 'lucide-react';
 import { Menu } from '../../components/ui/menu';
 import { Button } from '../../components/ui/button';
@@ -240,7 +240,8 @@ function TodayTaskRow({
   })
     .filter((chip) => !(chip.kind === 'when' && chip.label === 'Today'))
     .map((chip) => (chip.kind === 'due' ? dueMetaLabel(chip.label) : chip.label));
-  const meta = [carriedOver ? 'Carried over' : null, ...dateLabels].filter(Boolean);
+  const repeatLabel = task.recurrenceRrule ? describeTaskRecurrence(task.recurrenceRrule) : null;
+  const meta = [carriedOver ? 'Carried over' : null, repeatLabel, ...dateLabels].filter(Boolean);
 
   return (
     <li className={cn(showDivider && 'border-t border-border', overdue && 'bg-danger-soft/40')}>

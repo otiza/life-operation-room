@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bell,
+  BookOpen,
   ChevronDown,
   LayoutGrid,
   LogOut,
@@ -120,6 +121,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   });
 
   const tasksInstalled = (appsQuery.data?.apps ?? []).some((app) => app.appKey === 'tasks');
+  const calendarInstalled = (appsQuery.data?.apps ?? []).some((app) => app.appKey === 'calendar');
   const projectsInstalled = (appsQuery.data?.apps ?? []).some((app) => app.appKey === 'projects');
   const projectIdFromPath = pathname?.match(/\/projects\/([^/]+)/)?.[1] ?? null;
   const tasksPathActive =
@@ -314,6 +316,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           <Settings className="h-4 w-4 shrink-0" />
           Settings
+        </ShellNavLink>
+        <ShellNavLink
+          href={`/w/${currentWorkspaceId}/docs/start`}
+          active={pathname?.includes('/docs') ?? false}
+        >
+          <BookOpen className="h-4 w-4 shrink-0" />
+          Manual
         </ShellNavLink>
         <div className="px-2 pt-4 text-xs font-medium tracking-wide text-muted-foreground">
           Installed apps
@@ -520,6 +529,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           open={quickAddOpen}
           onClose={closeQuickAdd}
           defaults={quickAddDefaults}
+          calendarInstalled={calendarInstalled}
         />
       ) : null}
       <ShellCommandPalette
@@ -531,6 +541,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
         installedAppKeys={(appsQuery.data?.apps ?? []).map((app) => app.appKey)}
+        manualHref={currentWorkspaceId ? `/w/${currentWorkspaceId}/docs/start` : undefined}
       />
       <Dialog
         open={createWorkspaceOpen}
@@ -645,6 +656,9 @@ function deriveShellBreadcrumb({
   const [segment, ...tail] = rest.split('/');
   if (segment === 'settings') return [{ label: 'Settings' }];
   if (segment === 'apps') return [{ label: 'Apps' }];
+  if (segment === 'docs') {
+    return [{ label: 'Manual' }];
+  }
   if (segment === 'calendar') {
     if (tail[0] === 'settings') {
       return [

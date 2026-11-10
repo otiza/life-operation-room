@@ -439,6 +439,13 @@ export class RecurrenceService {
       .filter((item) => item.getTime() < untilFloating.getTime()).length;
   }
 
+  /** Throws if the rule cannot be parsed by rrule. */
+  assertValidRrule(rrule: string): void {
+    const cleaned = rrule.replace(/^RRULE:/i, '').trim();
+    if (!cleaned) throw new Error('Invalid rrule');
+    this.parseRule(cleaned, new Date(Date.UTC(1970, 0, 1, 0, 0, 0)));
+  }
+
   private parseRule(rrule: string, dtstart: Date): RRuleInstance {
     const text = rrule.toUpperCase().startsWith('RRULE:') ? rrule : `RRULE:${rrule}`;
     const parsed = rrulestr(text, { dtstart }) as RRuleInstance | { rrules: () => RRuleInstance[] };

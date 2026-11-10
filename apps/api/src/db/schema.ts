@@ -116,6 +116,7 @@ export const tasks = pgTable('tasks', {
   whenDate: date('when_date'),
   whenEvening: boolean('when_evening').notNull().default(false),
   isSomeday: boolean('is_someday').notNull().default(false),
+  recurrenceRrule: text('recurrence_rrule'),
   completedAt: timestamp('completed_at', { withTimezone: true }),
   assigneeUserId: uuid('assignee_user_id').references(() => users.id, { onDelete: 'set null' }),
   createdByUserId: uuid('created_by_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -196,6 +197,19 @@ export const calendarFeedTokens = pgTable('calendar_feed_tokens', {
   index('calendar_feed_tokens_workspace_user_idx').on(table.workspaceId, table.userId),
 ]);
 
+/** One daily note per workspace calendar day (viewer timezone). */
+export const notes = pgTable('notes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  day: date('day').notNull(),
+  body: text('body').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('notes_workspace_day_idx').on(table.workspaceId, table.day),
+  index('notes_workspace_id_idx').on(table.workspaceId),
+]);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Workspace = typeof workspaces.$inferSelect;
@@ -208,3 +222,4 @@ export type Task = typeof tasks.$inferSelect;
 export type CalendarEvent = typeof calendarEvents.$inferSelect;
 export type CalendarEventException = typeof calendarEventExceptions.$inferSelect;
 export type CalendarFeedToken = typeof calendarFeedTokens.$inferSelect;
+export type Note = typeof notes.$inferSelect;

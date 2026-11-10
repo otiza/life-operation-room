@@ -16,9 +16,9 @@ Each factor is 1 (low) to 5 (high). Cost is the divisor, so a 5 is the most expe
 |---|---:|---:|---:|---:|---:|---:|---|
 | Decide what stays on today | 5 | 5 | 5 | 4 | 2 | 250 | **Build now** |
 | Guided plan-my-day (estimates, auto time blocks, shutdown script) | 5 | 4 | 5 | 3 | 5 | 60 | Defer |
-| Notes, with a daily note on the home | 4 | 5 | 5 | 3 | 5 | 60 | Defer |
+| Notes, with a daily note on the home | 4 | 5 | 5 | 3 | 5 | 60 | Started |
 | Message triage (chat → inbox → accept) | 4 | 3 | 4 | 4 | 5 | 38 | Defer |
-| Recurring tasks | 4 | 4 | 3 | 2 | 4 | 24 | Defer |
+| Recurring tasks | 4 | 4 | 3 | 2 | 4 | 24 | Built |
 | Inbox triage (accept, snooze, decline) | 3 | 3 | 4 | 3 | 3 | 36 | Later |
 | Focus timer | 3 | 4 | 2 | 2 | 3 | 16 | Defer |
 | Subtasks | 3 | 3 | 3 | 2 | 3 | 18 | Defer |
@@ -47,7 +47,7 @@ Calendar occurrences are listed above tasks so fixed time is visible before thos
 ## Explicitly deferred
 
 1. **Guided plan-my-day.** Time estimates, a step-by-step shutdown, automatic rollover settings, and dragging tasks onto hours from the home. Use the calendar's time blocks until that ritual is designed on its own.
-2. **Notes and a daily note.** Obsidian's daily note and Apple Notes' quick capture are the right long-term capture surface. They need the Notes app, which is still a stub.
+2. **Notes beyond the daily page.** Folders, search, files, capture into a note, and richer Markdown stay out. The first daily note page and checklist → task path are started; see [apps/NOTES.md](./apps/NOTES.md).
 3. **Message triage.** Linear's path from Slack into Triage is the right collaboration pattern. Life room has no chat app yet. Accepted messages should land in Inbox, not on Today.
 
-Also still out of scope: recurring tasks, labels, saved views, subtasks, comments, mentions, and an activity log.
+Also still out of scope: labels, saved views, subtasks, comments, mentions, and an activity log. Recurring tasks and one capture field for a task or an event are in. Completing a repeating task schedules the next one. A clock time in the capture field creates a calendar event when Calendar is installed.

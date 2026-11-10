@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isSupportedTaskRrule } from '../tasks/recurrence.js';
 import { isValidIanaTimeZone } from '../utils/timezone.js';
 
 export const taskKeySchema = z
@@ -25,6 +26,15 @@ const hexColorSchema = z
   .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, 'Invalid hex color');
 
 const calendarDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+
+const taskRecurrenceSchema = z
+  .string()
+  .max(200)
+  .nullable()
+  .optional()
+  .refine((value) => value == null || value === '' || isSupportedTaskRrule(value), {
+    message: 'Unsupported task recurrence',
+  });
 
 export const taskStatusOptionSchema = z.object({
   key: taskKeySchema,
@@ -55,7 +65,7 @@ export const DEFAULT_TASK_SETTINGS = {
     { key: 'todo', label: 'To do', color: '#a1a1aa', order: 0, enabled: true },
     { key: 'in_progress', label: 'In progress', color: '#3b82f6', order: 1, enabled: true },
     { key: 'done', label: 'Done', color: '#10b981', order: 2, enabled: true, isDone: true },
-    { key: 'cancelled', label: 'Cancelled', color: '#d4d4d8', order: 3, enabled: true },
+    { key: 'cancelled', label: 'Cancelled', color: '#d4d4d8', order: 3, enabled: true, isDone: true },
   ],
   priorities: [
     { key: 'none', label: 'None', color: '#e4e4e7', order: 0, enabled: true },
@@ -87,6 +97,7 @@ export const createTaskSchema = z
     whenEvening: z.boolean().optional(),
     isSomeday: z.boolean().optional(),
     assigneeUserId: z.string().uuid().optional().nullable(),
+    recurrenceRrule: taskRecurrenceSchema,
   })
   .superRefine(refineWhenSomeday);
 
@@ -104,6 +115,7 @@ export const updateTaskSchema = z
     assigneeUserId: z.string().uuid().optional().nullable(),
     position: z.number().int().optional(),
     todayPosition: z.number().int().optional().nullable(),
+    recurrenceRrule: taskRecurrenceSchema,
   })
   .superRefine(refineWhenSomeday);
 
@@ -141,6 +153,7 @@ export const taskSchema = z.object({
   whenDate: calendarDateSchema.nullable(),
   whenEvening: z.boolean(),
   isSomeday: z.boolean(),
+  recurrenceRrule: z.string().nullable(),
   completedAt: z.string().nullable(),
   assigneeUserId: z.string().uuid().nullable(),
   createdByUserId: z.string().uuid(),

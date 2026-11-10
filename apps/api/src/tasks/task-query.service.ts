@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, asc, desc, eq, gte, isNotNull, isNull, lt, lte, notInArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArray, or, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   calendarDateKeyInTimeZone,
@@ -20,6 +20,7 @@ export class TaskQueryService {
   constructor(@InjectDrizzle() private readonly db: NodePgDatabase) {}
 
   async list(workspaceId: string, userId: string, query: ListTasksQuery, doneKeys: string[]): Promise<Task[]> {
+    const limit = query.limit ?? 100;
     const conditions = [eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt)];
     if (query.projectId) conditions.push(eq(tasks.projectId, query.projectId));
     if (query.status) conditions.push(eq(tasks.status, query.status));
@@ -44,7 +45,8 @@ export class TaskQueryService {
       .select()
       .from(tasks)
       .where(and(...conditions))
-      .orderBy(asc(tasks.position), asc(tasks.createdAt));
+      .orderBy(asc(tasks.position), asc(tasks.createdAt))
+      .limit(limit);
   }
 
   async listByView(
@@ -63,12 +65,15 @@ export class TaskQueryService {
     ];
     if (query.assignee === 'me') openConditions.push(eq(tasks.assigneeUserId, userId));
 
+    const limit = query.limit ?? 100;
+
     if (query.view === 'inbox') {
       const rows = await this.db
         .select()
         .from(tasks)
         .where(and(...openConditions, isNull(tasks.projectId), isNull(tasks.whenDate), eq(tasks.isSomeday, false)))
-        .orderBy(asc(tasks.position), asc(tasks.createdAt));
+        .orderBy(asc(tasks.position), asc(tasks.createdAt))
+        .limit(limit);
       return rows.map((task) => ({ task }));
     }
 
@@ -81,7 +86,8 @@ export class TaskQueryService {
         .select()
         .from(tasks)
         .where(and(...openConditions, whenDueOrOverdue))
-        .orderBy(asc(tasks.todayPosition), asc(tasks.position), asc(tasks.createdAt));
+        .orderBy(asc(tasks.todayPosition), asc(tasks.position), asc(tasks.createdAt))
+        .limit(limit);
       return rows.map((task) => ({ task, section: task.whenEvening ? 'evening' as const : 'today' as const }));
     }
 
@@ -98,7 +104,8 @@ export class TaskQueryService {
             )!,
           ),
         )
-        .orderBy(asc(tasks.whenDate), asc(tasks.dueAt), asc(tasks.position));
+        .orderBy(asc(tasks.whenDate), asc(tasks.dueAt), asc(tasks.position))
+        .limit(limit);
       return rows.map((task) => {
         const groupKey = task.whenDate
           ? String(task.whenDate)
@@ -121,7 +128,8 @@ export class TaskQueryService {
             eq(tasks.isSomeday, false),
           ),
         )
-        .orderBy(asc(tasks.position), asc(tasks.createdAt));
+        .orderBy(asc(tasks.position), asc(tasks.createdAt))
+        .limit(limit);
       return rows.map((task) => ({ task }));
     }
 
@@ -130,15 +138,17 @@ export class TaskQueryService {
         .select()
         .from(tasks)
         .where(and(...openConditions, eq(tasks.isSomeday, true)))
-        .orderBy(asc(tasks.position), asc(tasks.createdAt));
+        .orderBy(asc(tasks.position), asc(tasks.createdAt))
+        .limit(limit);
       return rows.map((task) => ({ task }));
     }
 
-    const limit = query.limit ?? 50;
     const conditions = [
       eq(tasks.workspaceId, workspaceId),
       isNull(tasks.deletedAt),
-      isNotNull(tasks.completedAt),
+      ...(doneKeys.length
+        ? [or(isNotNull(tasks.completedAt), inArray(tasks.status, doneKeys))!]
+        : [isNotNull(tasks.completedAt)]),
     ];
     if (query.cursor) conditions.push(lt(tasks.completedAt, new Date(query.cursor)));
     if (query.assignee === 'me') conditions.push(eq(tasks.assigneeUserId, userId));

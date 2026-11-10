@@ -108,6 +108,14 @@ export class AppsService {
     return { ok: true };
   }
 
+  async isInstalled(workspaceId: string, appKey: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: workspaceApps.id })
+      .from(workspaceApps)
+      .where(and(eq(workspaceApps.workspaceId, workspaceId), eq(workspaceApps.appKey, appKey)));
+    return Boolean(row);
+  }
+
   async assertInstalled(workspaceId: string, appKey: string) {
     const [row] = await this.db
       .select()

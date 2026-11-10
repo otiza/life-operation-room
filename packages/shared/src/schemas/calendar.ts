@@ -139,6 +139,7 @@ export const createTimeBlockSchema = z.object({
   taskId: z.string().uuid(),
   start: z.string().datetime(),
   end: z.string().datetime(),
+  timezone: ianaTimeZoneSchema.optional(),
 }).superRefine((value, ctx) => {
   if (value.end <= value.start) {
     ctx.addIssue({ code: 'custom', message: 'end must be after start', path: ['end'] });

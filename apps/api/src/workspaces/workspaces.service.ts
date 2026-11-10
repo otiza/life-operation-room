@@ -196,11 +196,7 @@ export class WorkspacesService {
     };
   }
 
-  async requireMembership(
-    workspaceId: string,
-    userId: string,
-    allowedRoles: MemberRole[],
-  ): Promise<WorkspaceMember> {
+  async findActiveMember(workspaceId: string, userId: string): Promise<WorkspaceMember | null> {
     const [member] = await this.db
       .select()
       .from(workspaceMembers)
@@ -211,6 +207,15 @@ export class WorkspacesService {
           eq(workspaceMembers.userId, userId),
         ),
       );
+    return member ?? null;
+  }
+
+  async requireMembership(
+    workspaceId: string,
+    userId: string,
+    allowedRoles: MemberRole[],
+  ): Promise<WorkspaceMember> {
+    const member = await this.findActiveMember(workspaceId, userId);
     if (!member || !allowedRoles.includes(member.role as MemberRole)) {
       throw new ForbiddenException('Insufficient workspace permissions');
     }
