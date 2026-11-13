@@ -85,11 +85,6 @@ export class ProjectsService {
     return { ok: true };
   }
 
-  /** Soft cross-app validation for Tasks (no FK). */
-  async assertProjectInWorkspace(workspaceId: string, projectId: string): Promise<Project> {
-    return this.findInWorkspace(workspaceId, projectId);
-  }
-
   @OnEvent(DOMAIN_EVENTS.appInstalled)
   async onAppInstalled(event: AppInstalledEvent) {
     // Inbox is tasks with project_id null — do not seed a project named Inbox.

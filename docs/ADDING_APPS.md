@@ -25,6 +25,7 @@ Rules:
 - Scope every row with `workspace_id`
 - Protect routes with `AuthGuard`, `WorkspaceAccessGuard` (`@WorkspaceRoles`), and `AppInstalledGuard` (`@InstalledApp`)
 - Do not query another app’s tables. Publish domain events, insert `cross_app_links`, or call a narrow port that app exports
+- Add the app's directory and tables to `APP_TABLES` in `apps/api/src/architecture/app-boundaries.spec.ts` so the boundary test guards it
 - Seed install data from an `app.installed` listener in that app, not from `AppsService`
 - Register the module in `AppModule`
 
@@ -67,5 +68,5 @@ Emit typed events through Nest `EventEmitter2` (see `DOMAIN_EVENTS`). Notificati
 
 - **Install seed:** listen for `app.installed` in the app service (Tasks writes default status and priority settings; Inbox is `tasks.project_id = null`, not a seeded project).
 - **Uninstall keeps data (default):** on `app.uninstalled`, leave that workspace’s app rows in place. Reinstalling the app should make the data available again. `AppInstalledGuard` still blocks all app routes while uninstalled. Only hard-delete on uninstall when there is a strong reason (and document it).
-- **Hard dependency without cross-app FK:** when `dependsOn` is required (Tasks → Projects), store the foreign id as a UUID column **without** a DB FK, and validate through the other app’s exported service. Reads such as “how many tasks point at this project” go through a port (`TaskReferencesService`), not a direct table import.
+- **Hard dependency without cross-app FK:** when `dependsOn` is required (Tasks → Projects), store the foreign id as a UUID column **without** a DB FK, and validate through the other app’s port (`ProjectReferencesService.assertProjectInWorkspace`). Reads such as “how many tasks point at this project” go through a port (`TaskReferencesService`), not a direct table import.
 - Soft coupling to optional apps (e.g. Calendar): emit domain events only; do not write `cross_app_links` until a real target exists.

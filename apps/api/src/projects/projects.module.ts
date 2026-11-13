@@ -10,6 +10,5 @@ import { ProjectsService } from './projects.service.js';
   imports: [AuthModule, WorkspacesModule, AppsModule, TaskReferencesModule],
   controllers: [ProjectsController],
   providers: [ProjectsService],
-  exports: [ProjectsService],
 })
 export class ProjectsModule {}

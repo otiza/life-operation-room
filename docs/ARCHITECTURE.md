@@ -153,7 +153,7 @@ When adding a mini-app controller:
 2. `@InstalledApp('<appKey>')` on the controller
 3. `@WorkspaceRoles(...)` on each route
 
-Apps do not import each other's tables. A cross-app read goes through a port the owning app exports (`TaskReferencesService` is the pattern). Install seeds listen for `app.installed` inside that app. `AppsService` does not special-case app keys. `install` and `uninstall` await `emitAsync` so those listeners finish before the response.
+Apps do not import each other's tables. A cross-app call goes through a port the owning app exports: `*-references` for reads (`TaskReferencesService`, `ProjectReferencesService`) and `*-commands` for writes (`TaskCommandsService`). `src/architecture/app-boundaries.spec.ts` enforces this in `pnpm test`: an app may import another app's code only from those port files, and may import only its own tables from `db/schema`. Register a new app's tables in that spec. Install seeds listen for `app.installed` inside that app. `AppsService` does not special-case app keys. `install` and `uninstall` await `emitAsync` so those listeners finish before the response.
 
 ### 4.4 Domain events
 
