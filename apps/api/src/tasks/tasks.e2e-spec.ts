@@ -190,5 +190,26 @@ describe('Tasks e2e', () => {
       .set('Cookie', ownerCookie)
       .expect(200);
     expect(logbook.body.tasks.some((task: { id: string }) => task.id === created.body.task.id)).toBe(true);
+
+    const completedDay = new Date(done.body.task.completedAt).toISOString().slice(0, 10);
+    const sameDay = await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}/tasks`)
+      .query({ view: 'logbook', tz: 'UTC', completedOn: completedDay })
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    expect(sameDay.body.tasks.some((task: { id: string }) => task.id === created.body.task.id)).toBe(true);
+
+    const otherDay = await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}/tasks`)
+      .query({ view: 'logbook', tz: 'UTC', completedOn: '2000-01-01' })
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    expect(otherDay.body.tasks).toHaveLength(0);
+
+    await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}/tasks`)
+      .query({ view: 'logbook', tz: 'UTC', completedOn: 'yesterday' })
+      .set('Cookie', ownerCookie)
+      .expect(400);
   });
 });

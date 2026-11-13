@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, notInArra
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   calendarDateKeyInTimeZone,
+  getDayBoundsForDateKey,
   getDayBoundsInTimeZone,
   type ListTasksQuery,
 } from '@life-room/shared';
@@ -151,6 +152,10 @@ export class TaskQueryService {
         : [isNotNull(tasks.completedAt)]),
     ];
     if (query.cursor) conditions.push(lt(tasks.completedAt, new Date(query.cursor)));
+    if (query.completedOn) {
+      const { startOfToday, startOfTomorrow } = getDayBoundsForDateKey(query.completedOn, query.tz);
+      conditions.push(gte(tasks.completedAt, startOfToday), lt(tasks.completedAt, startOfTomorrow));
+    }
     if (query.assignee === 'me') conditions.push(eq(tasks.assigneeUserId, userId));
     const rows = await this.db
       .select()

@@ -8,6 +8,7 @@ import {
   BookOpen,
   ChevronDown,
   LayoutGrid,
+  ListChecks,
   LogOut,
   Menu as MenuIcon,
   Plus,
@@ -30,6 +31,7 @@ import { TasksNav } from '../tasks/tasks-nav';
 import { useShellStore } from './shell-store';
 import { TaskQuickAddDialog } from '../tasks/task-quick-add-dialog';
 import { ShellCommandPalette } from './command-palette';
+import type { ShellCommand } from './command-registry';
 import { ShortcutsSheet } from './shortcuts-sheet';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -121,6 +123,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   });
 
   const tasksInstalled = (appsQuery.data?.apps ?? []).some((app) => app.appKey === 'tasks');
+  const shellCommands = useMemo<ShellCommand[]>(() => {
+    if (!currentWorkspaceId) return [];
+    const commands: ShellCommand[] = [
+      {
+        id: 'shell.home',
+        appKey: 'home',
+        label: 'Go to Today',
+        keywords: 'home today',
+        run: () => router.push(`/w/${currentWorkspaceId}`),
+      },
+    ];
+    if (tasksInstalled) {
+      commands.push({
+        id: 'shell.review',
+        appKey: 'home',
+        label: 'Review your day',
+        keywords: 'shutdown plan tomorrow reflect close day',
+        run: () => router.push(`/w/${currentWorkspaceId}/review`),
+      });
+    }
+    return commands;
+  }, [currentWorkspaceId, router, tasksInstalled]);
   const calendarInstalled = (appsQuery.data?.apps ?? []).some((app) => app.appKey === 'calendar');
   const projectsInstalled = (appsQuery.data?.apps ?? []).some((app) => app.appKey === 'projects');
   const projectIdFromPath = pathname?.match(/\/projects\/([^/]+)/)?.[1] ?? null;
@@ -303,6 +327,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <LayoutGrid className="h-4 w-4 shrink-0" />
           Home
         </ShellNavLink>
+        {tasksInstalled ? (
+          <ShellNavLink
+            href={`/w/${currentWorkspaceId}/review`}
+            active={pathname === `/w/${currentWorkspaceId}/review`}
+          >
+            <ListChecks className="h-4 w-4 shrink-0" />
+            Review day
+          </ShellNavLink>
+        ) : null}
         <ShellNavLink
           href={`/w/${currentWorkspaceId}/apps`}
           active={pathname?.includes('/apps') ?? false}
@@ -536,6 +569,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         installedAppKeys={(appsQuery.data?.apps ?? []).map((app) => app.appKey)}
+        extraCommands={shellCommands}
       />
       <ShortcutsSheet
         open={shortcutsOpen}
@@ -655,6 +689,7 @@ function deriveShellBreadcrumb({
 
   const [segment, ...tail] = rest.split('/');
   if (segment === 'settings') return [{ label: 'Settings' }];
+  if (segment === 'review') return [{ label: 'Review day' }];
   if (segment === 'apps') return [{ label: 'Apps' }];
   if (segment === 'docs') {
     return [{ label: 'Manual' }];

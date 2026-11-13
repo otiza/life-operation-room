@@ -30,6 +30,7 @@ export async function listTasks(workspaceId: string, query: ListTasksQueryInput 
   if (query.due) params.set('due', query.due);
   if (query.view) params.set('view', query.view);
   if (query.cursor) params.set('cursor', query.cursor);
+  if (query.completedOn) params.set('completedOn', query.completedOn);
   if (query.limit) params.set('limit', String(query.limit));
   params.set('tz', query.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
   const suffix = params.toString() ? `?${params.toString()}` : '';

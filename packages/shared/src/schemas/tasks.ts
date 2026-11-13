@@ -137,6 +137,8 @@ export const listTasksQuerySchema = z.object({
   due: taskDueFilterSchema.optional(),
   view: taskViewSchema.optional(),
   cursor: z.string().datetime().optional(),
+  /** Logbook only: tasks completed on this calendar day in `tz`. */
+  completedOn: calendarDateSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   tz: ianaTimeZoneSchema.default('UTC'),
 });

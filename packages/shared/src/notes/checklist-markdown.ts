@@ -58,7 +58,8 @@ export function parseNoteMarkdown(body: string): NoteBlock[] {
       blocks.push(checklist);
       continue;
     }
-    if (line.trim() === '' && paragraphLines.length) {
+    if (line.trim() === '') {
+      // A blank line ends a paragraph; blank lines between blocks are not content.
       flushParagraph();
       continue;
     }

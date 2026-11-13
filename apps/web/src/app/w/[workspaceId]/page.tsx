@@ -11,12 +11,15 @@ import { addDays, startOfDay } from '../../../features/calendar/calendar-range';
 import { useShellStore } from '../../../features/shell/shell-store';
 import { createTask, listTasks } from '../../../features/tasks/tasks-api';
 import { TodayTaskList } from '../../../features/today/today-review';
+import { shouldSuggestReview } from '../../../features/review/review-plan';
+import { useDayClosed } from '../../../features/review/use-day-closed';
 import { PageContainer, PageHeader } from '../../../components/layout/page-container';
 import { Button } from '../../../components/ui/button';
 import { EmptyState } from '../../../components/ui/empty-state';
 import { Input } from '../../../components/ui/input';
 import { Skeleton, SkeletonRow } from '../../../components/ui/skeleton';
 import { cn } from '../../../lib/utils';
+import { CheckCircle2 } from 'lucide-react';
 
 export default function WorkspaceHomePage() {
   const params = useParams<{ workspaceId: string }>();
@@ -27,6 +30,12 @@ export default function WorkspaceHomePage() {
   const openQuickAdd = useShellStore((state) => state.openQuickAdd);
   const [composerTitle, setComposerTitle] = useState('');
   const [composerError, setComposerError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     setCurrentWorkspaceId(workspaceId);
@@ -57,6 +66,14 @@ export default function WorkspaceHomePage() {
     queryFn: () => listTasks(workspaceId, { view: 'today', tz: timeZone }),
     enabled: tasksInstalled,
   });
+
+  const doneTodayQuery = useQuery({
+    queryKey: ['tasks', workspaceId, { view: 'logbook', completedOn: todayKey, tz: timeZone }],
+    queryFn: () => listTasks(workspaceId, { view: 'logbook', completedOn: todayKey, tz: timeZone }),
+    enabled: tasksInstalled,
+  });
+
+  const [dayClosed] = useDayClosed(workspaceId, todayKey);
 
   const calendarQuery = useQuery({
     queryKey: ['calendar-events', workspaceId, todayRange.from, todayRange.to, timeZone],
@@ -89,6 +106,11 @@ export default function WorkspaceHomePage() {
   });
 
   const tasks = tasksQuery.data?.tasks ?? [];
+  const doneCount = doneTodayQuery.data?.tasks.length ?? 0;
+  const plannedCount = doneCount + tasks.length;
+  const reviewHref = `/w/${workspaceId}/review`;
+  const showReviewNudge =
+    tasksInstalled && !tasksQuery.isLoading && shouldSuggestReview(now, dayClosed);
   const occurrences = useMemo(() => {
     const items = calendarQuery.data?.events ?? [];
     return [...items].sort((a, b) => {
@@ -118,6 +140,28 @@ export default function WorkspaceHomePage() {
       return `/w/${workspaceId}/tasks?view=today&task=${occurrence.task.taskId}`;
     }
     return `/w/${workspaceId}/calendar`;
+  }
+
+  const nowMs = now.getTime();
+  const nextTimedIndex = occurrences.findIndex(
+    (occurrence) => !occurrence.isAllDay && occurrence.startAt && new Date(occurrence.startAt).getTime() > nowMs,
+  );
+
+  function occurrencePhase(occurrence: (typeof occurrences)[number], index: number) {
+    if (occurrence.isAllDay || !occurrence.startAt) return 'allday' as const;
+    const start = new Date(occurrence.startAt).getTime();
+    const end = occurrence.endAt ? new Date(occurrence.endAt).getTime() : start;
+    if (end <= nowMs) return 'past' as const;
+    if (start <= nowMs) return 'now' as const;
+    return index === nextTimedIndex ? ('next' as const) : ('later' as const);
+  }
+
+  function minutesUntil(iso: string) {
+    const minutes = Math.round((new Date(iso).getTime() - nowMs) / 60_000);
+    if (minutes < 60) return `in ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return rest ? `in ${hours} h ${rest} min` : `in ${hours} h`;
   }
 
   function kindLabel(occurrence: (typeof occurrences)[number]) {
@@ -152,6 +196,23 @@ export default function WorkspaceHomePage() {
                   Quick add
                 </Button>
               ) : null}
+              {tasksInstalled ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push(reviewHref)}
+                  aria-label={dayClosed ? 'Day closed. Open the review' : 'Review day'}
+                >
+                  {dayClosed ? (
+                    <>
+                      <CheckCircle2 className="mr-1.5 h-4 w-4 text-success" aria-hidden />
+                      Day closed
+                    </>
+                  ) : (
+                    'Review day'
+                  )}
+                </Button>
+              ) : null}
             </div>
           ) : null
         }
@@ -174,6 +235,19 @@ export default function WorkspaceHomePage() {
         </div>
       ) : (
         <div className="space-y-8">
+          {showReviewNudge ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">Time to wrap up the day</p>
+                <p className="text-sm text-muted-foreground">
+                  {doneCount} done, {tasks.length} still open. Decide what moves, then close the day.
+                </p>
+              </div>
+              <Button type="button" className="shrink-0" onClick={() => router.push(reviewHref)}>
+                Review day
+              </Button>
+            </div>
+          ) : null}
           {tasksInstalled ? (
             <section className="space-y-3">
               <form
@@ -242,35 +316,77 @@ export default function WorkspaceHomePage() {
               />
             ) : (
               <ul className="overflow-hidden rounded-xl border border-border bg-card">
-                {occurrences.map((occurrence, index) => (
-                  <li
-                    key={`${occurrence.eventId}-${occurrence.occurrenceStart}`}
-                    className={cn(index > 0 && 'border-t border-border')}
-                  >
-                    <Link
-                      href={occurrenceHref(occurrence)}
-                      className="flex min-h-11 items-center gap-3 px-3 py-2.5 text-sm hover:bg-accent sm:px-4"
+                {occurrences.map((occurrence, index) => {
+                  const phase = occurrencePhase(occurrence, index);
+                  return (
+                    <li
+                      key={`${occurrence.eventId}-${occurrence.occurrenceStart}`}
+                      className={cn(
+                        'relative',
+                        index > 0 && 'border-t border-border',
+                        phase === 'now' && 'bg-primary/10',
+                      )}
                     >
-                      <span className="w-16 shrink-0 text-xs text-muted-foreground">
-                        {formatOccurrenceTime(occurrence)}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-foreground">
-                        {occurrence.title}
-                        {occurrence.task?.deleted ? ' (task deleted)' : ''}
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {kindLabel(occurrence)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
+                      {phase === 'now' || phase === 'next' ? (
+                        <span className="absolute inset-y-0 left-0 w-0.5 bg-primary" aria-hidden />
+                      ) : null}
+                      <Link
+                        href={occurrenceHref(occurrence)}
+                        className={cn(
+                          'flex min-h-11 items-center gap-3 px-3 py-2.5 text-sm hover:bg-accent sm:px-4',
+                          phase === 'past' && 'opacity-50',
+                        )}
+                      >
+                        <span className="w-16 shrink-0 text-xs text-muted-foreground">
+                          {formatOccurrenceTime(occurrence)}
+                        </span>
+                        <span
+                          className={cn(
+                            'min-w-0 flex-1 truncate text-foreground',
+                            phase === 'past' && 'line-through decoration-muted-foreground/60',
+                          )}
+                        >
+                          {occurrence.title}
+                          {occurrence.task?.deleted ? ' (task deleted)' : ''}
+                        </span>
+                        {phase === 'now' ? (
+                          <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground">
+                            Now
+                          </span>
+                        ) : phase === 'next' && occurrence.startAt ? (
+                          <span className="shrink-0 rounded-full border border-primary/50 px-2 py-0.5 text-[11px] text-primary">
+                            Next · {minutesUntil(occurrence.startAt)}
+                          </span>
+                        ) : null}
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {kindLabel(occurrence)}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-foreground">Tasks</h2>
+              <div className="flex min-w-0 items-center gap-3">
+                <h2 className="text-sm font-semibold text-foreground">Tasks</h2>
+                {tasksInstalled && plannedCount > 0 ? (
+                  <div className="flex items-center gap-2" aria-label={`${doneCount} of ${plannedCount} done today`}>
+                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted" aria-hidden>
+                      <div
+                        className="h-full rounded-full bg-success transition-[width]"
+                        style={{ width: `${Math.round((doneCount / plannedCount) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {doneCount} of {plannedCount} done
+                    </span>
+                  </div>
+                ) : null}
+              </div>
               {tasksInstalled ? (
                 <Link
                   href={`/w/${workspaceId}/tasks?view=today`}

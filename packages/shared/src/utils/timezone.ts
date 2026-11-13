@@ -127,6 +127,14 @@ export function getDayBoundsInTimeZone(now: Date, timeZone: string): DayBounds {
   return { startOfToday, startOfTomorrow };
 }
 
+/** Bounds of a YYYY-MM-DD calendar day in an IANA timezone (exclusive end). */
+export function getDayBoundsForDateKey(dateKey: string, timeZone: string): DayBounds {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!match) throw new Error('Expected a YYYY-MM-DD date');
+  const midday = zonedWallTimeToUtc(Number(match[1]), Number(match[2]), Number(match[3]), 12, 0, 0, 0, timeZone);
+  return getDayBoundsInTimeZone(midday, timeZone);
+}
+
 export function calendarDateKeyInTimeZone(date: Date, timeZone: string): string {
   const parts = getZonedParts(date, timeZone);
   return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;

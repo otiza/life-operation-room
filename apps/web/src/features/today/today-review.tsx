@@ -1,29 +1,17 @@
 'use client';
 
-import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { describeTaskRecurrence, getDayBoundsInTimeZone, type UpdateTaskInput } from '@life-room/shared';
-import { MoreHorizontal } from 'lucide-react';
+import { describeTaskRecurrence } from '@life-room/shared';
+import { Moon, MoreHorizontal } from 'lucide-react';
 import { Menu } from '../../components/ui/menu';
 import { Button } from '../../components/ui/button';
 import { SkeletonRow } from '../../components/ui/skeleton';
-import { useToast } from '../../components/ui/toast';
 import { EmptyState } from '../../components/ui/empty-state';
-import { ApiError } from '../../lib/api';
 import { cn } from '../../lib/utils';
-import { getTaskSettings, updateTask, type Task } from '../tasks/tasks-api';
+import type { Task } from '../tasks/tasks-api';
 import { isOverdue, taskDateChips } from '../tasks/task-status';
-import {
-  carriedOverMoveFeedback,
-  decisionDisabled,
-  decisionFeedback,
-  decisionLeavesToday,
-  decisionPatch,
-  enabledDoneStatusKey,
-  isCarriedOver,
-  type TodayDecision,
-} from './today-decisions';
+import { decisionDisabled, isCarriedOver, type TodayDecision } from './today-decisions';
+import { useTodayDecisions } from './use-today-decisions';
 
 type TodayTaskListProps = {
   workspaceId: string;
@@ -34,121 +22,10 @@ type TodayTaskListProps = {
 };
 
 export function TodayTaskList({ workspaceId, tasks, todayKey, timeZone, loading }: TodayTaskListProps) {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  const busyTaskIds = useRef(new Set<string>());
-  const [busySnapshot, setBusySnapshot] = useState<ReadonlySet<string>>(new Set());
-  const settingsQuery = useQuery({
-    queryKey: ['task-settings', workspaceId],
-    queryFn: () => getTaskSettings(workspaceId),
-  });
-  const settings = settingsQuery.data?.settings;
-  const doneStatusKey = enabledDoneStatusKey(settings);
-  const startOfTomorrow = getDayBoundsInTimeZone(new Date(), timeZone).startOfTomorrow;
+  const decisions = useTodayDecisions({ workspaceId, todayKey, timeZone });
   const carriedOver = tasks.filter((task) => isCarriedOver(task.whenDate, todayKey));
-
-  function setBusy(taskId: string, busy: boolean) {
-    if (busy) busyTaskIds.current.add(taskId);
-    else busyTaskIds.current.delete(taskId);
-    setBusySnapshot(new Set(busyTaskIds.current));
-  }
-
-  async function refreshTasks() {
-    await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
-    await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
-    await queryClient.invalidateQueries({ queryKey: ['calendar-events', workspaceId] });
-  }
-
-  async function undoTask(taskId: string, previous: UpdateTaskInput) {
-    try {
-      await updateTask(workspaceId, taskId, previous);
-      await refreshTasks();
-    } catch (error) {
-      toast({ title: error instanceof ApiError ? error.message : 'Could not undo' });
-    }
-  }
-
-  async function applyPatch(task: Task, patch: UpdateTaskInput, feedback: { title: string; description?: string }) {
-    if (busyTaskIds.current.has(task.id)) return;
-    setBusy(task.id, true);
-    const previous: UpdateTaskInput = {
-      status: task.status,
-      whenDate: task.whenDate,
-      whenEvening: task.whenEvening,
-      isSomeday: task.isSomeday,
-    };
-    try {
-      await updateTask(workspaceId, task.id, patch);
-      await refreshTasks();
-      toast({
-        title: feedback.title,
-        description: feedback.description,
-        actionLabel: 'Undo',
-        onAction: () => {
-          void undoTask(task.id, previous);
-        },
-      });
-    } catch (error) {
-      toast({ title: error instanceof ApiError ? error.message : 'Could not update the task' });
-    } finally {
-      setBusy(task.id, false);
-    }
-  }
-
-  async function applyDecision(task: Task, decision: TodayDecision) {
-    if (decision === 'done') {
-      if (!doneStatusKey) return;
-      const feedback = decisionFeedback('done', false);
-      await applyPatch(task, { status: doneStatusKey }, feedback);
-      return;
-    }
-    const staysBecauseDue = !decisionLeavesToday(decision, task, startOfTomorrow);
-    await applyPatch(task, decisionPatch(decision, todayKey), decisionFeedback(decision, staysBecauseDue));
-  }
-
-  async function moveCarriedOverToTomorrow() {
-    const pending = carriedOver.filter((task) => !busyTaskIds.current.has(task.id));
-    if (pending.length === 0) return;
-    for (const task of pending) setBusy(task.id, true);
-    const previousById = pending.map((task) => ({
-      id: task.id,
-      previous: {
-        status: task.status,
-        whenDate: task.whenDate,
-        whenEvening: task.whenEvening,
-        isSomeday: task.isSomeday,
-      } satisfies UpdateTaskInput,
-    }));
-    let stayedBecauseDueCount = 0;
-    try {
-      for (const task of pending) {
-        if (!decisionLeavesToday('tomorrow', task, startOfTomorrow)) stayedBecauseDueCount += 1;
-        await updateTask(workspaceId, task.id, decisionPatch('tomorrow', todayKey));
-      }
-      await refreshTasks();
-      const feedback = carriedOverMoveFeedback(pending.length, stayedBecauseDueCount);
-      toast({
-        title: feedback.title,
-        description: feedback.description,
-        actionLabel: 'Undo',
-        onAction: () => {
-          void (async () => {
-            try {
-              for (const item of previousById) await updateTask(workspaceId, item.id, item.previous);
-              await refreshTasks();
-            } catch (error) {
-              toast({ title: error instanceof ApiError ? error.message : 'Could not undo' });
-            }
-          })();
-        },
-      });
-    } catch (error) {
-      toast({ title: error instanceof ApiError ? error.message : 'Could not move carried-over tasks' });
-      await refreshTasks();
-    } finally {
-      for (const task of pending) setBusy(task.id, false);
-    }
-  }
+  const dayTasks = tasks.filter((task) => !task.whenEvening);
+  const eveningTasks = tasks.filter((task) => task.whenEvening);
 
   if (loading) {
     return (
@@ -162,7 +39,7 @@ export function TodayTaskList({ workspaceId, tasks, todayKey, timeZone, loading 
   if (tasks.length === 0) {
     return (
       <EmptyState
-        title="Nothing for today"
+        title="Nothing left for today"
         description="Capture something with the composer above, or press q."
       />
     );
@@ -180,30 +57,78 @@ export function TodayTaskList({ workspaceId, tasks, todayKey, timeZone, loading 
             variant="outline"
             className="h-11 shrink-0 sm:h-9"
             onClick={() => {
-              void moveCarriedOverToTomorrow();
+              void decisions.decideMany(carriedOver, 'tomorrow');
             }}
           >
             Move carried over to tomorrow
           </Button>
         ) : null}
       </div>
-      <ul className="overflow-hidden rounded-xl border border-border bg-card">
-        {tasks.map((task, index) => (
-          <TodayTaskRow
-            key={task.id}
+      {dayTasks.length > 0 ? (
+        <TaskRowList
+          workspaceId={workspaceId}
+          tasks={dayTasks}
+          todayKey={todayKey}
+          decisions={decisions}
+        />
+      ) : null}
+      {eveningTasks.length > 0 ? (
+        <div className="space-y-2 pt-2">
+          <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Moon className="h-3.5 w-3.5" aria-hidden />
+            This evening
+          </h3>
+          <TaskRowList
             workspaceId={workspaceId}
-            task={task}
+            tasks={eveningTasks}
             todayKey={todayKey}
-            busy={busySnapshot.has(task.id)}
-            doneDisabled={!doneStatusKey || settingsQuery.isLoading}
-            showDivider={index > 0}
-            onDecide={(decision) => {
-              void applyDecision(task, decision);
-            }}
+            decisions={decisions}
+            hideEveningLabel
           />
-        ))}
-      </ul>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+type Decisions = ReturnType<typeof useTodayDecisions>;
+
+export function TaskRowList({
+  workspaceId,
+  tasks,
+  todayKey,
+  decisions,
+  inlineActions = false,
+  hideEveningLabel = false,
+}: {
+  workspaceId: string;
+  tasks: Task[];
+  todayKey: string;
+  decisions: Decisions;
+  /** Show the scheduling decisions as buttons on the row instead of a menu (daily review). */
+  inlineActions?: boolean;
+  /** The list already sits under a "This evening" heading. */
+  hideEveningLabel?: boolean;
+}) {
+  return (
+    <ul className="overflow-hidden rounded-xl border border-border bg-card">
+      {tasks.map((task, index) => (
+        <TodayTaskRow
+          key={task.id}
+          workspaceId={workspaceId}
+          task={task}
+          todayKey={todayKey}
+          busy={decisions.isBusy(task.id)}
+          doneDisabled={decisions.doneDisabled}
+          showDivider={index > 0}
+          inlineActions={inlineActions}
+          hideEveningLabel={hideEveningLabel}
+          onDecide={(decision) => {
+            void decisions.decide(task, decision);
+          }}
+        />
+      ))}
+    </ul>
   );
 }
 
@@ -213,6 +138,13 @@ function dueMetaLabel(label: string) {
   return `Due ${label}`;
 }
 
+const SCHEDULE_DECISIONS: Array<{ id: Exclude<TodayDecision, 'done'>; label: string; inline: boolean }> = [
+  { id: 'tomorrow', label: 'Tomorrow', inline: true },
+  { id: 'evening', label: 'This evening', inline: false },
+  { id: 'not_today', label: 'Not today', inline: true },
+  { id: 'someday', label: 'Someday', inline: true },
+];
+
 function TodayTaskRow({
   workspaceId,
   task,
@@ -220,6 +152,8 @@ function TodayTaskRow({
   busy,
   doneDisabled,
   showDivider,
+  inlineActions,
+  hideEveningLabel,
   onDecide,
 }: {
   workspaceId: string;
@@ -228,6 +162,8 @@ function TodayTaskRow({
   busy: boolean;
   doneDisabled: boolean;
   showDivider: boolean;
+  inlineActions: boolean;
+  hideEveningLabel: boolean;
   onDecide: (decision: TodayDecision) => void;
 }) {
   const carriedOver = isCarriedOver(task.whenDate, todayKey);
@@ -238,22 +174,27 @@ function TodayTaskRow({
     isSomeday: task.isSomeday,
     dueAt: task.dueAt,
   })
-    .filter((chip) => !(chip.kind === 'when' && chip.label === 'Today'))
+    .filter(
+      (chip) =>
+        !(chip.kind === 'when' && (chip.label === 'Today' || (hideEveningLabel && chip.label === 'This evening'))),
+    )
     .map((chip) => (chip.kind === 'due' ? dueMetaLabel(chip.label) : chip.label));
   const repeatLabel = task.recurrenceRrule ? describeTaskRecurrence(task.recurrenceRrule) : null;
   const meta = [carriedOver ? 'Carried over' : null, repeatLabel, ...dateLabels].filter(Boolean);
+  const inline = SCHEDULE_DECISIONS.filter((item) => inlineActions && item.inline);
+  const menuItems = SCHEDULE_DECISIONS.filter((item) => !inlineActions || !item.inline);
 
   return (
     <li className={cn(showDivider && 'border-t border-border', overdue && 'bg-danger-soft/40')}>
-      <div className="flex min-h-11 items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3">
+      <div className="flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 px-2 py-2 sm:flex-nowrap sm:gap-3 sm:px-3">
         <button
           type="button"
-          className="flex h-11 w-11 shrink-0 items-center justify-center"
+          className="group flex h-11 w-11 shrink-0 items-center justify-center"
           aria-label={`Mark ${task.title} done`}
           disabled={busy || doneDisabled}
           onClick={() => onDecide('done')}
         >
-          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-transparent hover:border-foreground/40">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-xs text-transparent group-hover:border-primary group-hover:text-primary">
             ✓
           </span>
         </button>
@@ -266,6 +207,24 @@ function TodayTaskRow({
             <span className="mt-0.5 block truncate text-xs text-muted-foreground">{meta.join(' · ')}</span>
           ) : null}
         </Link>
+        {inline.length > 0 ? (
+          <div className="flex w-full shrink-0 justify-end gap-1 pl-11 sm:w-auto sm:pl-0">
+            {inline.map((item) => (
+              <Button
+                key={item.id}
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                disabled={busy || decisionDisabled(item.id, task, todayKey)}
+                aria-label={`${item.label}: ${task.title}`}
+                onClick={() => onDecide(item.id)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
+        ) : null}
         <Menu
           align="end"
           aria-label={`Decisions for ${task.title}`}
@@ -276,32 +235,12 @@ function TodayTaskRow({
               <span className="sr-only">Decide</span>
             </>
           }
-          items={[
-            {
-              id: 'tomorrow',
-              label: 'Tomorrow',
-              disabled: busy || decisionDisabled('tomorrow', task, todayKey),
-              onSelect: () => onDecide('tomorrow'),
-            },
-            {
-              id: 'evening',
-              label: 'This evening',
-              disabled: busy || decisionDisabled('evening', task, todayKey),
-              onSelect: () => onDecide('evening'),
-            },
-            {
-              id: 'not_today',
-              label: 'Not today',
-              disabled: busy || decisionDisabled('not_today', task, todayKey),
-              onSelect: () => onDecide('not_today'),
-            },
-            {
-              id: 'someday',
-              label: 'Someday',
-              disabled: busy || decisionDisabled('someday', task, todayKey),
-              onSelect: () => onDecide('someday'),
-            },
-          ]}
+          items={menuItems.map((item) => ({
+            id: item.id,
+            label: item.label,
+            disabled: busy || decisionDisabled(item.id, task, todayKey),
+            onSelect: () => onDecide(item.id),
+          }))}
         />
       </div>
     </li>

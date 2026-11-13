@@ -42,6 +42,13 @@ Copy `apps/web/src/features/tasks/tasks-workspace.tsx` for the next list-shaped 
 - The shell shows the workspace name and `manifest.nav.icon`. It does not explain the product.
 - Task settings autosave. Drag the grip to reorder statuses and priorities.
 
+## Home and daily review
+
+- Home calendar: past events are faded and struck through, the current one is highlighted **Now**, and the next timed one shows **Next · in N min**.
+- Home tasks: a `done of planned` progress bar beside the heading, and **This evening** as its own section.
+- From 17:00 the home shows a wrap-up banner until the day is closed; after that the header button reads **Day closed**.
+- The review (`/review`) is one page with four numbered steps. In step 2 the scheduling decisions are buttons on the row so a whole list can be triaged without opening menus. See [apps/REVIEW.md](./apps/REVIEW.md).
+
 ## Still out of scope
 
-Recurring tasks, labels, saved views, subtasks, multi-select, comments, mentions, activity log, and a guided plan-my-day ritual (time estimates and automatic time blocks). The home decisions above are the review step, not that ritual.
+Labels, saved views, subtasks, multi-select, comments, mentions, activity log, and a guided plan-my-day ritual (time estimates and automatic time blocks).

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_TASK_SETTINGS } from '@life-room/shared';
 import {
   addCalendarDays,
-  carriedOverMoveFeedback,
+  bulkDecisionFeedback,
   decisionDisabled,
   decisionFeedback,
   decisionLeavesToday,
@@ -89,11 +89,13 @@ describe('today decisions', () => {
     expect(decisionFeedback('done', true)).toEqual({ title: 'Marked done' });
   });
 
-  it('summarises a bulk move of carried-over tasks', () => {
-    expect(carriedOverMoveFeedback(2, 1)).toEqual({
-      title: 'Moved 2 carried-over tasks to tomorrow',
+  it('summarises a bulk decision', () => {
+    expect(bulkDecisionFeedback('tomorrow', 2, 1)).toEqual({
+      title: 'Moved 2 tasks to tomorrow',
       description: '1 stays on today because it is due.',
     });
+    expect(bulkDecisionFeedback('someday', 1, 0)).toEqual({ title: 'Parked 1 task in Someday' });
+    expect(bulkDecisionFeedback('not_today', 3, 3).description).toBe('3 stay on today because they are due.');
   });
 
   it('uses the first enabled done status', () => {
