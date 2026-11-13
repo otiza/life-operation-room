@@ -32,7 +32,9 @@ export default defineConfig({
       cwd: '../..',
     },
     {
-      command: process.env.CI ? 'pnpm start' : 'pnpm dev', // CI runs `pnpm build` earlier
+      // CI runs `pnpm build` earlier. The port is explicit because CI exports PORT=3001 for the API,
+      // and `next start` would otherwise read it and collide with the API.
+      command: process.env.CI ? 'pnpm start --port 3000' : 'pnpm dev',
       url: WEB_URL,
       reuseExistingServer: !process.env.CI,
       timeout: 240_000,
