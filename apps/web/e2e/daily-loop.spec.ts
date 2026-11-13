@@ -12,7 +12,8 @@ async function signUp(page: Page) {
 }
 
 async function openMarketplace(page: Page) {
-  await page.getByRole('link', { name: 'Marketplace' }).first().click();
+  await page.getByRole('button', { name: /^Profile menu/ }).first().click();
+  await page.getByRole('menuitem', { name: 'Add apps' }).first().click();
   await page.waitForURL(/\/apps$/);
 }
 
@@ -54,4 +55,18 @@ test('coming-soon apps are not offered in the marketplace', async ({ page }) => 
   await openMarketplace(page);
   await expect(page.getByRole('heading', { name: 'Tasks', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Costs', exact: true })).toHaveCount(0);
+});
+
+test('the profile menu reaches Settings and Log out', async ({ page }) => {
+  await signUp(page);
+  const profile = page.getByRole('button', { name: /^Profile menu/ }).first();
+
+  await profile.click();
+  await page.getByRole('menuitem', { name: 'Settings' }).first().click();
+  await page.waitForURL(/\/settings$/);
+
+  await profile.click();
+  await expect(page.getByRole('group', { name: 'Theme' }).first()).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Log out' }).first().click();
+  await page.waitForURL(/\/login/);
 });

@@ -145,7 +145,7 @@ export const MANUAL_CHAPTERS: ManualChapter[] = [
       { type: 'h2', text: 'Review the day' },
       {
         type: 'p',
-        text: 'Open Review day from the sidebar, the home, or the command palette. From 17:00 the home also offers it until you close the day.',
+        text: 'Open Review day from the Day section of the sidebar, from Today, or from the command palette. From 17:00 the home also offers it until you close the day.',
       },
       {
         type: 'table',
@@ -337,11 +337,11 @@ export const MANUAL_CHAPTERS: ManualChapter[] = [
       },
       {
         type: 'p',
-        text: 'Apps are installed per workspace from the marketplace. Tasks requires Projects. Calendar and Notes have no dependency. Costs, chat, learning, work finder, goals, and fitness are listed as coming soon and do not open.',
+        text: 'Apps are added per workspace: open the profile menu at the bottom of the sidebar and choose Add apps. Tasks requires Projects. Calendar and Notes have no dependency. Costs, chat, learning, work finder, goals, and fitness are listed as coming soon and do not open.',
       },
       {
         type: 'p',
-        text: 'The bell in the header lists notifications. Appearance, in the account menu, follows light, dark, or the system theme. Sign out is in the same menu.',
+        text: 'The bell in the header lists notifications. The profile menu at the bottom of the sidebar holds Settings, this Manual, Add apps, the theme (light, dark, or system), and Log out.',
       },
     ],
   },

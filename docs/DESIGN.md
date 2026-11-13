@@ -25,7 +25,9 @@ The direction is "a calm room, not an office" ([plan](./plans/VISUAL-IDENTITY-PL
 5. **Literata is the voice.** Dates, page and section titles, empty states, and note text. Plex is for controls and metadata.
 6. **Each app has a quiet signature tint** from one hue family, used for its icon, nav marker, and empty-state art. Never for large fills.
 
-Theme: `next-themes` class strategy (`.dark`). Toggle light / dark / system in the shell user menu.
+Theme: `next-themes` class strategy (`.dark`). Toggle light / dark / system in the profile menu at the bottom of the sidebar.
+
+Brand mark: "Day arc" (a horizon with the sun partway along its arc). `components/brand/logo.tsx` (`LogoMark`, `Logo`), `app/icon.svg` (follows the system theme), `app/apple-icon.png`, and `app/favicon.ico` for older browsers.
 
 ## Tokens
 
@@ -35,7 +37,7 @@ Semantic colors (use Tailwind utilities mapped in `@theme inline`):
 |---|---|
 | `background` / `foreground` | Page canvas and primary text |
 | `card` / `popover` | Panels, menus, dialogs |
-| `primary` / `primary-foreground` | One main action per view; shell active nav |
+| `primary` / `primary-foreground` | One main action per view, **Now**, progress |
 | `secondary` | Quiet chips and secondary surfaces |
 | `muted` / `muted-foreground` | Descriptions and meta (AA contrast in both themes) |
 | `accent` | Hover and nested (inner) active nav |
@@ -99,7 +101,7 @@ Commands: apps register through `features/shell/command-registry.ts`. The shell 
 4. Every keyboard hint has a clickable equivalent.
 5. Works in light and dark themes and on mobile (~375px): `PageContainer`, touch-friendly targets, no horizontal page scroll.
 6. When and deadline stay visually distinct (calendar vs flag).
-7. Shell active nav uses primary fill; nested/inner nav uses a subtle accent tint — not both heavy fills.
+7. Shell active nav uses the `nav-active` tint and a 2 px `nav-marker` on the left; nested views use foreground weight only. Never fill both.
 
 ## Checklist for new apps
 

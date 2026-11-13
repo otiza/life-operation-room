@@ -45,11 +45,11 @@ export function TasksNav({
   const activeProjects = projects.filter((project) => project.status === 'active');
   const linkBase =
     variant === 'shell'
-      ? 'flex min-h-9 items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent'
+      ? 'flex min-h-9 items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
       : 'flex h-10 items-center gap-2 rounded-lg px-2.5 text-sm transition-colors text-foreground hover:bg-accent';
   const linkActive =
     variant === 'shell'
-      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+      ? 'font-semibold text-foreground'
       : 'bg-accent text-accent-foreground';
 
   return (
@@ -68,7 +68,12 @@ export function TasksNav({
           const href = `${base}?view=${item.key}`;
           const active = activeView === item.key && !activeProjectId;
           return (
-            <Link key={item.key} href={href} className={cn(linkBase, active && linkActive)}>
+            <Link
+              key={item.key}
+              href={href}
+              aria-current={active ? 'page' : undefined}
+              className={cn(linkBase, active && linkActive)}
+            >
               <Icon className="h-4 w-4 shrink-0 opacity-80" />
               <span className="min-w-0 flex-1 truncate">{item.label}</span>
               {count > 0 ? (
@@ -96,7 +101,12 @@ export function TasksNav({
             const href = `/w/${workspaceId}/projects/${project.id}`;
             const active = activeProjectId === project.id;
             return (
-              <Link key={project.id} href={href} className={cn(linkBase, active && linkActive)}>
+              <Link
+                key={project.id}
+                href={href}
+                aria-current={active ? 'page' : undefined}
+                className={cn(linkBase, active && linkActive)}
+              >
                 <span className="min-w-0 flex-1 truncate">{project.name}</span>
                 {open > 0 ? (
                   <span className={cn('tabular-nums text-xs', active ? 'opacity-90' : 'text-muted-foreground')}>

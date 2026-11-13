@@ -5,16 +5,12 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bell,
-  BookOpen,
   ChevronDown,
-  LayoutGrid,
   ListChecks,
-  LogOut,
   Menu as MenuIcon,
   Plus,
   Search,
-  Settings,
-  Store,
+  Sun,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -39,7 +35,8 @@ import { Dialog } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Menu } from '../../components/ui/menu';
 import { Skeleton } from '../../components/ui/skeleton';
-import { ThemeToggle } from '../../components/theme-toggle';
+import { Logo } from '../../components/brand/logo';
+import { ProfileMenu } from './profile-menu';
 import { isTypingTarget } from '../../lib/keyboard';
 import { cn } from '../../lib/utils';
 import { useEffect, useId, useMemo, useState } from 'react';
@@ -85,6 +82,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setMobileNavOpen(false);
     setNotificationsOpen(false);
   }, [pathname, setMobileNavOpen, setNotificationsOpen]);
+
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     if (!mobileNavOpen) return;
@@ -289,28 +294,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
   ];
 
+  const closeMobileNav = () => setMobileNavOpen(false);
+  const installedApps = appsQuery.data?.apps ?? [];
+
   const sidebar = (
     <>
-      <div className="border-b border-sidebar-border px-4 py-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-page-title text-sidebar-foreground">Life Room</div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            aria-label="Close navigation"
-            onClick={() => setMobileNavOpen(false)}
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+      <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-4">
+        <Link
+          href={`/w/${currentWorkspaceId}`}
+          className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={closeMobileNav}
+        >
+          <Logo />
+        </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          aria-label="Close navigation"
+          onClick={closeMobileNav}
+        >
+          <X className="h-5 w-5" />
+        </Button>
       </div>
-      <div className="space-y-2 border-b border-sidebar-border px-3 py-3">
-        <div className="px-1 text-xs font-medium text-muted-foreground">Workspace</div>
+      <div className="px-3 pb-2">
         <Menu
           aria-label="Switch workspace"
           className="w-full"
-          triggerClassName="h-11 w-full justify-between gap-2 rounded-md border border-input bg-card px-3 text-sm text-foreground hover:bg-accent"
+          align="stretch"
+          triggerClassName="h-10 w-full justify-between gap-2 rounded-md border border-sidebar-border px-3 text-sm text-foreground hover:bg-sidebar-accent"
           trigger={
             <>
               <span className="min-w-0 flex-1 truncate text-left">
@@ -322,55 +334,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           items={workspaceMenuItems}
         />
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-3" aria-label="Workspace">
-        <ShellNavLink href={`/w/${currentWorkspaceId}`} active={pathname === `/w/${currentWorkspaceId}`}>
-          <LayoutGrid className="h-4 w-4 shrink-0" />
-          Home
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-3" aria-label="Workspace">
+        <ShellNavGroup>Day</ShellNavGroup>
+        <ShellNavLink
+          href={`/w/${currentWorkspaceId}`}
+          active={pathname === `/w/${currentWorkspaceId}`}
+          onNavigate={closeMobileNav}
+        >
+          <Sun className="h-4 w-4 shrink-0" />
+          Today
         </ShellNavLink>
         {tasksInstalled ? (
           <ShellNavLink
             href={`/w/${currentWorkspaceId}/review`}
             active={pathname === `/w/${currentWorkspaceId}/review`}
+            onNavigate={closeMobileNav}
           >
             <ListChecks className="h-4 w-4 shrink-0" />
             Review day
           </ShellNavLink>
         ) : null}
-        <ShellNavLink
-          href={`/w/${currentWorkspaceId}/apps`}
-          active={pathname?.includes('/apps') ?? false}
-        >
-          <Store className="h-4 w-4 shrink-0" />
-          Marketplace
-        </ShellNavLink>
-        <ShellNavLink
-          href={`/w/${currentWorkspaceId}/settings`}
-          active={pathname === `/w/${currentWorkspaceId}/settings`}
-        >
-          <Settings className="h-4 w-4 shrink-0" />
-          Settings
-        </ShellNavLink>
-        <ShellNavLink
-          href={`/w/${currentWorkspaceId}/docs/start`}
-          active={pathname?.includes('/docs') ?? false}
-        >
-          <BookOpen className="h-4 w-4 shrink-0" />
-          Manual
-        </ShellNavLink>
-        <div className="px-2 pt-4 text-xs font-medium tracking-wide text-muted-foreground">
-          Installed apps
-        </div>
-        {(appsQuery.data?.apps ?? []).length === 0 && (
-          <p className="px-3 py-2 text-xs text-muted-foreground">No apps installed yet.</p>
+        <ShellNavGroup>Apps</ShellNavGroup>
+        {installedApps.length === 0 && (
+          <Link
+            href={`/w/${currentWorkspaceId}/apps`}
+            className="block rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+            onClick={closeMobileNav}
+          >
+            No apps yet. Add apps
+          </Link>
         )}
-        {(appsQuery.data?.apps ?? []).map((app) => {
+        {installedApps.map((app) => {
           if (app.appKey === 'projects' && tasksInstalled) return null;
           const href = `/w/${currentWorkspaceId}/${app.appKey}`;
           if (app.appKey === 'tasks') {
             return (
-              <div key={app.appKey} className="space-y-1">
-                <ShellNavLink href={`${href}?view=today`} active={tasksPathActive}>
-                  <ManifestIcon name={app.manifest.nav.icon} />
+              <div key={app.appKey} className="space-y-0.5">
+                <ShellNavLink href={`${href}?view=today`} active={tasksPathActive} onNavigate={closeMobileNav}>
+                  <ManifestIcon name={app.manifest.nav.icon} className={appTintClass(app.appKey)} />
                   {app.manifest.nav.label}
                 </ShellNavLink>
                 <TasksNav
@@ -390,21 +391,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               key={app.appKey}
               href={href}
               active={pathname === href || (pathname?.startsWith(`${href}/`) ?? false)}
+              onNavigate={closeMobileNav}
             >
-              <ManifestIcon name={app.manifest.nav.icon} />
+              <ManifestIcon name={app.manifest.nav.icon} className={appTintClass(app.appKey)} />
               {app.manifest.nav.label}
             </ShellNavLink>
           );
         })}
       </nav>
-      <div className="border-t border-border p-3">
-        <div className="mb-2 truncate text-sm font-medium">{meQuery.data.user.name}</div>
-        <div className="mb-3 truncate text-xs text-muted-foreground">{meQuery.data.user.email}</div>
-        <ThemeToggle className="mb-3" />
-        <Button variant="outline" className="h-11 w-full" onClick={() => logoutMutation.mutate()}>
-          <LogOut className="h-4 w-4" />
-          Log out
-        </Button>
+      <div className="p-2">
+        <ProfileMenu
+          name={meQuery.data.user.name}
+          email={meQuery.data.user.email}
+          workspaceId={currentWorkspaceId!}
+          onNavigate={closeMobileNav}
+          onLogout={() => logoutMutation.mutate()}
+        />
       </div>
     </>
   );
@@ -446,7 +448,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-card/80 px-3 py-2.5 backdrop-blur sm:px-4 md:px-6 md:py-3">
+        <header
+          className={cn(
+            'sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-3 py-2.5 backdrop-blur transition-colors sm:px-4 md:px-6 md:py-3',
+            scrolled ? 'border-border bg-background/85' : 'border-transparent bg-background',
+          )}
+        >
           <div className="flex min-w-0 items-center gap-2">
             <Button
               variant="ghost"
@@ -637,28 +644,54 @@ function quickAddDefaultsFromPath(pathname: string) {
   return {};
 }
 
-function ManifestIcon({ name }: { name: string }) {
+function ManifestIcon({ name, className }: { name: string; className?: string }) {
   const icons = lucideIcons as unknown as Record<string, LucideIcon | undefined>;
   const Icon = icons[name];
   if (!Icon) return <span className="h-4 w-4 shrink-0" />;
-  return <Icon className="h-4 w-4 shrink-0" />;
+  return <Icon className={cn('h-4 w-4 shrink-0', className)} />;
 }
 
+/** Each app's quiet signature tint, used only for its nav icon. */
+function appTintClass(appKey: string) {
+  switch (appKey) {
+    case 'tasks':
+      return 'text-app-tasks';
+    case 'calendar':
+      return 'text-app-calendar';
+    case 'notes':
+      return 'text-app-notes';
+    case 'projects':
+      return 'text-app-projects';
+    default:
+      return 'text-muted-foreground';
+  }
+}
+
+function ShellNavGroup({ children }: { children: React.ReactNode }) {
+  return <div className="px-3 pb-1 pt-4 text-xs font-medium text-muted-foreground">{children}</div>;
+}
+
+/** Top-level nav: soft tint plus a 2px terracotta marker when active. Nested views use weight only. */
 function ShellNavLink({
   href,
   active,
   children,
+  onNavigate,
 }: {
   href: string;
   active: boolean;
   children: React.ReactNode;
+  onNavigate?: () => void;
 }) {
   return (
     <Link
       href={href}
+      aria-current={active ? 'page' : undefined}
+      onClick={onNavigate}
       className={cn(
-        'flex min-h-11 items-center gap-2 rounded-md px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent',
-        active && 'bg-primary text-primary-foreground hover:bg-primary',
+        'relative flex min-h-10 items-center gap-2.5 rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        active &&
+          'bg-nav-active font-medium text-foreground hover:bg-nav-active before:absolute before:inset-y-2 before:-left-2 before:w-0.5 before:rounded-full before:bg-nav-marker',
       )}
     >
       {children}
@@ -682,10 +715,10 @@ function deriveShellBreadcrumb({
   apps: Array<{ appKey: string; manifest: { nav: { label: string }; name: string } }>;
 }): BreadcrumbItem[] {
   const base = workspaceId ? `/w/${workspaceId}` : '';
-  if (!workspaceId || !pathname.startsWith(base)) return [{ label: 'Home' }];
+  if (!workspaceId || !pathname.startsWith(base)) return [{ label: 'Today' }];
 
   const rest = pathname.slice(base.length).replace(/^\//, '');
-  if (!rest) return [{ label: 'Home' }];
+  if (!rest) return [{ label: 'Today' }];
 
   const [segment, ...tail] = rest.split('/');
   if (segment === 'settings') return [{ label: 'Settings' }];

@@ -28,17 +28,25 @@ export function Menu({
   items,
   children,
   align = 'start',
+  side = 'bottom',
   className,
   triggerClassName,
+  panelClassName,
+  triggerAriaLabel,
   'aria-label': ariaLabel = 'Menu',
 }: {
   trigger: ReactNode;
   items?: MenuItem[];
   /** Custom panel content; if provided, items are ignored */
   children?: ReactNode;
-  align?: 'start' | 'end';
+  align?: 'start' | 'end' | 'stretch';
+  /** Open below the trigger (default) or above it, e.g. at the bottom of the sidebar. */
+  side?: 'bottom' | 'top';
   className?: string;
   triggerClassName?: string;
+  panelClassName?: string;
+  /** Accessible name for the trigger when its visible content is not enough. */
+  triggerAriaLabel?: string;
   'aria-label'?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -152,6 +160,7 @@ export function Menu({
         ref={triggerRef}
         type="button"
         aria-haspopup="menu"
+        aria-label={triggerAriaLabel}
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         className={cn(
@@ -178,10 +187,16 @@ export function Menu({
           aria-label={ariaLabel}
           tabIndex={-1}
           className={cn(
-            'absolute z-50 mt-1 min-w-[10rem] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg outline-none',
-            align === 'end' ? 'right-0' : 'left-0',
+            'absolute z-50 min-w-[10rem] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-overlay outline-none',
+            side === 'top' ? 'bottom-full mb-1' : 'top-full mt-1',
+            align === 'end' ? 'right-0' : align === 'stretch' ? 'inset-x-0' : 'left-0',
+            panelClassName,
           )}
           onKeyDown={onMenuKeyDown}
+          onClick={(event) => {
+            // Custom panel content: picking any menu item (link or button) closes the menu.
+            if (children && (event.target as Element).closest('[role="menuitem"]')) setOpen(false);
+          }}
         >
           {children
             ? children

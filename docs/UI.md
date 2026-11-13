@@ -40,6 +40,9 @@ Copy `apps/web/src/features/tasks/tasks-workspace.tsx` for the next list-shaped 
 - A priority other than `none` is a label. The color rail stays.
 - Completing a task shows a short check animation and stays struck for ~1.5s before leaving (respect `prefers-reduced-motion`).
 - The shell shows the workspace name and `manifest.nav.icon`. It does not explain the product.
+- Sidebar order: the mark and wordmark, the workspace switcher, **Day** (Today, Review day), **Apps** (installed apps, each icon in its signature tint, Tasks with its views and projects nested), then one profile button. The profile menu holds Settings, Manual, Add apps, the theme, and Log out.
+- Active nav: a top-level item gets the soft `nav-active` tint and a 2 px terracotta marker; a nested view gets foreground weight only. Never fill both.
+- The header has no bottom border at the top of the page; a hairline appears once the page scrolls.
 - Task settings autosave. Drag the grip to reorder statuses and priorities.
 
 ## Home and daily review

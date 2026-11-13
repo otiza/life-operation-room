@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <style>
+    .line { stroke: #3a2a20; }
+    .sun { fill: #a9542f; }
+    @media (prefers-color-scheme: dark) {
+      .line { stroke: #f1ebe4; }
+      .sun { fill: #d98c62; }
+    }
+  </style>
+  <path class="line" d="M6.5 23a9.5 9.5 0 0 1 19 0" stroke-width="2.6" stroke-linecap="round"/>
+  <path class="line" d="M3.5 26.5h25" stroke-width="2.6" stroke-linecap="round"/>
+  <circle class="sun" cx="10.3" cy="15.4" r="3.6"/>
+</svg>

@@ -29,7 +29,7 @@ export function ThemeToggle({ className }: { className?: string }) {
 
   return (
     <div
-      className={cn('grid grid-cols-3 gap-1 rounded-lg border border-border bg-card p-1', className)}
+      className={cn('grid grid-cols-3 gap-1 rounded-lg bg-muted p-1', className)}
       role="group"
       aria-label="Theme"
     >
@@ -43,14 +43,14 @@ export function ThemeToggle({ className }: { className?: string }) {
             className={cn(
               'inline-flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors',
               active
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                ? 'bg-card text-foreground shadow-raised'
+                : 'text-muted-foreground hover:text-foreground',
             )}
             aria-pressed={active}
             onClick={() => setTheme(option.value)}
           >
             <Icon className="h-3.5 w-3.5" aria-hidden />
-            <span className="hidden sm:inline">{option.label}</span>
+            <span>{option.label}</span>
           </button>
         );
       })}
