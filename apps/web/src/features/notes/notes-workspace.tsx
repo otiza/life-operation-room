@@ -167,7 +167,7 @@ export function NotesWorkspace({ workspaceId }: { workspaceId: string }) {
   }, [body, focusedChecklistIndex]);
 
   return (
-    <PageContainer size="md">
+    <PageContainer>
       <PageHeader
         title="Today's note"
         description={dayLabel}

@@ -18,7 +18,7 @@ Copy `apps/web/src/features/tasks/tasks-workspace.tsx` for the next list-shaped 
 - Tasks left nav: Inbox, Today (default), Upcoming, Anytime, Someday, Logbook, then projects with open-task counts.
 - Inbox is tasks with no project (`project_id` null), not a seeded project.
 - Layout is **list** or **board** (`layout=board`). Board is available on views where it helps (not Logbook / Upcoming day groups).
-- Today has a **This Evening** section for `when_evening`. Ordering in Today is manual (`today_position`).
+- Today has a **This evening** section for `when_evening`. Ordering in Today is manual (`today_position`).
 - The workspace home is the daily decision surface. Calendar commitments for today sit above the task list. Each open today task can be marked done, moved to tomorrow, moved to this evening, taken off today, or parked in Someday. Those moves change **when**, not **due**. A task that is due today or overdue stays on the home list. Carried-over when dates (before today) can be moved to tomorrow together. Undo is on the toast.
 - Title search lives in `q`. An empty search result says **No matches**.
 

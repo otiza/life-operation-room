@@ -76,7 +76,7 @@ export function TaskRows({
         const showStatus = !isDefaultTodoStatus(settings, task.status);
         const metaItems: { key: string; node: React.ReactNode }[] = [];
         if (showStatus) metaItems.push({ key: 'status', node: statusLabel(settings, task.status) });
-        if (showProject) {
+        if (showProject && task.projectId) {
           metaItems.push({
             key: 'project',
             node: <span className="truncate">{projectName(task.projectId)}</span>,

@@ -22,7 +22,7 @@ export default function AppPlaceholderPage() {
   const installed = installedQuery.data?.apps.some((app) => app.appKey === appKey);
 
   return (
-    <PageContainer size="md">
+    <PageContainer>
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

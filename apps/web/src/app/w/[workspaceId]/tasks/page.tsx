@@ -10,7 +10,7 @@ export default function TasksPage() {
   return (
     <Suspense
       fallback={
-        <PageContainer size="full">
+        <PageContainer>
           <div className="space-y-3" aria-busy="true" aria-label="Loading tasks">
             <Skeleton className="h-8 w-40" />
             <SkeletonText lines={2} />

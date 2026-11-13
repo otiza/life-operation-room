@@ -42,7 +42,6 @@ function DateChip({
   compact?: boolean;
 }) {
   const Icon = chip.kind === 'when' ? CalendarDays : Flag;
-  const label = chip.kind === 'when' ? `When: ${chip.label}` : chip.label;
   const danger = chip.kind === 'due' && overdue;
   return (
     <span
@@ -56,7 +55,10 @@ function DateChip({
       title={chip.kind === 'when' ? 'When' : 'Deadline'}
     >
       <Icon className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
-      <span>{label}</span>
+      <span>
+        <span className="sr-only">{chip.kind === 'when' ? 'When: ' : 'Deadline: '}</span>
+        {chip.label}
+      </span>
     </span>
   );
 }

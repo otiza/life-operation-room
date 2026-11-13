@@ -2,6 +2,8 @@
 
 Written 13 November 2026, after the daily review shipped. Current behaviour is in [../apps/NOTES.md](../apps/NOTES.md).
 
+**Runs after [VISUAL-IDENTITY-PLAN.md](./VISUAL-IDENTITY-PLAN.md)**, and uses its tokens (`--paper`, `--app-notes`, `text-display`, `size="reading"`).
+
 Decision: Notes stays **daily-only** (one page per day, linked to tasks). Pages that are not tied to a day are out of scope. No database migration is needed; the existing `notes` table and the checklist → task links in `cross_app_links` cover everything.
 
 Four PRs, in order. Each one is useful on its own.
@@ -68,6 +70,17 @@ Rule: a plain checkbox is a note-only to-do. A linked line **is** the task.
 - **On this day** (Day One): at the bottom of the note, previews from 1 week, 1 month, and 1 year earlier, shown only when those notes exist.
 - **Tests:** API e2e for search (match, case, escaping, workspace isolation) and the past-days list; Playwright for searching a word and opening that day.
 
+## PR 5: The journal (from the visual identity review)
+
+- **Paper surface:** the note uses `--paper`, a Literata body option, comfortable margins, and the date as a masthead.
+- **Intention line:** an optional first line ("Today I want to…") stored as a paragraph with an `Intention: ` prefix, the same pattern as `Day review: `. It is shown under the date in the Home masthead.
+- **Timestamped entries:** a "Jot" field at the bottom adds a line stamped with the time (`14:32 — text`), so the day reads as a log.
+- **The day's events in the margin:** the note lists that day's events. **Add notes** on an event inserts a block headed with the event title and links it (`cross_app_links`, `linkType=meeting_note`).
+- **Mood and energy:** two 1–5 pickers per day.
+  - **Data:** a migration adds nullable `mood` and `energy` smallint columns to `notes`.
+  - **UI:** shown as a small year-at-a-glance grid in the All days panel.
+- **Capture from anywhere:** `n` (when not typing) opens a small dialog that appends a timestamped line to today's note, the same way `q` captures a task. Registered in the command palette and the `?` sheet.
+
 ## For every PR
 
 - Run typecheck, lint, unit tests, API e2e, and Playwright against **local** Docker Postgres.
@@ -78,4 +91,4 @@ Rule: a plain checkbox is a note-only to-do. A linked line **is** the task.
 
 ## Out of scope
 
-`@` mentions, pages not tied to a day, headings and links, attachments, and a note preview on the home. Each can come later without redoing this work.
+`@` mentions, pages not tied to a day, headings and links, and attachments. Each can come later without redoing this work.

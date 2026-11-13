@@ -10,7 +10,7 @@ export default function NotesPage() {
   return (
     <Suspense
       fallback={
-        <PageContainer size="md">
+        <PageContainer>
           <div className="space-y-3" aria-busy="true" aria-label="Loading note">
             <Skeleton className="h-8 w-40" />
             <SkeletonText lines={4} />
