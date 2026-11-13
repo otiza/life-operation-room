@@ -1,9 +1,9 @@
 {
-  "name": "erp-tiza",
+  "name": "life-room",
   "private": true,
   "packageManager": "pnpm@12.18.0",
   "scripts": {
-    "dev": "turbo run dev --filter=@erp-tiza/shared --filter=api --filter=web",
+    "dev": "turbo run dev --filter=@life-room/shared --filter=api --filter=web",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",

@@ -163,7 +163,7 @@ export function serializeIcsCalendar(
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Tiza//Calendar//EN',
+    'PRODID:-//Life Room//Calendar//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeText(calendarName)}`,

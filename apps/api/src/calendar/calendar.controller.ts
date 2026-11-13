@@ -17,7 +17,7 @@ import {
   undoCalendarDeleteSchema,
   updateCalendarEventSchema,
   updateCalendarSettingsSchema,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AppInstalledGuard, InstalledApp } from '../common/guards/app-installed.guard.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';

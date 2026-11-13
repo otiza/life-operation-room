@@ -6,7 +6,7 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { MemberRole } from '@erp-tiza/shared';
+import type { MemberRole } from '@life-room/shared';
 import type { AuthenticatedRequest } from '../decorators/current-user.decorator.js';
 import { WorkspacesService } from '../../workspaces/workspaces.service.js';
 

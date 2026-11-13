@@ -14,7 +14,7 @@ Add an entry in [`packages/shared/src/apps/manifests.ts`](../packages/shared/src
 - `nav`: sidebar label/href/icon
 - `status`: `available` when the UI exists, otherwise `coming_soon`
 
-Rebuild shared: `pnpm --filter @erp-tiza/shared build`
+Rebuild shared: `pnpm --filter @life-room/shared build`
 
 ## 2. Backend module
 

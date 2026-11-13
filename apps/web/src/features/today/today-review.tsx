@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { describeTaskRecurrence, getDayBoundsInTimeZone, type UpdateTaskInput } from '@erp-tiza/shared';
+import { describeTaskRecurrence, getDayBoundsInTimeZone, type UpdateTaskInput } from '@life-room/shared';
 import { MoreHorizontal } from 'lucide-react';
 import { Menu } from '../../components/ui/menu';
 import { Button } from '../../components/ui/button';

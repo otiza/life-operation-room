@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { CalendarMutationScope } from '@erp-tiza/shared';
+import type { CalendarMutationScope } from '@life-room/shared';
 import type { CalendarOccurrenceDto } from './calendar-api';
 import { Button } from '../../components/ui/button';
 import { Dialog } from '../../components/ui/dialog';

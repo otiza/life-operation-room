@@ -91,7 +91,7 @@ Public ICS (no session): `GET /calendar/ics/:token.ics`. Serving requires the to
 - Optimistic move updates with rollback; toast undo for move and delete
 - `/w/[workspaceId]/calendar/settings` — workspace settings + ICS feed controls
 
-Natural-language quick add uses `parseQuickAdd` in `@erp-tiza/shared` (`chrono-node` + duration/location/recurrence helpers).
+Natural-language quick add uses `parseQuickAdd` in `@life-room/shared` (`chrono-node` + duration/location/recurrence helpers).
 
 ## Non-goals (v1)
 

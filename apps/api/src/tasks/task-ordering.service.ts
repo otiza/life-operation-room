@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq, inArray, isNull, max, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { ReorderTasksInput, TaskSettings } from '@erp-tiza/shared';
+import type { ReorderTasksInput, TaskSettings } from '@life-room/shared';
 import { tasks, type Task } from '../db/schema.js';
 
 @Injectable()

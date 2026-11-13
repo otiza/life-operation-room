@@ -9,7 +9,7 @@ import {
   type CalendarDeleteUndo,
   type CalendarMutationScope,
   type CalendarView,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { Button } from '../../components/ui/button';

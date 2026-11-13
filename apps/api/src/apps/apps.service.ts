@@ -8,7 +8,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { APP_MANIFESTS, getAppManifest, type InstallAppInput } from '@erp-tiza/shared';
+import { APP_MANIFESTS, getAppManifest, type InstallAppInput } from '@life-room/shared';
 import { workspaceApps } from '../db/schema.js';
 import type { User } from '../db/schema.js';
 import { DOMAIN_EVENTS } from '../common/events/domain-events.js';

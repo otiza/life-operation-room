@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react';
 import { Flag } from 'lucide-react';
-import { describeTaskRecurrence, type TaskSettings } from '@erp-tiza/shared';
+import { describeTaskRecurrence, type TaskSettings } from '@life-room/shared';
 import type { Task } from './tasks-api';
 import { TaskDateChips } from './task-date-chips';
 import { isDoneStatus, isOverdue, priorityColor, priorityLabel, statusLabel } from './task-status';

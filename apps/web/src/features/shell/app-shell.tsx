@@ -21,7 +21,7 @@ import { logout, me } from '../auth/auth-api';
 import { listInstalledApps } from '../apps/apps-api';
 import { listNotifications, markNotificationRead } from '../notifications/notifications-api';
 import { useNotificationsSocket } from '../notifications/use-notifications-socket';
-import type { TaskView } from '@erp-tiza/shared';
+import type { TaskView } from '@life-room/shared';
 import { createWorkspace, listWorkspaces } from '../workspaces/workspaces-api';
 import { getProject, listProjects } from '../projects/projects-api';
 import { taskCounts } from '../tasks/tasks-api';
@@ -269,7 +269,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <>
       <div className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-page-title text-sidebar-foreground">Life room</div>
+          <div className="text-page-title text-sidebar-foreground">Life Room</div>
           <Button
             variant="ghost"
             size="icon"

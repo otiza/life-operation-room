@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { zonedWallTimeToUtc } from '@erp-tiza/shared';
+import { zonedWallTimeToUtc } from '@life-room/shared';
 import type { CalendarEvent, CalendarEventException } from '../db/schema.js';
 import { RecurrenceService } from './recurrence.service.js';
 

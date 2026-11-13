@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { calendarDateKeyInTimeZone } from '@erp-tiza/shared';
+import { calendarDateKeyInTimeZone } from '@life-room/shared';
 import { DateTime } from 'luxon';
 import rrulePkg from 'rrule';
 import type { CalendarEvent, CalendarEventException } from '../db/schema.js';

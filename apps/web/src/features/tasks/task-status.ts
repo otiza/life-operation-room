@@ -5,7 +5,7 @@ import {
   type TaskPriorityOption,
   type TaskSettings,
   type TaskStatusOption,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 
 function clientTimeZone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;

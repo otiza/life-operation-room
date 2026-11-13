@@ -1,4 +1,4 @@
-import type { Note, PromoteChecklistLineInput, PromoteChecklistLineResult, UpdateNoteBodyInput } from '@erp-tiza/shared';
+import type { Note, PromoteChecklistLineInput, PromoteChecklistLineResult, UpdateNoteBodyInput } from '@life-room/shared';
 import { api } from '../../lib/api';
 import { viewerTimeZone } from '../calendar/calendar-api';
 

@@ -58,7 +58,7 @@ jobs:
         run: cp .env.example .env
 
       - name: Build shared package
-        run: pnpm --filter @erp-tiza/shared build
+        run: pnpm --filter @life-room/shared build
 
       - name: Run database migrations
         run: pnpm db:migrate

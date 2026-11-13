@@ -10,7 +10,7 @@ import type {
   DeleteCalendarEventInput,
   UpdateCalendarEventInput,
   UpdateCalendarSettingsInput,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { api } from '../../lib/api';
 
 export type CalendarEvent = CalendarEventDto;

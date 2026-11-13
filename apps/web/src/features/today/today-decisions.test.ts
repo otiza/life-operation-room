@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_TASK_SETTINGS } from '@erp-tiza/shared';
+import { DEFAULT_TASK_SETTINGS } from '@life-room/shared';
 import {
   addCalendarDays,
   carriedOverMoveFeedback,

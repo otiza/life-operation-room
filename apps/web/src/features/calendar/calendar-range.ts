@@ -1,4 +1,4 @@
-import type { CalendarView } from '@erp-tiza/shared';
+import type { CalendarView } from '@life-room/shared';
 
 export function startOfDay(date: Date): Date {
   const next = new Date(date);

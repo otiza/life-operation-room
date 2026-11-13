@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@erp-tiza/shared"],
+  transpilePackages: ["@life-room/shared"],
   turbopack: {
     rules: {
       "*.css": {

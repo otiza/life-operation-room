@@ -2,7 +2,7 @@
 
 import { FormEvent, forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { describeTaskRecurrence, parseCapture, type TaskQuickAddToken } from '@erp-tiza/shared';
+import { describeTaskRecurrence, parseCapture, type TaskQuickAddToken } from '@life-room/shared';
 import { createTask } from './tasks-api';
 import { getTaskSettings } from './tasks-api';
 import { defaultTaskSettings } from './task-status';

@@ -2,7 +2,7 @@
 
 Research date: **10 November 2026**. Evidence and source links are in [COMPETITIVE-BENCHMARK.md](./COMPETITIVE-BENCHMARK.md). Scores below are recommendations, not measurements.
 
-Core promise: Life room is the best place to decide what matters today, whether it started as a task, a note, an event, a project, or a message.
+Core promise: Life Room is the best place to decide what matters today, whether it started as a task, a note, an event, a project, or a message.
 
 Daily loop: capture → organize → plan → act → review.
 
@@ -32,7 +32,7 @@ Why it won:
 - Value: the promise is the decision, and the home was only a readout.
 - Frequency: every day the Today view is opened. Past when dates already roll in, so the list grows until someone moves them.
 - Integration: it uses the Today query, task update, done status, and the calendar list already on the home. Projects are unchanged because clearing when returns a task to Inbox or Anytime by the existing rules. A future note can join the same list later without a new gesture.
-- Differentiation: Things, Todoist, and Sunsama all reschedule. Life room keeps the deadline. Moving a task to tomorrow, this evening, off today, or Someday changes when only. If it is still due, it stays on today and the toast says so.
+- Differentiation: Things, Todoist, and Sunsama all reschedule. Life Room keeps the deadline. Moving a task to tomorrow, this evening, off today, or Someday changes when only. If it is still due, it stays on today and the toast says so.
 - Cost: no new table, no new app, no calendar grid on the home. Calendar time blocking already exists on the calendar route, so this pass does not rebuild it.
 
 The loop it strengthens:
@@ -48,6 +48,6 @@ Calendar occurrences are listed above tasks so fixed time is visible before thos
 
 1. **Guided plan-my-day.** Time estimates, a step-by-step shutdown, automatic rollover settings, and dragging tasks onto hours from the home. Use the calendar's time blocks until that ritual is designed on its own.
 2. **Notes beyond the daily page.** Folders, search, files, capture into a note, and richer Markdown stay out. The first daily note page and checklist → task path are started; see [apps/NOTES.md](./apps/NOTES.md).
-3. **Message triage.** Linear's path from Slack into Triage is the right collaboration pattern. Life room has no chat app yet. Accepted messages should land in Inbox, not on Today.
+3. **Message triage.** Linear's path from Slack into Triage is the right collaboration pattern. Life Room has no chat app yet. Accepted messages should land in Inbox, not on Today.
 
 Also still out of scope: labels, saved views, subtasks, comments, mentions, and an activity log. Recurring tasks and one capture field for a task or an event are in. Completing a repeating task schedules the next one. A clock time in the capture field creates a calendar event when Calendar is installed.

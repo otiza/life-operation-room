@@ -6,7 +6,7 @@ import type {
   TaskSettings,
   UpdateTaskInput,
   UpdateTaskSettingsInput,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { api } from '../../lib/api';
 
 export type Task = TaskDto;

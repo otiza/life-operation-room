@@ -1,4 +1,4 @@
-import type { TaskSettings } from '@erp-tiza/shared';
+import type { TaskSettings } from '@life-room/shared';
 import type { Project } from '../projects/projects-api';
 import type { Task } from './tasks-api';
 import { enabledStatuses } from './task-status';

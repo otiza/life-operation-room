@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { TaskView } from '@erp-tiza/shared';
+import type { TaskView } from '@life-room/shared';
 
 export type LayoutMode = 'list' | 'board';
 

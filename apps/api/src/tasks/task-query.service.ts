@@ -6,7 +6,7 @@ import {
   calendarDateKeyInTimeZone,
   getDayBoundsInTimeZone,
   type ListTasksQuery,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { tasks, type Task } from '../db/schema.js';
 
 export type TaskQueryRow = {

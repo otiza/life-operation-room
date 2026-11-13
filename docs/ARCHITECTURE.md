@@ -1,4 +1,4 @@
-# ERP Tiza architecture (for agents)
+# Life Room architecture (for agents)
 
 This document is the source of truth for how the life-manager shell is structured. Read it before adding features. Prefer extending existing modules over inventing parallel systems.
 
@@ -15,7 +15,7 @@ Companion docs:
 
 ## 1. Product shape
 
-ERP Tiza is a **modular life OS**, not a single monolithic feature app.
+Life Room is a **modular life OS**, not a single monolithic feature app.
 
 | Concept | Behavior |
 |---|---|
@@ -61,7 +61,7 @@ Important scripts (repo root):
 pnpm install
 docker compose up -d
 pnpm db:migrate
-pnpm --filter @erp-tiza/shared build
+pnpm --filter @life-room/shared build
 pnpm dev                  # shared watch + api + web
 ```
 
@@ -81,7 +81,7 @@ flowchart LR
   Web -->|Socket.IO| Api
   Api --> Postgres[(PostgreSQL)]
   Api -.-> Redis[(Redis_reserved)]
-  Api --> SharedPkg["@erp-tiza/shared manifests"]
+  Api --> SharedPkg["@life-room/shared manifests"]
   Web --> SharedPkg
 ```
 
@@ -189,7 +189,7 @@ Core tables:
 
 Notes:
 
-- App catalog is **code-defined** in `@erp-tiza/shared` (`APP_MANIFESTS`), not an `app_definitions` table. That keeps manifests versioned with the repo.
+- App catalog is **code-defined** in `@life-room/shared` (`APP_MANIFESTS`), not an `app_definitions` table. That keeps manifests versioned with the repo.
 - Future mini-app tables must include `workspace_id` and must not FK into another app’s tables. Use `cross_app_links` or events.
 
 Generate / migrate:
@@ -221,7 +221,7 @@ pnpm db:migrate
 | PATCH | `/notifications/:id/read` | yes |
 | GET | `/workspaces/:id/links` | yes |
 
-Validation: Zod schemas from `@erp-tiza/shared`, parsed in controllers (`.parse(body)`).
+Validation: Zod schemas from `@life-room/shared`, parsed in controllers (`.parse(body)`).
 
 ---
 
@@ -257,7 +257,7 @@ Install rules (backend):
 Always rebuild shared after editing manifests:
 
 ```bash
-pnpm --filter @erp-tiza/shared build
+pnpm --filter @life-room/shared build
 ```
 
 ---
@@ -348,7 +348,7 @@ Do not put Redux in unless there is a strong reason. Prefer a small Zustand stor
 
 `cacheComponents` / partial prefetching were disabled for the authenticated shell — nearly every meaningful page is cookie/session dynamic. Do not re-enable without Suspense/`instant` planning per route.
 
-`transpilePackages: ['@erp-tiza/shared']` is required.
+`transpilePackages: ['@life-room/shared']` is required.
 
 ---
 
@@ -388,7 +388,7 @@ First real apps: **Projects** + **Tasks** — see [apps/TASKS.md](./apps/TASKS.m
 |---|---|---|
 | `EADDRINUSE :::3001` | Two Nest watchers (orphan + turbo) | Kill the orphan PID; keep a single `pnpm dev` |
 | Hydration mismatch with `data-gr-*` | Browser extension (Grammarly etc.) | Harmless; `suppressHydrationWarning` on `<body>` |
-| Shared types missing / old manifests | Shared package not rebuilt | `pnpm --filter @erp-tiza/shared build` |
+| Shared types missing / old manifests | Shared package not rebuilt | `pnpm --filter @life-room/shared build` |
 | Cookie auth fails from web | Missing `credentials: 'include'` or CORS origin mismatch | Check `api.ts` and `CORS_ORIGIN` |
 | Circular dependency crash involving Auth + Notifications | Session logic imported via AuthService | Use `SessionService` only |
 

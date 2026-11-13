@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { calendarDateKeyInTimeZone } from '@erp-tiza/shared';
+import { calendarDateKeyInTimeZone } from '@life-room/shared';
 import { listInstalledApps } from '../../../features/apps/apps-api';
 import { listCalendarEvents, viewerTimeZone } from '../../../features/calendar/calendar-api';
 import { addDays, startOfDay } from '../../../features/calendar/calendar-range';

@@ -18,7 +18,7 @@ import {
   type TaskSettings,
   type UpdateTaskInput,
   type UpdateTaskSettingsInput,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { tasks, workspaceApps, type Task, type User } from '../db/schema.js';
 import {
   DOMAIN_EVENTS,

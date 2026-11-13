@@ -182,7 +182,7 @@ importers:
 
   apps/api:
     dependencies:
-      '@erp-tiza/shared':
+      '@life-room/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@nestjs/common':
@@ -327,7 +327,7 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.3.0)
-      '@erp-tiza/shared':
+      '@life-room/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@tanstack/react-query':

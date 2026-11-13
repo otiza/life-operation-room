@@ -1,6 +1,6 @@
 'use client';
 
-import type { TaskSettings, TaskView } from '@erp-tiza/shared';
+import type { TaskSettings, TaskView } from '@life-room/shared';
 import { ApiError } from '../../lib/api';
 import { EmptyState } from '../../components/ui/empty-state';
 import { SkeletonRow } from '../../components/ui/skeleton';

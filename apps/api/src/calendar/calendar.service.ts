@@ -21,7 +21,7 @@ import {
   type UndoCalendarDeleteInput,
   type UpdateCalendarEventInput,
   type UpdateCalendarSettingsInput,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import {
   calendarEventExceptions,
   calendarEvents,
@@ -493,7 +493,7 @@ export class CalendarService {
     }
     return serializeIcsCalendar(
       masters.map((event) => ({ event, exceptions: byEvent.get(event.id) ?? [] })),
-      'Tiza Calendar',
+      'Life Room Calendar',
     );
   }
 

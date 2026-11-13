@@ -1,8 +1,8 @@
-# ERP Tiza
+# Life Room
 
 Modular life manager (Odoo-style installable apps) with a NestJS API and Next.js shell.
 
-The git repository is named **life-operation-room**; packages and code still use the **erp-tiza** name (for example `@erp-tiza/shared`).
+Packages use the `@life-room/*` scope. A few internal identifiers keep the old `tiza` prefix on purpose because existing data depends on them: the local Postgres user/database and volume, the `tiza_session` cookie, the `tiza-shell` saved UI preferences, and `@tiza-calendar` event UIDs in ICS feeds (changing these would duplicate events in subscribed calendars).
 
 ## Structure
 
@@ -41,7 +41,7 @@ cp .env.example .env
 docker compose up -d postgres
 # optional later: docker compose up -d redis
 pnpm db:migrate
-pnpm --filter @erp-tiza/shared build
+pnpm --filter @life-room/shared build
 ```
 
 Create `apps/web/.env.local` with `NEXT_PUBLIC_API_URL=http://localhost:3001` (see `.env.example`).

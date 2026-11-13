@@ -7,7 +7,7 @@ import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type D
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
-import type { TaskPriorityOption, TaskSettings, TaskStatusOption } from '@erp-tiza/shared';
+import type { TaskPriorityOption, TaskSettings, TaskStatusOption } from '@life-room/shared';
 import { me } from '../../../../../features/auth/auth-api';
 import { getTaskSettings, updateTaskSettings } from '../../../../../features/tasks/tasks-api';
 import { defaultTaskSettings, slugifyKey, sortByOrder } from '../../../../../features/tasks/task-status';

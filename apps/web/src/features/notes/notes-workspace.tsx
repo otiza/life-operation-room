@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getChecklistBlock, parseNoteMarkdown, serializeNoteMarkdown } from '@erp-tiza/shared';
+import { getChecklistBlock, parseNoteMarkdown, serializeNoteMarkdown } from '@life-room/shared';
 import { listInstalledApps } from '../apps/apps-api';
 import { viewerTimeZone } from '../calendar/calendar-api';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';

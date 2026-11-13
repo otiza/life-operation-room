@@ -24,7 +24,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { describeTaskRecurrence, type TaskSettings } from '@erp-tiza/shared';
+import { describeTaskRecurrence, type TaskSettings } from '@life-room/shared';
 import type { Task } from './tasks-api';
 import { TaskDateChips } from './task-date-chips';
 import {

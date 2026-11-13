@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
-  Life room design tokens (Option B).
+  Life Room design tokens (Option B).
   Headings: Literata. Body: IBM Plex Sans.
   Accent: muted terracotta. Density: comfortable.
   Semantic names only — no raw Tailwind palette colors in UI code.

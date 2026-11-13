@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_TASK_SETTINGS, getDayBoundsInTimeZone } from '@erp-tiza/shared';
+import { DEFAULT_TASK_SETTINGS, getDayBoundsInTimeZone } from '@life-room/shared';
 import { DOMAIN_EVENTS } from '../common/events/domain-events.js';
 import { TaskOrderingService } from './task-ordering.service.js';
 import { TaskQueryService } from './task-query.service.js';

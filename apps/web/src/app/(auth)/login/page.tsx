@@ -35,7 +35,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Sign in to your ERP Tiza life manager.</CardDescription>
+          <CardDescription>Sign in to your Life Room life manager.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>

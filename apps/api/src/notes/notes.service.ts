@@ -14,7 +14,7 @@ import {
   setChecklistTaskId,
   type PromoteChecklistLineInput,
   type UpdateNoteBodyInput,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { AppsService } from '../apps/apps.service.js';
 import { toIso } from '../common/utils/crypto.js';
 import { notes, type Note, type User } from '../db/schema.js';
