@@ -10,7 +10,7 @@ Read this before shipping UI. Tokens live in [`apps/web/src/app/globals.css`](..
 | Heading typeface | Literata (`--font-heading`, `text-page-title` / `text-section-title`) |
 | Body typeface | IBM Plex Sans (`--font-body` / `font-sans`) |
 | Accent | Terracotta `oklch(0.55 0.12 45)` (dark: `oklch(0.72 0.12 50)`) → `--primary` / `--ring` |
-| Width | One reading width, about 760 px (`PageContainer` default `size="reading"`). `full` only for the calendar grid and the task board; `lg` for the marketplace and Manual. |
+| Width | One reading width, about 760 px (`PageContainer` default `size="reading"`). `full` only for the calendar grid and the task board; `lg` for the Manual. |
 
 Do not fall back to Inter/Geist-only, purple gradients, or ALL-CAPS tracked eyebrows.
 
@@ -25,7 +25,9 @@ The direction is "a calm room, not an office" ([plan](./plans/VISUAL-IDENTITY-PL
 5. **Literata is the voice.** Dates, page and section titles, empty states, and note text. Plex is for controls and metadata.
 6. **Each app has a quiet signature tint** from one hue family, used for its icon, nav marker, and empty-state art. Never for large fills.
 
-Theme: `next-themes` class strategy (`.dark`). Toggle light / dark / system in the shell user menu.
+Theme: `next-themes` class strategy (`.dark`). Toggle light / dark / system in the profile menu at the bottom of the sidebar.
+
+Brand mark: "Day arc" (a horizon with the sun partway along its arc). `components/brand/logo.tsx` (`LogoMark`, `Logo`), `app/icon.svg` (follows the system theme), `app/apple-icon.png`, and `app/favicon.ico` for older browsers.
 
 ## Tokens
 
@@ -35,7 +37,7 @@ Semantic colors (use Tailwind utilities mapped in `@theme inline`):
 |---|---|
 | `background` / `foreground` | Page canvas and primary text |
 | `card` / `popover` | Panels, menus, dialogs |
-| `primary` / `primary-foreground` | One main action per view; shell active nav |
+| `primary` / `primary-foreground` | One main action per view, **Now**, progress |
 | `secondary` | Quiet chips and secondary surfaces |
 | `muted` / `muted-foreground` | Descriptions and meta (AA contrast in both themes) |
 | `accent` | Hover and nested (inner) active nav |
@@ -82,6 +84,7 @@ Checked by `apps/web/src/app/design-tokens.test.ts`, which reads `globals.css`. 
 | `PropertyField` | Labeled icon + value that opens a picker (status, priority, project, assignee, when, deadline) |
 | `Toast` / `useToast` | Transient feedback with optional Undo (Tasks delete/complete/move, Calendar delete/move) |
 | `Menu` | Compact action lists (workspace switcher, overflow “…”) |
+| `RowList` | Lists on the canvas (Home, Tasks, Logbook, Review, Apps): no box, rows bring a hairline divider, a hover tint, and 44 px height |
 | `EmptyState` | Empty lists with title, hint, and a **clickable** primary action (keyboard hint alone is not enough) |
 | `Skeleton` | Loading placeholders that match final layout (never bare “Loading…”) |
 | `Dialog` | Modal flows; focus trap, initial focus, focus return, `aria-labelledby` / `aria-describedby` |
@@ -99,7 +102,7 @@ Commands: apps register through `features/shell/command-registry.ts`. The shell 
 4. Every keyboard hint has a clickable equivalent.
 5. Works in light and dark themes and on mobile (~375px): `PageContainer`, touch-friendly targets, no horizontal page scroll.
 6. When and deadline stay visually distinct (calendar vs flag).
-7. Shell active nav uses primary fill; nested/inner nav uses a subtle accent tint — not both heavy fills.
+7. Shell active nav uses the `nav-active` tint and a 2 px `nav-marker` on the left; nested views use foreground weight only. Never fill both.
 
 ## Checklist for new apps
 

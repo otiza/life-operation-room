@@ -3,13 +3,15 @@
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getCatalog, installApp, listInstalledApps, uninstallApp } from '../../../../features/apps/apps-api';
-import { Badge } from '../../../../components/ui/badge';
+import { AppIcon } from '../../../../features/apps/app-icon';
 import { Button } from '../../../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { RowList } from '../../../../components/ui/row-list';
+import { SectionHeading } from '../../../../components/ui/section-heading';
 import { Dialog } from '../../../../components/ui/dialog';
 import { PageContainer, PageHeader } from '../../../../components/layout/page-container';
 import { useMemo, useState } from 'react';
 import { ApiError } from '../../../../lib/api';
+import { cn } from '../../../../lib/utils';
 
 const CATEGORY_ORDER = [
   'productivity',
@@ -20,6 +22,16 @@ const CATEGORY_ORDER = [
   'health',
   'ai',
 ] as const;
+
+const CATEGORY_LABEL: Record<(typeof CATEGORY_ORDER)[number], string> = {
+  productivity: 'Productivity',
+  finance: 'Money',
+  social: 'People',
+  learning: 'Learning',
+  career: 'Work',
+  health: 'Health',
+  ai: 'Assistants',
+};
 
 export default function MarketplacePage() {
   const params = useParams<{ workspaceId: string }>();
@@ -63,9 +75,9 @@ export default function MarketplacePage() {
   }, [catalogQuery.data]);
 
   return (
-    <PageContainer size="lg" className="space-y-8">
+    <PageContainer className="space-y-8">
       <PageHeader
-        title="App marketplace"
+        title="Apps"
         description="Add the apps you need. Some apps need another one first."
       />
       {(installMutation.error || uninstallMutation.error) && (
@@ -76,53 +88,58 @@ export default function MarketplacePage() {
         </p>
       )}
       {grouped.map((group) => (
-        <section key={group.category} className="space-y-3">
-          <h2 className="text-section-title text-foreground">
-            {group.category}
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {group.apps.map((app) => {
+        <section key={group.category} className="space-y-2" aria-labelledby={`category-${group.category}`}>
+          <SectionHeading id={`category-${group.category}`} title={CATEGORY_LABEL[group.category]} />
+          <RowList>
+            {group.apps.map((app, index) => {
               const installed = installedKeys.has(app.key);
+              const needs = app.dependsOn
+                .map((key) => catalogQuery.data?.apps.find((other) => other.key === key)?.name ?? key)
+                .join(' and ');
               return (
-                <Card key={app.key}>
-                  <CardHeader>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <CardTitle>{app.name}</CardTitle>
-                        <CardDescription>{app.description}</CardDescription>
+                <li
+                  key={app.key}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-3 sm:px-4',
+                    index > 0 && 'border-t border-border',
+                  )}
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                      <AppIcon name={app.nav.icon} appKey={app.key} />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-baseline gap-2">
+                        <h3 className="text-sm font-medium text-foreground">{app.name}</h3>
+                        {installed ? <span className="text-meta text-muted-foreground">Installed</span> : null}
                       </div>
-                      {installed && <Badge className="w-fit shrink-0">installed</Badge>}
+                      <p className="text-sm text-muted-foreground">{app.description}</p>
+                      {needs ? <p className="text-meta text-muted-foreground">Needs {needs}</p> : null}
                     </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-xs text-muted-foreground">
-                      {app.dependsOn.length
-                        ? `Depends on: ${app.dependsOn.join(', ')}`
-                        : 'No dependencies'}
-                    </div>
-                    {installed ? (
-                      <Button
-                        variant="outline"
-                        className="h-11 w-full sm:h-9 sm:w-auto"
-                        disabled={uninstallMutation.isPending}
-                        onClick={() => setUninstallTarget({ key: app.key, name: app.name })}
-                      >
-                        Uninstall
-                      </Button>
-                    ) : (
-                      <Button
-                        className="h-11 w-full sm:h-9 sm:w-auto"
-                        disabled={installMutation.isPending}
-                        onClick={() => installMutation.mutate(app.key)}
-                      >
-                        Install
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
+                  </div>
+                  {installed ? (
+                    <Button
+                      variant="ghost"
+                      className="h-11 shrink-0 px-3 text-muted-foreground sm:h-9"
+                      disabled={uninstallMutation.isPending}
+                      onClick={() => setUninstallTarget({ key: app.key, name: app.name })}
+                    >
+                      Uninstall
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="h-11 shrink-0 sm:h-9"
+                      disabled={installMutation.isPending}
+                      onClick={() => installMutation.mutate(app.key)}
+                    >
+                      Install
+                    </Button>
+                  )}
+                </li>
               );
             })}
-          </div>
+          </RowList>
         </section>
       ))}
       <Dialog open={Boolean(uninstallTarget)} onClose={() => setUninstallTarget(null)}>
