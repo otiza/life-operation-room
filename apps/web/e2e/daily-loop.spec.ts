@@ -70,3 +70,39 @@ test('the profile menu reaches Settings and Log out', async ({ page }) => {
   await page.getByRole('menuitem', { name: 'Log out' }).first().click();
   await page.waitForURL(/\/login/);
 });
+
+test('the Home masthead shows the date and the next event', async ({ page }) => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+  // A fixed mid-morning clock keeps "next" on the same day whenever the suite runs.
+  const today = new Date();
+  const at = (hours: number, minutes = 0) =>
+    new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+  await page.clock.setFixedTime(at(10, 35));
+
+  await signUp(page);
+  const workspaceId = page.url().split('/w/')[1];
+  const install = await page.request.post(`${API_URL}/workspaces/${workspaceId}/apps/install`, {
+    data: { appKey: 'calendar' },
+  });
+  expect(install.ok()).toBeTruthy();
+  const title = `Design review ${Date.now()}`;
+  const created = await page.request.post(`${API_URL}/workspaces/${workspaceId}/calendar/events`, {
+    data: {
+      title,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      isAllDay: false,
+      startAt: at(11).toISOString(),
+      endAt: at(12).toISOString(),
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+
+  await page.reload();
+  const masthead = page.getByTestId('today-masthead');
+  await expect(masthead.getByRole('heading', { level: 1 })).toContainText(
+    at(10, 35).toLocaleDateString('en-US', { weekday: 'long' }),
+  );
+  const next = masthead.getByTestId('masthead-next');
+  await expect(next).toContainText(title);
+  await expect(next).toContainText('in 25 min');
+});
