@@ -184,7 +184,7 @@ Core tables:
 | `workspace_members` | membership + invite tokens |
 | `workspace_apps` | installed apps per workspace |
 | `notifications` | in-app notifications |
-| `cross_app_links` | inter-app references |
+| `cross_app_links` | inter-app references; unique per (workspace, source, target, link type), indexed by target. `LinksService.create` is idempotent |
 | `integration_accounts` | reserved for OAuth/wearables |
 
 Notes:

@@ -58,8 +58,24 @@ export class LinksService {
         targetRef: input.targetRef,
         linkType: input.linkType,
       })
+      .onConflictDoNothing()
       .returning();
-    return this.toDto(row);
+    if (row) return this.toDto(row);
+    // Link already exists: return the existing row so callers stay idempotent.
+    const [existing] = await this.db
+      .select()
+      .from(crossAppLinks)
+      .where(
+        and(
+          eq(crossAppLinks.workspaceId, input.workspaceId),
+          eq(crossAppLinks.sourceApp, input.sourceApp),
+          eq(crossAppLinks.sourceRef, input.sourceRef),
+          eq(crossAppLinks.targetApp, input.targetApp),
+          eq(crossAppLinks.targetRef, input.targetRef),
+          eq(crossAppLinks.linkType, input.linkType),
+        ),
+      );
+    return this.toDto(existing!);
   }
 
   async deleteBySource(workspaceId: string, sourceApp: string, sourceRef: string) {
