@@ -79,7 +79,7 @@ export default function ProjectsPage() {
 
   if (installedQuery.isLoading) {
     return (
-      <PageContainer size="full">
+      <PageContainer>
         <div className="space-y-3" aria-busy="true" aria-label="Loading projects">
           <Skeleton className="h-8 w-40" />
           <Skeleton className="h-4 w-64" />
@@ -95,7 +95,7 @@ export default function ProjectsPage() {
 
   if (!installed) {
     return (
-      <PageContainer size="md">
+      <PageContainer>
         <PageHeader title="Projects" description="Group related tasks into projects." />
         <Card>
           <CardContent className="space-y-4 pt-6">
@@ -119,7 +119,7 @@ export default function ProjectsPage() {
   const showEmpty = !projectsQuery.isLoading && !projectsQuery.isError && projects.length === 0 && !showCreate;
 
   return (
-    <PageContainer size="full">
+    <PageContainer>
       <PageHeader
         title="Projects"
         description="Group related tasks into projects."
@@ -196,7 +196,7 @@ export default function ProjectsPage() {
       ) : (
         <div className="space-y-6">
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold tracking-wide text-muted-foreground">Active</h2>
+            <h2 className="text-section-title text-foreground">Active</h2>
             {activeProjects.length === 0 ? (
               <p className="text-sm text-muted-foreground">No active projects.</p>
             ) : (
@@ -231,7 +231,7 @@ export default function ProjectsPage() {
           </section>
           {archivedProjects.length > 0 ? (
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold tracking-wide text-muted-foreground">
+              <h2 className="text-section-title text-foreground">
                 Archived
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

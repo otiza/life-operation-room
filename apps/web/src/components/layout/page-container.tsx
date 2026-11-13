@@ -4,14 +4,16 @@ import { cn } from '../../lib/utils';
 type PageContainerProps = {
   children: React.ReactNode;
   className?: string;
-  /** max width token — default content width for shell pages */
-  size?: 'md' | 'lg' | 'xl' | 'full';
+  /**
+   * Max width. `reading` (about 760px) is the default for lists and writing.
+   * `full` is only for the calendar grid and the task board; `lg` for the marketplace and Manual.
+   */
+  size?: 'reading' | 'lg' | 'full';
 };
 
 const sizeClass = {
-  md: 'max-w-3xl',
+  reading: 'max-w-[47.5rem]',
   lg: 'max-w-6xl',
-  xl: 'max-w-7xl',
   full: 'max-w-none',
 } as const;
 
@@ -19,7 +21,7 @@ const sizeClass = {
  * Standard page wrapper for shell + mini-app screens.
  * Mobile-first padding; grows comfortably on larger breakpoints.
  */
-export function PageContainer({ children, className, size = 'lg' }: PageContainerProps) {
+export function PageContainer({ children, className, size = 'reading' }: PageContainerProps) {
   return (
     <div className={cn('mx-auto w-full space-y-6', sizeClass[size], className)}>
       {children}

@@ -25,7 +25,7 @@ export function ManualView({ slug }: { slug: string }) {
   const headings = chapter.blocks.filter((block) => block.type === 'h2');
 
   return (
-    <PageContainer size="xl" className="space-y-8">
+    <PageContainer size="lg" className="space-y-8">
       <div className="lg:hidden">
         <p className="text-meta text-muted-foreground">Manual</p>
         <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1">

@@ -175,7 +175,7 @@ export default function TasksSettingsPage() {
 
   if (settingsQuery.isLoading || membersQuery.isLoading || meQuery.isLoading) {
     return (
-      <PageContainer size="full">
+      <PageContainer>
         <div className="space-y-4" aria-busy="true" aria-label="Loading settings">
           <Skeleton className="h-8 w-40" />
           <SkeletonText lines={2} />
@@ -188,7 +188,7 @@ export default function TasksSettingsPage() {
 
   if (!canManageSettings) {
     return (
-      <PageContainer size="full">
+      <PageContainer>
         <PageHeader
           title="Settings"
           description="Only workspace owners and admins can edit task statuses and priorities."
@@ -201,7 +201,7 @@ export default function TasksSettingsPage() {
   const priorities = sortByOrder(draft.priorities);
 
   return (
-    <PageContainer size="full">
+    <PageContainer>
       <PageHeader
         title="Settings"
         description="Board columns and priority colors for this workspace."
@@ -216,7 +216,7 @@ export default function TasksSettingsPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Statuses</h2>
+            <h2 className="text-section-title text-foreground">Statuses</h2>
             <p className="text-xs text-muted-foreground">Drag to set the board order.</p>
           </div>
           <Button type="button" variant="outline" size="sm" className="h-9" onClick={addStatus}>
@@ -258,7 +258,7 @@ export default function TasksSettingsPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Priorities</h2>
+            <h2 className="text-section-title text-foreground">Priorities</h2>
             <p className="text-xs text-muted-foreground">Drag to set the order. The color is the card accent.</p>
           </div>
           <Button type="button" variant="outline" size="sm" className="h-9" onClick={addPriority}>

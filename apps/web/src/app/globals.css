@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
-  Life Room design tokens (Option B).
+  Life Room design tokens. Rules: docs/DESIGN.md.
   Headings: Literata. Body: IBM Plex Sans.
   Accent: muted terracotta. Density: comfortable.
   Semantic names only — no raw Tailwind palette colors in UI code.
@@ -14,7 +14,7 @@
   --card-foreground: oklch(0.24 0.02 50);
   --popover: oklch(0.995 0.004 70);
   --popover-foreground: oklch(0.24 0.02 50);
-  --primary: oklch(0.58 0.12 45);
+  --primary: oklch(0.55 0.12 45);
   --primary-foreground: oklch(0.99 0.01 70);
   --secondary: oklch(0.95 0.012 70);
   --secondary-foreground: oklch(0.32 0.03 50);
@@ -30,14 +30,14 @@
   --warning-foreground: oklch(0.28 0.05 55);
   --border: oklch(0.9 0.012 70);
   --input: oklch(0.9 0.012 70);
-  --ring: oklch(0.58 0.12 45);
+  --ring: oklch(0.55 0.12 45);
   --radius: 0.875rem;
   --sidebar: oklch(0.985 0.006 70);
   --sidebar-foreground: oklch(0.28 0.02 50);
   --sidebar-accent: oklch(0.95 0.02 50);
   --sidebar-accent-foreground: oklch(0.24 0.02 50);
   --sidebar-border: oklch(0.9 0.012 70);
-  --sidebar-ring: oklch(0.58 0.12 45);
+  --sidebar-ring: oklch(0.55 0.12 45);
 
   --priority-urgent: oklch(0.55 0.2 25);
   --priority-high: oklch(0.62 0.16 45);
@@ -45,14 +45,31 @@
   --priority-low: oklch(0.62 0.1 230);
   --priority-none: oklch(0.88 0.01 70);
 
-  --event-1: oklch(0.58 0.12 45);
-  --event-2: oklch(0.55 0.11 155);
-  --event-3: oklch(0.55 0.12 250);
-  --event-4: oklch(0.6 0.12 320);
-  --event-5: oklch(0.65 0.12 85);
-  --event-6: oklch(0.52 0.1 200);
-  --event-7: oklch(0.58 0.14 25);
-  --event-8: oklch(0.5 0.08 280);
+  /* Event hues: one lightness and chroma, only the hue turns, so any mix looks related. */
+  --event-1: oklch(0.62 0.11 45);
+  --event-2: oklch(0.62 0.11 85);
+  --event-3: oklch(0.62 0.11 125);
+  --event-4: oklch(0.62 0.11 165);
+  --event-5: oklch(0.62 0.11 205);
+  --event-6: oklch(0.62 0.11 250);
+  --event-7: oklch(0.62 0.11 295);
+  --event-8: oklch(0.62 0.11 340);
+
+  /* App signature tints: icons, nav markers, small labels, empty-state marks. Never large fills. */
+  --app-tasks: oklch(0.53 0.12 42);
+  --app-tasks-soft: oklch(0.945 0.03 42);
+  --app-calendar: oklch(0.5 0.08 150);
+  --app-calendar-soft: oklch(0.945 0.03 150);
+  --app-notes: oklch(0.52 0.1 78);
+  --app-notes-soft: oklch(0.945 0.03 78);
+  --app-projects: oklch(0.5 0.06 250);
+  --app-projects-soft: oklch(0.945 0.03 250);
+
+  --nav-active-bg: oklch(0.945 0.03 45);
+  --nav-active-marker: oklch(0.55 0.12 45);
+
+  --paper: oklch(0.988 0.012 82);
+  --paper-foreground: oklch(0.26 0.02 55);
 
   --elevation-flat: none;
   --elevation-raised: 0 1px 2px oklch(0.3 0.02 50 / 0.06), 0 1px 3px oklch(0.3 0.02 50 / 0.08);
@@ -105,14 +122,29 @@
   --priority-low: oklch(0.72 0.1 230);
   --priority-none: oklch(0.4 0.02 50);
 
-  --event-1: oklch(0.72 0.12 50);
-  --event-2: oklch(0.7 0.11 155);
-  --event-3: oklch(0.7 0.12 250);
-  --event-4: oklch(0.72 0.12 320);
-  --event-5: oklch(0.78 0.12 85);
-  --event-6: oklch(0.68 0.1 200);
-  --event-7: oklch(0.7 0.14 25);
-  --event-8: oklch(0.68 0.08 280);
+  --event-1: oklch(0.72 0.1 45);
+  --event-2: oklch(0.72 0.1 85);
+  --event-3: oklch(0.72 0.1 125);
+  --event-4: oklch(0.72 0.1 165);
+  --event-5: oklch(0.72 0.1 205);
+  --event-6: oklch(0.72 0.1 250);
+  --event-7: oklch(0.72 0.1 295);
+  --event-8: oklch(0.72 0.1 340);
+
+  --app-tasks: oklch(0.74 0.11 48);
+  --app-tasks-soft: oklch(0.28 0.04 48);
+  --app-calendar: oklch(0.75 0.08 150);
+  --app-calendar-soft: oklch(0.28 0.04 150);
+  --app-notes: oklch(0.78 0.1 82);
+  --app-notes-soft: oklch(0.28 0.04 82);
+  --app-projects: oklch(0.75 0.06 250);
+  --app-projects-soft: oklch(0.28 0.04 250);
+
+  --nav-active-bg: oklch(0.27 0.035 45);
+  --nav-active-marker: oklch(0.72 0.12 50);
+
+  --paper: oklch(0.205 0.014 60);
+  --paper-foreground: oklch(0.92 0.012 75);
 
   --elevation-flat: none;
   --elevation-raised: 0 1px 2px oklch(0 0 0 / 0.35), 0 1px 3px oklch(0 0 0 / 0.25);
@@ -167,6 +199,18 @@
   --color-event-6: var(--event-6);
   --color-event-7: var(--event-7);
   --color-event-8: var(--event-8);
+  --color-app-tasks: var(--app-tasks);
+  --color-app-tasks-soft: var(--app-tasks-soft);
+  --color-app-calendar: var(--app-calendar);
+  --color-app-calendar-soft: var(--app-calendar-soft);
+  --color-app-notes: var(--app-notes);
+  --color-app-notes-soft: var(--app-notes-soft);
+  --color-app-projects: var(--app-projects);
+  --color-app-projects-soft: var(--app-projects-soft);
+  --color-nav-active: var(--nav-active-bg);
+  --color-nav-marker: var(--nav-active-marker);
+  --color-paper: var(--paper);
+  --color-paper-foreground: var(--paper-foreground);
   --color-danger-soft: var(--danger-soft);
   --color-danger-soft-foreground: var(--danger-soft-foreground);
   --color-success-soft: var(--success-soft);
@@ -204,6 +248,14 @@ body {
   line-height: 1.25;
   font-weight: 600;
   letter-spacing: -0.02em;
+}
+
+@utility text-display {
+  font-family: var(--font-heading), Literata, ui-serif, Georgia, serif;
+  font-size: clamp(1.875rem, 1.4rem + 2vw, 2.5rem);
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -0.025em;
 }
 
 @utility text-section-title {

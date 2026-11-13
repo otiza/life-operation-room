@@ -63,10 +63,10 @@ export default function MarketplacePage() {
   }, [catalogQuery.data]);
 
   return (
-    <PageContainer size="xl" className="space-y-8">
+    <PageContainer size="lg" className="space-y-8">
       <PageHeader
         title="App marketplace"
-        description="Install what you need. Dependencies are enforced the Odoo way."
+        description="Add the apps you need. Some apps need another one first."
       />
       {(installMutation.error || uninstallMutation.error) && (
         <p className="text-sm text-destructive">
@@ -77,7 +77,7 @@ export default function MarketplacePage() {
       )}
       {grouped.map((group) => (
         <section key={group.category} className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="text-section-title text-foreground">
             {group.category}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">

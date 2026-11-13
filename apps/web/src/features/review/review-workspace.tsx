@@ -140,7 +140,7 @@ export function ReviewWorkspace({ workspaceId }: { workspaceId: string }) {
 
   if (appsQuery.isSuccess && !tasksInstalled) {
     return (
-      <PageContainer size="md">
+      <PageContainer>
         <PageHeader title="Review your day" description={todayLabel} />
         <EmptyState
           title="Tasks is not installed"
@@ -152,7 +152,7 @@ export function ReviewWorkspace({ workspaceId }: { workspaceId: string }) {
   }
 
   return (
-    <PageContainer size="md" className="pb-16">
+    <PageContainer className="pb-16">
       <PageHeader
         title="Review your day"
         description={todayLabel}
@@ -352,7 +352,7 @@ function ReviewStep({
             {number}
           </span>
           <div>
-            <h2 id={headingId} className="text-sm font-semibold text-foreground">
+            <h2 id={headingId} className="text-section-title text-foreground">
               {title}
             </h2>
             {description ? <p className="mt-0.5 text-sm text-muted-foreground">{description}</p> : null}

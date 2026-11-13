@@ -15,6 +15,7 @@ import { shouldSuggestReview } from '../../../features/review/review-plan';
 import { useDayClosed } from '../../../features/review/use-day-closed';
 import { PageContainer, PageHeader } from '../../../components/layout/page-container';
 import { Button } from '../../../components/ui/button';
+import { SectionHeading } from '../../../components/ui/section-heading';
 import { EmptyState } from '../../../components/ui/empty-state';
 import { Input } from '../../../components/ui/input';
 import { Skeleton, SkeletonRow } from '../../../components/ui/skeleton';
@@ -171,7 +172,7 @@ export default function WorkspaceHomePage() {
   }
 
   return (
-    <PageContainer size="full">
+    <PageContainer>
       <PageHeader
         title="Today"
         description={todayLabel}
@@ -284,17 +285,10 @@ export default function WorkspaceHomePage() {
           )}
 
           <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-foreground">Calendar</h2>
-              {calendarInstalled ? (
-                <Link
-                  href={`/w/${workspaceId}/calendar`}
-                  className="text-sm text-muted-foreground hover:text-foreground"
-                >
-                  Open Calendar
-                </Link>
-              ) : null}
-            </div>
+            <SectionHeading
+              title="Calendar"
+              action={calendarInstalled ? { label: 'Open calendar', href: `/w/${workspaceId}/calendar` } : undefined}
+            />
             {!calendarInstalled ? (
               <EmptyState
                 title="Calendar is not installed"
@@ -370,32 +364,25 @@ export default function WorkspaceHomePage() {
           </section>
 
           <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <h2 className="text-sm font-semibold text-foreground">Tasks</h2>
-                {tasksInstalled && plannedCount > 0 ? (
+            <SectionHeading
+              title="Tasks"
+              meta={
+                tasksInstalled && plannedCount > 0 ? (
                   <div className="flex items-center gap-2" aria-label={`${doneCount} of ${plannedCount} done today`}>
                     <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted" aria-hidden>
                       <div
-                        className="h-full rounded-full bg-success transition-[width]"
+                        className="h-full rounded-full bg-primary transition-[width]"
                         style={{ width: `${Math.round((doneCount / plannedCount) * 100)}%` }}
                       />
                     </div>
-                    <span className="text-xs tabular-nums text-muted-foreground">
+                    <span>
                       {doneCount} of {plannedCount} done
                     </span>
                   </div>
-                ) : null}
-              </div>
-              {tasksInstalled ? (
-                <Link
-                  href={`/w/${workspaceId}/tasks?view=today`}
-                  className="text-sm text-muted-foreground hover:text-foreground"
-                >
-                  Open Tasks
-                </Link>
-              ) : null}
-            </div>
+                ) : undefined
+              }
+              action={tasksInstalled ? { label: 'Open tasks', href: `/w/${workspaceId}/tasks?view=today` } : undefined}
+            />
             {tasksInstalled ? (
               <TodayTaskList
                 workspaceId={workspaceId}

@@ -3,6 +3,7 @@
 import type { TaskSettings, TaskView } from '@life-room/shared';
 import { ApiError } from '../../lib/api';
 import { EmptyState } from '../../components/ui/empty-state';
+import { SectionHeading } from '../../components/ui/section-heading';
 import { SkeletonRow } from '../../components/ui/skeleton';
 import { TasksBoard, type TaskBoardMove } from './tasks-board';
 import { TaskRows } from './task-rows';
@@ -115,7 +116,7 @@ export function TasksListSection({
     <div className="space-y-6">
       {groups.map((group) => (
         <section key={group.key} className="space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">{group.label}</h2>
+          <SectionHeading title={group.label} meta={group.tasks.length} />
           <TaskRows
             tasks={group.tasks}
             settings={settings}
@@ -135,7 +136,7 @@ export function TasksListSection({
         <section className="space-y-2">
           <button
             type="button"
-            className="text-sm font-semibold text-foreground"
+            className="rounded-sm text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-expanded={completedOpen}
             onClick={() => setCompletedOpen((open) => !open)}
           >

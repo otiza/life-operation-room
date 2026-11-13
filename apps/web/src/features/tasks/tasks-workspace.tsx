@@ -27,7 +27,6 @@ import { Skeleton, SkeletonText } from '../../components/ui/skeleton';
 import { useToast } from '../../components/ui/toast';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { ApiError } from '../../lib/api';
-import { cn } from '../../lib/utils';
 import { registerAppCommands } from '../shell/command-registry';
 import { useShellStore } from '../shell/shell-store';
 import type { TaskBoardMove } from './tasks-board';
@@ -284,7 +283,7 @@ export function TasksWorkspace({
           },
           {
             key: 'evening',
-            label: 'This Evening',
+            label: 'This evening',
             tasks: listedTasks.filter((task) => task.section === 'evening'),
           },
         ].filter((group) => group.tasks.length > 0)
@@ -631,7 +630,7 @@ export function TasksWorkspace({
 
   if (installedQuery.isLoading) {
     return (
-      <PageContainer size="full">
+      <PageContainer>
         <div className="space-y-3" aria-busy="true" aria-label="Loading tasks">
           <Skeleton className="h-8 w-40" />
           <SkeletonText lines={2} />
@@ -643,7 +642,7 @@ export function TasksWorkspace({
 
   if (!tasksInstalled) {
     return (
-      <PageContainer size="md">
+      <PageContainer>
         {header}
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
@@ -670,7 +669,7 @@ export function TasksWorkspace({
                 : 'Tasks';
 
   return (
-    <PageContainer size="full" className={cn(isBoard && 'max-w-none')}>
+    <PageContainer size={isBoard ? 'full' : 'reading'}>
       {header ?? (
         <PageHeader
           title={viewTitle}

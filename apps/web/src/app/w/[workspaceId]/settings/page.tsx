@@ -60,7 +60,7 @@ export default function WorkspaceSettingsPage() {
   const workspace = workspaceQuery.data?.workspace;
 
   return (
-    <PageContainer size="md">
+    <PageContainer>
       <PageHeader
         title="Workspace settings"
         description="Members and invites for this workspace."

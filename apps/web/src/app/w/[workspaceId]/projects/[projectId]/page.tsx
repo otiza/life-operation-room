@@ -18,7 +18,7 @@ export default function ProjectDetailPage() {
   return (
     <Suspense
       fallback={
-        <PageContainer size="md">
+        <PageContainer>
           <div className="space-y-3" aria-busy="true" aria-label="Loading project">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-8 w-56" />
@@ -73,7 +73,7 @@ function ProjectDetailContent() {
 
   if (projectQuery.isLoading) {
     return (
-      <PageContainer size="md">
+      <PageContainer>
         <div className="space-y-3" aria-busy="true" aria-label="Loading project">
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-8 w-56" />
@@ -85,7 +85,7 @@ function ProjectDetailContent() {
 
   if (projectQuery.isError || !projectQuery.data?.project) {
     return (
-      <PageContainer size="md">
+      <PageContainer>
         <PageHeader
           title="Project"
           description="Not found"
