@@ -13,6 +13,7 @@ import { Input } from '../../components/ui/input';
 import { SkeletonRow } from '../../components/ui/skeleton';
 import { useToast } from '../../components/ui/toast';
 import { ApiError } from '../../lib/api';
+import { RowList } from '../../components/ui/row-list';
 import { cn } from '../../lib/utils';
 import { listInstalledApps } from '../apps/apps-api';
 import { listCalendarEvents, viewerTimeZone, type CalendarOccurrenceDto } from '../calendar/calendar-api';
@@ -180,11 +181,11 @@ export function ReviewWorkspace({ workspaceId }: { workspaceId: string }) {
             Nothing marked done today. That happens; the next step is where the day gets decided.
           </p>
         ) : (
-          <ul className="overflow-hidden rounded-xl border border-border bg-card">
+          <RowList>
             {done.map((task, index) => (
               <DoneRow key={task.id} task={task} workspaceId={workspaceId} showDivider={index > 0} />
             ))}
-          </ul>
+          </RowList>
         )}
       </ReviewStep>
 
@@ -243,7 +244,7 @@ export function ReviewWorkspace({ workspaceId }: { workspaceId: string }) {
       </ReviewStep>
 
       <ReviewStep number={4} title="Look at tomorrow" description={tomorrowLabel(tomorrowKey)}>
-        <div className="space-y-4 rounded-xl border border-border bg-card p-3 sm:p-4">
+        <div className="space-y-4">
           {calendarInstalled ? (
             <DayStrip
               events={tomorrowEvents}
@@ -318,7 +319,7 @@ function tomorrowLabel(tomorrowKey: string) {
 
 function SummaryTile({ label, value, tone }: { label: string; value: string; tone?: 'success' }) {
   return (
-    <div className="rounded-xl border border-border bg-card px-3 py-2.5 sm:px-4 sm:py-3">
+    <div className="border-l-2 border-border py-1 pl-3 sm:pl-4">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className={cn('mt-0.5 text-2xl font-semibold tabular-nums text-foreground', tone === 'success' && 'text-success')}>
         {value}

@@ -18,7 +18,7 @@ async function openMarketplace(page: Page) {
 }
 
 async function installApp(page: Page, name: string) {
-  const card = page.locator('div.rounded-xl').filter({ has: page.getByRole('heading', { name, exact: true }) });
+  const card = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name, exact: true }) });
   await card.getByRole('button', { name: 'Install' }).click();
   await expect(card.getByRole('button', { name: 'Uninstall' })).toBeVisible();
 }

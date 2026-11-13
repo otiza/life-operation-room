@@ -7,6 +7,7 @@ import { Menu } from '../../components/ui/menu';
 import { Button } from '../../components/ui/button';
 import { SkeletonRow } from '../../components/ui/skeleton';
 import { EmptyState } from '../../components/ui/empty-state';
+import { RowList } from '../../components/ui/row-list';
 import { cn } from '../../lib/utils';
 import type { Task } from '../tasks/tasks-api';
 import { isOverdue, taskDateChips } from '../tasks/task-status';
@@ -111,7 +112,7 @@ export function TaskRowList({
   hideEveningLabel?: boolean;
 }) {
   return (
-    <ul className="overflow-hidden rounded-xl border border-border bg-card">
+    <RowList>
       {tasks.map((task, index) => (
         <TodayTaskRow
           key={task.id}
@@ -128,7 +129,7 @@ export function TaskRowList({
           }}
         />
       ))}
-    </ul>
+    </RowList>
   );
 }
 

@@ -6,6 +6,7 @@ import { describeTaskRecurrence, type TaskSettings } from '@life-room/shared';
 import type { Task } from './tasks-api';
 import { TaskDateChips } from './task-date-chips';
 import { isDoneStatus, isOverdue, priorityColor, priorityLabel, statusLabel } from './task-status';
+import { RowList } from '../../components/ui/row-list';
 import { cn } from '../../lib/utils';
 
 export function ScopeButton({
@@ -64,7 +65,7 @@ export function TaskRows({
   onToggleDone: (task: Task) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
+    <RowList as="div">
       {tasks.map((task, index) => {
         const overdue = isOverdue(task.dueAt, task.status, settings);
         const pending = pendingCompleteIds.has(task.id);
@@ -105,7 +106,7 @@ export function TaskRows({
             key={task.id}
             data-task-id={task.id}
             className={cn(
-              'group relative flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-muted sm:px-4 motion-safe:transition-all motion-safe:duration-300',
+              'group relative flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-muted/60 sm:px-4 motion-safe:transition-all motion-safe:duration-300',
               index > 0 && 'border-t border-border',
               overdue && 'bg-danger-soft/40 hover:bg-danger-soft/60',
               focused && 'bg-accent',
@@ -164,6 +165,6 @@ export function TaskRows({
           </div>
         );
       })}
-    </div>
+    </RowList>
   );
 }

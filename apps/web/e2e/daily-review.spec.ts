@@ -15,7 +15,7 @@ async function installApps(page: Page, names: string[]) {
   // By URL: on a phone the sidebar (and its Marketplace link) is collapsed.
   await page.goto(`${page.url()}/apps`);
   for (const name of names) {
-    const card = page.locator('div.rounded-xl').filter({ has: page.getByRole('heading', { name, exact: true }) });
+    const card = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name, exact: true }) });
     await card.getByRole('button', { name: 'Install' }).click();
     await expect(card.getByRole('button', { name: 'Uninstall' })).toBeVisible();
   }

@@ -12,7 +12,6 @@ import {
   Search,
   Sun,
   X,
-  type LucideIcon,
 } from 'lucide-react';
 import { logout, me } from '../auth/auth-api';
 import { listInstalledApps } from '../apps/apps-api';
@@ -37,10 +36,10 @@ import { Menu } from '../../components/ui/menu';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Logo } from '../../components/brand/logo';
 import { ProfileMenu } from './profile-menu';
+import { AppIcon } from '../apps/app-icon';
 import { isTypingTarget } from '../../lib/keyboard';
 import { cn } from '../../lib/utils';
 import { useEffect, useId, useMemo, useState } from 'react';
-import * as lucideIcons from 'lucide-react';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -371,7 +370,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             return (
               <div key={app.appKey} className="space-y-0.5">
                 <ShellNavLink href={`${href}?view=today`} active={tasksPathActive} onNavigate={closeMobileNav}>
-                  <ManifestIcon name={app.manifest.nav.icon} className={appTintClass(app.appKey)} />
+                  <AppIcon name={app.manifest.nav.icon} appKey={app.appKey} />
                   {app.manifest.nav.label}
                 </ShellNavLink>
                 <TasksNav
@@ -393,7 +392,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               active={pathname === href || (pathname?.startsWith(`${href}/`) ?? false)}
               onNavigate={closeMobileNav}
             >
-              <ManifestIcon name={app.manifest.nav.icon} className={appTintClass(app.appKey)} />
+              <AppIcon name={app.manifest.nav.icon} appKey={app.appKey} />
               {app.manifest.nav.label}
             </ShellNavLink>
           );
@@ -642,29 +641,6 @@ function quickAddDefaultsFromPath(pathname: string) {
     if (view === 'today') return { whenDate: new Date().toISOString().slice(0, 10) };
   }
   return {};
-}
-
-function ManifestIcon({ name, className }: { name: string; className?: string }) {
-  const icons = lucideIcons as unknown as Record<string, LucideIcon | undefined>;
-  const Icon = icons[name];
-  if (!Icon) return <span className="h-4 w-4 shrink-0" />;
-  return <Icon className={cn('h-4 w-4 shrink-0', className)} />;
-}
-
-/** Each app's quiet signature tint, used only for its nav icon. */
-function appTintClass(appKey: string) {
-  switch (appKey) {
-    case 'tasks':
-      return 'text-app-tasks';
-    case 'calendar':
-      return 'text-app-calendar';
-    case 'notes':
-      return 'text-app-notes';
-    case 'projects':
-      return 'text-app-projects';
-    default:
-      return 'text-muted-foreground';
-  }
 }
 
 function ShellNavGroup({ children }: { children: React.ReactNode }) {

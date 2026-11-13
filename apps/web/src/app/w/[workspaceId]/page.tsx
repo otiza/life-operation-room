@@ -15,6 +15,7 @@ import { shouldSuggestReview } from '../../../features/review/review-plan';
 import { useDayClosed } from '../../../features/review/use-day-closed';
 import { PageContainer, PageHeader } from '../../../components/layout/page-container';
 import { Button } from '../../../components/ui/button';
+import { RowList } from '../../../components/ui/row-list';
 import { SectionHeading } from '../../../components/ui/section-heading';
 import { EmptyState } from '../../../components/ui/empty-state';
 import { Input } from '../../../components/ui/input';
@@ -252,7 +253,7 @@ export default function WorkspaceHomePage() {
           {tasksInstalled ? (
             <section className="space-y-3">
               <form
-                className="flex flex-col gap-2 rounded-xl border border-border bg-card px-2 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring sm:flex-row sm:items-center"
+                className="flex flex-col gap-2 rounded-lg border border-border bg-card px-2 py-1.5 transition-shadow focus-within:border-ring/50 has-[input:not(:placeholder-shown)]:ring-2 has-[input:not(:placeholder-shown)]:ring-ring sm:flex-row sm:items-center"
                 onSubmit={onComposerSubmit}
               >
                 <Input
@@ -309,7 +310,7 @@ export default function WorkspaceHomePage() {
                 description="Your day is free on the calendar."
               />
             ) : (
-              <ul className="overflow-hidden rounded-xl border border-border bg-card">
+              <RowList>
                 {occurrences.map((occurrence, index) => {
                   const phase = occurrencePhase(occurrence, index);
                   return (
@@ -327,7 +328,7 @@ export default function WorkspaceHomePage() {
                       <Link
                         href={occurrenceHref(occurrence)}
                         className={cn(
-                          'flex min-h-11 items-center gap-3 px-3 py-2.5 text-sm hover:bg-accent sm:px-4',
+                          'flex min-h-11 items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted/60 sm:px-4',
                           phase === 'past' && 'opacity-50',
                         )}
                       >
@@ -359,7 +360,7 @@ export default function WorkspaceHomePage() {
                     </li>
                   );
                 })}
-              </ul>
+              </RowList>
             )}
           </section>
 

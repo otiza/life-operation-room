@@ -36,7 +36,7 @@ export function TasksComposer({
   return (
     <>
       <form
-        className="flex flex-col gap-2 rounded-xl border border-border bg-card px-2 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring sm:flex-row sm:items-center"
+        className="flex flex-col gap-2 rounded-lg border border-border bg-card px-2 py-1.5 transition-shadow focus-within:border-ring/50 has-[input:not(:placeholder-shown)]:ring-2 has-[input:not(:placeholder-shown)]:ring-ring sm:flex-row sm:items-center"
         onSubmit={onSubmit}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">

@@ -10,7 +10,7 @@ Read this before shipping UI. Tokens live in [`apps/web/src/app/globals.css`](..
 | Heading typeface | Literata (`--font-heading`, `text-page-title` / `text-section-title`) |
 | Body typeface | IBM Plex Sans (`--font-body` / `font-sans`) |
 | Accent | Terracotta `oklch(0.55 0.12 45)` (dark: `oklch(0.72 0.12 50)`) → `--primary` / `--ring` |
-| Width | One reading width, about 760 px (`PageContainer` default `size="reading"`). `full` only for the calendar grid and the task board; `lg` for the marketplace and Manual. |
+| Width | One reading width, about 760 px (`PageContainer` default `size="reading"`). `full` only for the calendar grid and the task board; `lg` for the Manual. |
 
 Do not fall back to Inter/Geist-only, purple gradients, or ALL-CAPS tracked eyebrows.
 
@@ -84,6 +84,7 @@ Checked by `apps/web/src/app/design-tokens.test.ts`, which reads `globals.css`. 
 | `PropertyField` | Labeled icon + value that opens a picker (status, priority, project, assignee, when, deadline) |
 | `Toast` / `useToast` | Transient feedback with optional Undo (Tasks delete/complete/move, Calendar delete/move) |
 | `Menu` | Compact action lists (workspace switcher, overflow “…”) |
+| `RowList` | Lists on the canvas (Home, Tasks, Logbook, Review, Apps): no box, rows bring a hairline divider, a hover tint, and 44 px height |
 | `EmptyState` | Empty lists with title, hint, and a **clickable** primary action (keyboard hint alone is not enough) |
 | `Skeleton` | Loading placeholders that match final layout (never bare “Loading…”) |
 | `Dialog` | Modal flows; focus trap, initial focus, focus return, `aria-labelledby` / `aria-describedby` |
