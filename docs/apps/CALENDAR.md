@@ -88,6 +88,9 @@ Public ICS (no session): `GET /calendar/ics/:token.ics`. Serving requires the to
 - `/w/[workspaceId]/calendar` — grid, quick add, command palette (Cmd/Ctrl+K), task sidebar when Tasks is installed
 - Day/week: drag to move (15-minute snap), bottom-edge resize; week/month: drag across days
 - Recurring edit/move/delete prompts for scope (`this` / `following` / `all`)
+- Colours: the editor offers the 8 event swatches. `color` stores a swatch key (`event-1`…`event-8`), which follows the theme; older free-form CSS colours still render. No colour means the Calendar tint; task time uses the Tasks tint.
+- Events are a soft fill with a solid left edge. Task time blocks are a dashed outline with a checkbox, so they do not read as meetings.
+- Day and week views draw a terracotta now-line across every column when the range includes today, strongest in today's column, which gets a soft tint.
 - Optimistic move updates with rollback; toast undo for move and delete
 - `/w/[workspaceId]/calendar/settings` — workspace settings + ICS feed controls
 

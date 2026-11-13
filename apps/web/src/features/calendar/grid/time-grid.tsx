@@ -48,7 +48,7 @@ function AllDayDropCell({
       ref={setNodeRef}
       className={cn(
         'min-h-10 space-y-1 border-b border-l border-border p-1',
-        isToday && 'bg-primary/5',
+        isToday && 'bg-app-calendar-soft/30',
         isOver && 'bg-accent/40',
       )}
     >
@@ -64,6 +64,7 @@ function DroppableDayColumn({
   children,
   onEmptySlotClick,
   isToday,
+  showNowLine,
   nowMinutes,
   totalMinutes,
 }: {
@@ -73,6 +74,8 @@ function DroppableDayColumn({
   children: React.ReactNode;
   onEmptySlotClick: (day: Date, minute: number) => void;
   isToday: boolean;
+  /** The visible range includes today: draw the now-line across every column. */
+  showNowLine: boolean;
   nowMinutes: number;
   totalMinutes: number;
 }) {
@@ -87,7 +90,7 @@ function DroppableDayColumn({
       data-date-key={dateKey}
       className={cn(
         'relative border-l border-border',
-        isToday && 'bg-primary/5',
+        isToday && 'bg-app-calendar-soft/30',
         isOver && 'bg-accent/40',
       )}
       style={{ height: hours.length * CALENDAR_HOUR_HEIGHT }}
@@ -105,11 +108,19 @@ function DroppableDayColumn({
           style={{ top: (hour * 60 - gridStartMinute) * (CALENDAR_HOUR_HEIGHT / 60) }}
         />
       ))}
-      {isToday && nowMinutes >= gridStartMinute && nowMinutes <= gridStartMinute + totalMinutes ? (
+      {showNowLine && nowMinutes >= gridStartMinute && nowMinutes <= gridStartMinute + totalMinutes ? (
         <div
-          className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-destructive"
+          data-testid={isToday ? 'calendar-now-line' : undefined}
+          className={cn(
+            'pointer-events-none absolute inset-x-0 z-10 border-t border-primary/40',
+            isToday && 'border-t-2 border-primary',
+          )}
           style={{ top: (nowMinutes - gridStartMinute) * (CALENDAR_HOUR_HEIGHT / 60) }}
-        />
+        >
+          {isToday ? (
+            <span className="absolute -left-1.5 -top-[7px] h-3 w-3 rounded-full bg-primary" aria-hidden />
+          ) : null}
+        </div>
       ) : null}
       {children}
     </div>
@@ -140,6 +151,7 @@ export function TimeGrid({
 }: TimeGridProps) {
   const now = new Date();
   const nowMinutes = minutesSinceMidnight(now);
+  const rangeHasToday = days.some((day) => toDateKey(day) === toDateKey(now));
   const [drag, setDrag] = useState<DragState>(null);
   const hours = useMemo(() => {
     const startHour = Math.floor(workingHours.startMinute / 60);
@@ -278,7 +290,7 @@ export function TimeGrid({
               key={day.toISOString()}
               className={cn(
                 'border-b border-l border-border px-2 py-2 text-center text-sm',
-                isToday && 'bg-primary/5',
+                isToday && 'bg-app-calendar-soft/30',
               )}
             >
               <div className={cn('font-medium', isToday && 'text-primary')}>
@@ -352,6 +364,7 @@ export function TimeGrid({
               hours={hours}
               onEmptySlotClick={onEmptySlotClick}
               isToday={isToday}
+              showNowLine={rangeHasToday}
               nowMinutes={nowMinutes}
               totalMinutes={totalMinutes}
             >

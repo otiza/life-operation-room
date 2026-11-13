@@ -662,6 +662,7 @@ export function CalendarWorkspace({ workspaceId }: CalendarWorkspaceProps) {
           await updateCalendarEvent(workspaceId, selected.eventId, {
             title: input.title,
             location: input.location,
+            color: input.color,
             scope: input.scope,
             occurrenceStart: occurrenceStartPayload(selected),
             isAllDay: input.isAllDay,

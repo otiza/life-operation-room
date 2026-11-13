@@ -1,19 +1,29 @@
-const EVENT_TOKENS = [
-  'var(--event-1)',
-  'var(--event-2)',
-  'var(--event-3)',
-  'var(--event-4)',
-  'var(--event-5)',
-  'var(--event-6)',
-  'var(--event-7)',
-  'var(--event-8)',
+/**
+ * Event colours. A stored colour is either one of the 8 swatch keys ("event-1"…"event-8",
+ * which follow the theme) or, for older events, any CSS colour, used as is.
+ * Events without a colour use the Calendar tint; task time uses the Tasks tint.
+ */
+export const EVENT_SWATCHES = [
+  { key: 'event-1', label: 'Terracotta' },
+  { key: 'event-2', label: 'Ochre' },
+  { key: 'event-3', label: 'Olive' },
+  { key: 'event-4', label: 'Sage' },
+  { key: 'event-5', label: 'Teal' },
+  { key: 'event-6', label: 'Slate blue' },
+  { key: 'event-7', label: 'Violet' },
+  { key: 'event-8', label: 'Rose' },
 ] as const;
 
-export function eventColorFor(occurrence: { eventId: string; color?: string | null }) {
-  if (occurrence.color) return occurrence.color;
-  let hash = 0;
-  for (let index = 0; index < occurrence.eventId.length; index += 1) {
-    hash = (hash + occurrence.eventId.charCodeAt(index) * (index + 1)) % EVENT_TOKENS.length;
-  }
-  return EVENT_TOKENS[hash] ?? EVENT_TOKENS[0];
+export type EventSwatchKey = (typeof EVENT_SWATCHES)[number]['key'];
+
+export function isSwatchKey(color: string | null | undefined): color is EventSwatchKey {
+  return EVENT_SWATCHES.some((swatch) => swatch.key === color);
+}
+
+export function eventColorFor(occurrence: { color?: string | null; kind?: string }) {
+  const { color } = occurrence;
+  if (isSwatchKey(color)) return `var(--${color})`;
+  if (color) return color;
+  if (occurrence.kind === 'time_block') return 'var(--app-tasks)';
+  return 'var(--app-calendar)';
 }
