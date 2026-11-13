@@ -9,7 +9,7 @@ import {
   Moon,
   Sun,
 } from 'lucide-react';
-import type { TaskView } from '@erp-tiza/shared';
+import type { TaskView } from '@life-room/shared';
 import type { Project } from '../projects/projects-api';
 import type { ProjectTaskCount, TaskViewCounts } from './tasks-api';
 import { cn } from '../../lib/utils';

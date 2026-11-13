@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { installAppSchema } from '@erp-tiza/shared';
+import { installAppSchema } from '@life-room/shared';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import {

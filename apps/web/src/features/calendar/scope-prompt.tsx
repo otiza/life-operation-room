@@ -1,6 +1,6 @@
 'use client';
 
-import type { CalendarMutationScope } from '@erp-tiza/shared';
+import type { CalendarMutationScope } from '@life-room/shared';
 import { Button } from '../../components/ui/button';
 import { Dialog } from '../../components/ui/dialog';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import ical from 'node-ical';
-import { zonedWallTimeToUtc } from '@erp-tiza/shared';
+import { zonedWallTimeToUtc } from '@life-room/shared';
 import type { CalendarEvent, CalendarEventException } from '../db/schema.js';
 import { serializeIcsCalendar } from './ics.js';
 import { RecurrenceService } from './recurrence.service.js';
@@ -33,7 +33,7 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
 
 describe('serializeIcsCalendar', () => {
   it('emits TZID local times, VTIMEZONE, and parses with node-ical for a DST weekly event', () => {
-    const ics = serializeIcsCalendar([{ event: makeEvent(), exceptions: [] }], 'Tiza Calendar');
+    const ics = serializeIcsCalendar([{ event: makeEvent(), exceptions: [] }], 'Life Room Calendar');
     expect(ics).toContain('BEGIN:VTIMEZONE');
     expect(ics).toContain('TZID:Europe/Paris');
     expect(ics).toContain('DTSTART;TZID=Europe/Paris:20260302T090000');
@@ -88,7 +88,7 @@ describe('serializeIcsCalendar', () => {
         updatedAt: new Date(),
       },
     ];
-    const ics = serializeIcsCalendar([{ event, exceptions }], 'Tiza Calendar');
+    const ics = serializeIcsCalendar([{ event, exceptions }], 'Life Room Calendar');
     expect(ics).toContain('EXDATE;TZID=Europe/Paris:20260316T090000');
     expect(ics).toContain('RECURRENCE-ID;TZID=Europe/Paris:20260323T090000');
     expect(ics).toContain('SUMMARY:Moved standup');
@@ -118,7 +118,7 @@ describe('serializeIcsCalendar', () => {
         { event: original, exceptions: [] },
         { event: following, exceptions: [] },
       ],
-      'Tiza Calendar',
+      'Life Room Calendar',
     );
     expect(ics).toMatch(/UNTIL=\d{8}T\d{6}Z/);
     const parsed = ical.sync.parseICS(ics);
@@ -160,7 +160,7 @@ describe('serializeIcsCalendar', () => {
           ],
         },
       ],
-      'Tiza Calendar',
+      'Life Room Calendar',
     );
     expect(allDayIcs).toContain('EXDATE;VALUE=DATE:20270704');
     expect(allDayIcs).toContain('DTSTART;VALUE=DATE:20260704');

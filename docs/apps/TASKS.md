@@ -52,7 +52,7 @@ Task delete is soft (`deleted_at`). Undo calls restore so id, position, and link
 
 ## Quick-add syntax
 
-Shared parser: `parseTaskQuickAdd` in `@erp-tiza/shared` (Calendar keeps `parseQuickAdd` unchanged).
+Shared parser: `parseTaskQuickAdd` in `@life-room/shared` (Calendar keeps `parseQuickAdd` unchanged).
 
 | Token | Effect |
 |---|---|

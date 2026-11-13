@@ -1,6 +1,6 @@
 'use client';
 
-import type { TaskSettings } from '@erp-tiza/shared';
+import type { TaskSettings } from '@life-room/shared';
 import { TaskActionPicker } from './task-action-picker';
 import { enabledPriorities, enabledStatuses } from './task-status';
 import type { Project } from '../projects/projects-api';

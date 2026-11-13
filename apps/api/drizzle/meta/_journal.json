@@ -64,6 +64,13 @@
       "when": 1794325165288,
       "tag": "0008_modern_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794578110398,
+      "tag": "0009_cross_app_links_indexes",
+      "breakpoints": true
     }
   ]
 }

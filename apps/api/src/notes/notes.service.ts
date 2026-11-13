@@ -14,12 +14,12 @@ import {
   setChecklistTaskId,
   type PromoteChecklistLineInput,
   type UpdateNoteBodyInput,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { AppsService } from '../apps/apps.service.js';
 import { toIso } from '../common/utils/crypto.js';
 import { notes, type Note, type User } from '../db/schema.js';
 import { LinksService } from '../links/links.service.js';
-import { TasksService } from '../tasks/tasks.service.js';
+import { TaskCommandsService } from '../tasks/task-commands.service.js';
 
 const CHECKLIST_LINK_TYPE = 'checklist';
 
@@ -29,7 +29,7 @@ export class NotesService {
     @InjectDrizzle() private readonly db: NodePgDatabase,
     private readonly appsService: AppsService,
     private readonly linksService: LinksService,
-    private readonly tasksService: TasksService,
+    private readonly taskCommands: TaskCommandsService,
   ) {}
 
   async getOrCreateToday(workspaceId: string, timeZone: string) {
@@ -99,7 +99,7 @@ export class NotesService {
     }
 
     const title = block.text.trim() || 'Untitled';
-    const task = await this.tasksService.create(workspaceId, user, {
+    const task = await this.taskCommands.create(workspaceId, user, {
       title,
       whenDate: day,
     });

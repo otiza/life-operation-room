@@ -6,7 +6,7 @@ import {
   calendarDateKeyInTimeZone,
   type CreateCalendarEventInput,
   type UpdateCalendarEventInput,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { calendarEventExceptions, calendarEvents, type CalendarEvent, type User } from '../db/schema.js';
 import { addCalendarDays, calendarEventToDto } from './calendar-mappers.js';
 import { RecurrenceService } from './recurrence.service.js';

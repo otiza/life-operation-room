@@ -3,7 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, asc, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { CreateProjectInput, UpdateProjectInput } from '@erp-tiza/shared';
+import type { CreateProjectInput, UpdateProjectInput } from '@life-room/shared';
 import { projects, type Project, type User } from '../db/schema.js';
 import {
   DOMAIN_EVENTS,
@@ -83,11 +83,6 @@ export class ProjectsService {
       .delete(projects)
       .where(and(eq(projects.id, projectId), eq(projects.workspaceId, workspaceId)));
     return { ok: true };
-  }
-
-  /** Soft cross-app validation for Tasks (no FK). */
-  async assertProjectInWorkspace(workspaceId: string, projectId: string): Promise<Project> {
-    return this.findInWorkspace(workspaceId, projectId);
   }
 
   @OnEvent(DOMAIN_EVENTS.appInstalled)

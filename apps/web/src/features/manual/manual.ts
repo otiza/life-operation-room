@@ -28,7 +28,7 @@ export const MANUAL_CHAPTERS: ManualChapter[] = [
     slug: 'start',
     title: 'Introduction',
     group: 'Guide',
-    summary: 'Life room is where you decide what belongs to today.',
+    summary: 'Life Room is where you decide what belongs to today.',
     blocks: [
       {
         type: 'p',

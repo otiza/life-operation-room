@@ -1,4 +1,4 @@
-# ERP Tiza architecture (for agents)
+# Life Room architecture (for agents)
 
 This document is the source of truth for how the life-manager shell is structured. Read it before adding features. Prefer extending existing modules over inventing parallel systems.
 
@@ -15,7 +15,7 @@ Companion docs:
 
 ## 1. Product shape
 
-ERP Tiza is a **modular life OS**, not a single monolithic feature app.
+Life Room is a **modular life OS**, not a single monolithic feature app.
 
 | Concept | Behavior |
 |---|---|
@@ -25,7 +25,7 @@ ERP Tiza is a **modular life OS**, not a single monolithic feature app.
 | Cross-app links | Generic table for interconnect (Odoo-like). Apps do not share tables. |
 | Platform services | Files / AI / Integrations / Goals — contracts exist; implement when first needed. |
 
-The **shell** plus **Projects**, **Tasks**, **Calendar**, and **Notes** are available mini-apps (`status: available`); other catalog entries remain stubs (`coming_soon`).
+The **shell** plus **Projects**, **Tasks**, **Calendar**, and **Notes** are available mini-apps (`status: available`); other manifests are `coming_soon`: `AppsService.getCatalog` hides them and `install` rejects them.
 
 Vision roadmap (do not build unless asked):
 
@@ -61,7 +61,7 @@ Important scripts (repo root):
 pnpm install
 docker compose up -d
 pnpm db:migrate
-pnpm --filter @erp-tiza/shared build
+pnpm --filter @life-room/shared build
 pnpm dev                  # shared watch + api + web
 ```
 
@@ -81,7 +81,7 @@ flowchart LR
   Web -->|Socket.IO| Api
   Api --> Postgres[(PostgreSQL)]
   Api -.-> Redis[(Redis_reserved)]
-  Api --> SharedPkg["@erp-tiza/shared manifests"]
+  Api --> SharedPkg["@life-room/shared manifests"]
   Web --> SharedPkg
 ```
 
@@ -153,7 +153,7 @@ When adding a mini-app controller:
 2. `@InstalledApp('<appKey>')` on the controller
 3. `@WorkspaceRoles(...)` on each route
 
-Apps do not import each other's tables. A cross-app read goes through a port the owning app exports (`TaskReferencesService` is the pattern). Install seeds listen for `app.installed` inside that app. `AppsService` does not special-case app keys. `install` and `uninstall` await `emitAsync` so those listeners finish before the response.
+Apps do not import each other's tables. A cross-app call goes through a port the owning app exports: `*-references` for reads (`TaskReferencesService`, `ProjectReferencesService`) and `*-commands` for writes (`TaskCommandsService`). `src/architecture/app-boundaries.spec.ts` enforces this in `pnpm test`: an app may import another app's code only from those port files, and may import only its own tables from `db/schema`. Register a new app's tables in that spec. Install seeds listen for `app.installed` inside that app. `AppsService` does not special-case app keys. `install` and `uninstall` await `emitAsync` so those listeners finish before the response.
 
 ### 4.4 Domain events
 
@@ -184,12 +184,12 @@ Core tables:
 | `workspace_members` | membership + invite tokens |
 | `workspace_apps` | installed apps per workspace |
 | `notifications` | in-app notifications |
-| `cross_app_links` | inter-app references |
+| `cross_app_links` | inter-app references; unique per (workspace, source, target, link type), indexed by target. `LinksService.create` is idempotent |
 | `integration_accounts` | reserved for OAuth/wearables |
 
 Notes:
 
-- App catalog is **code-defined** in `@erp-tiza/shared` (`APP_MANIFESTS`), not an `app_definitions` table. That keeps manifests versioned with the repo.
+- App catalog is **code-defined** in `@life-room/shared` (`APP_MANIFESTS`), not an `app_definitions` table. That keeps manifests versioned with the repo.
 - Future mini-app tables must include `workspace_id` and must not FK into another app’s tables. Use `cross_app_links` or events.
 
 Generate / migrate:
@@ -221,7 +221,7 @@ pnpm db:migrate
 | PATCH | `/notifications/:id/read` | yes |
 | GET | `/workspaces/:id/links` | yes |
 
-Validation: Zod schemas from `@erp-tiza/shared`, parsed in controllers (`.parse(body)`).
+Validation: Zod schemas from `@life-room/shared`, parsed in controllers (`.parse(body)`).
 
 ---
 
@@ -257,7 +257,7 @@ Install rules (backend):
 Always rebuild shared after editing manifests:
 
 ```bash
-pnpm --filter @erp-tiza/shared build
+pnpm --filter @life-room/shared build
 ```
 
 ---
@@ -348,7 +348,7 @@ Do not put Redux in unless there is a strong reason. Prefer a small Zustand stor
 
 `cacheComponents` / partial prefetching were disabled for the authenticated shell — nearly every meaningful page is cookie/session dynamic. Do not re-enable without Suspense/`instant` planning per route.
 
-`transpilePackages: ['@erp-tiza/shared']` is required.
+`transpilePackages: ['@life-room/shared']` is required.
 
 ---
 
@@ -388,7 +388,7 @@ First real apps: **Projects** + **Tasks** — see [apps/TASKS.md](./apps/TASKS.m
 |---|---|---|
 | `EADDRINUSE :::3001` | Two Nest watchers (orphan + turbo) | Kill the orphan PID; keep a single `pnpm dev` |
 | Hydration mismatch with `data-gr-*` | Browser extension (Grammarly etc.) | Harmless; `suppressHydrationWarning` on `<body>` |
-| Shared types missing / old manifests | Shared package not rebuilt | `pnpm --filter @erp-tiza/shared build` |
+| Shared types missing / old manifests | Shared package not rebuilt | `pnpm --filter @life-room/shared build` |
 | Cookie auth fails from web | Missing `credentials: 'include'` or CORS origin mismatch | Check `api.ts` and `CORS_ORIGIN` |
 | Circular dependency crash involving Auth + Notifications | Session logic imported via AuthService | Use `SessionService` only |
 

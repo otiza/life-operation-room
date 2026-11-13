@@ -1,9 +1,9 @@
 {
-  "name": "erp-tiza",
+  "name": "life-room",
   "private": true,
   "packageManager": "pnpm@12.18.0",
   "scripts": {
-    "dev": "turbo run dev --filter=@erp-tiza/shared --filter=api --filter=web",
+    "dev": "turbo run dev --filter=@life-room/shared --filter=api --filter=web",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
@@ -11,7 +11,11 @@
     "dev:web": "turbo run dev --filter=web",
     "db:migrate": "pnpm --filter api db:migrate",
     "db:generate": "pnpm --filter api db:generate",
-    "docker:up": "docker compose up -d"
+    "docker:up": "docker compose up -d",
+    "local:up": "docker compose --profile app up -d --build app-web",
+    "local:down": "docker compose --profile app stop app-web app-api app-db",
+    "local:logs": "docker compose --profile app logs -f app-api app-web",
+    "local:backup": "docker compose --profile app exec -T app-db pg_dump -U liferoom liferoom > life-room-backup-$(date +%F).sql"
   },
   "devDependencies": {
     "turbo": "^2.5.4",

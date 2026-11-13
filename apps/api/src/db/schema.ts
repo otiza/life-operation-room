@@ -76,7 +76,17 @@ export const crossAppLinks = pgTable('cross_app_links', {
   targetRef: text('target_ref').notNull(),
   linkType: text('link_type').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex('cross_app_links_unique_idx').on(
+    table.workspaceId,
+    table.sourceApp,
+    table.sourceRef,
+    table.targetApp,
+    table.targetRef,
+    table.linkType,
+  ),
+  index('cross_app_links_target_idx').on(table.workspaceId, table.targetApp, table.targetRef),
+]);
 
 /** Reserved for wearable / OAuth connectors — not used in phase 1. */
 export const integrationAccounts = pgTable('integration_accounts', {

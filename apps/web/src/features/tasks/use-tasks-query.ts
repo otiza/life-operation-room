@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import type { TaskSettings, TaskView } from '@erp-tiza/shared';
+import type { TaskSettings, TaskView } from '@life-room/shared';
 import { listInstalledApps } from '../apps/apps-api';
 import { me } from '../auth/auth-api';
 import { listProjects } from '../projects/projects-api';

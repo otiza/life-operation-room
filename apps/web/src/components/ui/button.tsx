@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
 /**
- * Button variants for Life room UI.
+ * Button variants for Life Room UI.
  * - Prefer one primary (`default`) action per view.
  * - Cancel / secondary actions should use `outline`, `ghost`, or `secondary` — never `default`.
  */

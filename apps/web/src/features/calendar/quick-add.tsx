@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, type RefObject } from 'react';
-import { parseQuickAdd } from '@erp-tiza/shared';
+import { parseQuickAdd } from '@life-room/shared';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { viewerTimeZone } from './calendar-api';

@@ -1,4 +1,4 @@
-import type { TaskSettings, UpdateTaskInput } from '@erp-tiza/shared';
+import type { TaskSettings, UpdateTaskInput } from '@life-room/shared';
 
 export type TodayDecision = 'done' | 'tomorrow' | 'evening' | 'not_today' | 'someday';
 

@@ -1,8 +1,8 @@
-# ERP Tiza
+# Life Room
 
 Modular life manager (Odoo-style installable apps) with a NestJS API and Next.js shell.
 
-The git repository is named **life-operation-room**; packages and code still use the **erp-tiza** name (for example `@erp-tiza/shared`).
+Packages use the `@life-room/*` scope. A few internal identifiers keep the old `tiza` prefix on purpose because existing data depends on them: the local Postgres user/database and volume, the `tiza_session` cookie, the `tiza-shell` saved UI preferences, and `@tiza-calendar` event UIDs in ICS feeds (changing these would duplicate events in subscribed calendars).
 
 ## Structure
 
@@ -25,7 +25,7 @@ docs/
 - **Tasks** — lists, board, smart views (Today, Upcoming, …), and keyboard-driven capture.
 - **Calendar** — events, recurrence, ICS feed, and optional task time blocks via cross-app links.
 
-Other catalog entries remain marketplace stubs until implemented.
+Other planned apps (costs, chat, learning, work finder, goals, fitness) are `coming_soon` manifests in `@life-room/shared`. They are hidden from the catalog and cannot be installed until they ship.
 
 ## Prerequisites
 
@@ -41,7 +41,7 @@ cp .env.example .env
 docker compose up -d postgres
 # optional later: docker compose up -d redis
 pnpm db:migrate
-pnpm --filter @erp-tiza/shared build
+pnpm --filter @life-room/shared build
 ```
 
 Create `apps/web/.env.local` with `NEXT_PUBLIC_API_URL=http://localhost:3001` (see `.env.example`).
@@ -66,7 +66,24 @@ pnpm build
 pnpm lint
 pnpm test
 pnpm --filter api test:e2e
+DATABASE_URL=postgresql://tiza:tiza@localhost:5432/tiza pnpm --filter web test:e2e   # Playwright daily loop
 ```
+
+## Run it for daily use on this PC
+
+A production build in Docker, separate from development:
+
+```bash
+pnpm local:up       # build + start → http://localhost:8080 (API on :8081)
+pnpm local:logs     # follow API/web logs
+pnpm local:down     # stop (data is kept)
+pnpm local:backup   # dump the database to life-room-backup-YYYY-MM-DD.sql
+```
+
+- Its data lives in its own Postgres container and volume (`app-db`, `life_room_data`). It is separate from the dev/test database on `:5432` and from Neon, so test runs never touch it.
+- Migrations run automatically when the API container starts.
+- Containers restart with Docker, so it comes back after a reboot. Run `pnpm local:up` again after pulling changes.
+- Ports are bound to `127.0.0.1` only, so nothing on your network can reach it.
 
 ## Shell capabilities
 
@@ -76,7 +93,6 @@ pnpm --filter api test:e2e
 - Installable app catalog with dependency checks
 - In-app notifications + Socket.IO delivery
 - Notes daily page with checklist → task promotion
-- Marketplace stubs for remaining vision apps (costs, chat, learning, work finder, goals, fitness)
 
 ## Branching & CI
 

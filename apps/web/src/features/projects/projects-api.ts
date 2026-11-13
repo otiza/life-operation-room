@@ -1,4 +1,4 @@
-import type { CreateProjectInput, ProjectDto, UpdateProjectInput } from '@erp-tiza/shared';
+import type { CreateProjectInput, ProjectDto, UpdateProjectInput } from '@life-room/shared';
 import { api } from '../../lib/api';
 
 export type Project = ProjectDto;

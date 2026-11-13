@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CalendarSettings, CalendarView } from '@erp-tiza/shared';
+import type { CalendarSettings, CalendarView } from '@life-room/shared';
 import { PageContainer, PageHeader } from '../../../../../components/layout/page-container';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';

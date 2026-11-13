@@ -1,7 +1,7 @@
 'use client';
 
 import type { RefObject } from 'react';
-import type { TaskView } from '@erp-tiza/shared';
+import type { TaskView } from '@life-room/shared';
 import { Input } from '../../components/ui/input';
 import { SegmentedControl } from '../../components/ui/segmented-control';
 import { selectClass } from './tasks-composer';

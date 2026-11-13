@@ -12,3 +12,7 @@ coverage
 *.tsbuildinfo
 note.txt
 .neon
+playwright-report
+test-results
+life-room-backup-*.sql
+.idea/

@@ -22,7 +22,7 @@ const monoFont = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Life room',
+  title: 'Life Room',
   description: 'Modular life manager shell',
 };
 

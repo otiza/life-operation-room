@@ -18,7 +18,7 @@ import {
   type TaskSettings,
   type UpdateTaskInput,
   type UpdateTaskSettingsInput,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { tasks, workspaceApps, type Task, type User } from '../db/schema.js';
 import {
   DOMAIN_EVENTS,
@@ -27,7 +27,7 @@ import {
 } from '../common/events/domain-events.js';
 import { toIso } from '../common/utils/crypto.js';
 import { AppsService } from '../apps/apps.service.js';
-import { ProjectsService } from '../projects/projects.service.js';
+import { ProjectReferencesService } from '../projects/project-references.service.js';
 import { WorkspacesService } from '../workspaces/workspaces.service.js';
 import { TaskOrderingService } from './task-ordering.service.js';
 import { TaskQueryService } from './task-query.service.js';
@@ -43,7 +43,7 @@ export class TasksService {
     @InjectDrizzle() private readonly db: NodePgDatabase,
     private readonly workspacesService: WorkspacesService,
     private readonly appsService: AppsService,
-    private readonly projectsService: ProjectsService,
+    private readonly projectReferencesService: ProjectReferencesService,
     private readonly taskReferencesService: TaskReferencesService,
     private readonly eventEmitter: EventEmitter2,
     private readonly taskQueryService: TaskQueryService,
@@ -183,7 +183,7 @@ export class TasksService {
   async create(workspaceId: string, user: User, input: CreateTaskInput) {
     const projectId = input.projectId ?? null;
     if (projectId) {
-      await this.projectsService.assertProjectInWorkspace(workspaceId, projectId);
+      await this.projectReferencesService.assertProjectInWorkspace(workspaceId, projectId);
     }
     const settings = await this.getSettings(workspaceId);
     const defaultStatus =
@@ -260,7 +260,7 @@ export class TasksService {
       this.assertAssignablePriority(settings, input.priority, existing.priority);
     }
     if (input.projectId) {
-      await this.projectsService.assertProjectInWorkspace(workspaceId, input.projectId);
+      await this.projectReferencesService.assertProjectInWorkspace(workspaceId, input.projectId);
     }
     if (input.assigneeUserId) {
       await this.assertAssigneeIsMember(workspaceId, input.assigneeUserId);

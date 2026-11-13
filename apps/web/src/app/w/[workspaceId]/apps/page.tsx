@@ -91,9 +91,7 @@ export default function MarketplacePage() {
                         <CardTitle>{app.name}</CardTitle>
                         <CardDescription>{app.description}</CardDescription>
                       </div>
-                      <Badge className="w-fit shrink-0">
-                        {app.status === 'coming_soon' ? 'coming soon' : 'available'}
-                      </Badge>
+                      {installed && <Badge className="w-fit shrink-0">installed</Badge>}
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

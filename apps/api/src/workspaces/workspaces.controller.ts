@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { createWorkspaceSchema, inviteMemberSchema } from '@erp-tiza/shared';
+import { createWorkspaceSchema, inviteMemberSchema } from '@life-room/shared';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import {
   WORKSPACE_ADMIN_ROLES,

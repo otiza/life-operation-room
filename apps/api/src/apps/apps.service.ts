@@ -8,7 +8,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { APP_MANIFESTS, getAppManifest, type InstallAppInput } from '@erp-tiza/shared';
+import { APP_MANIFESTS, getAppManifest, type InstallAppInput } from '@life-room/shared';
 import { workspaceApps } from '../db/schema.js';
 import type { User } from '../db/schema.js';
 import { DOMAIN_EVENTS } from '../common/events/domain-events.js';
@@ -21,8 +21,9 @@ export class AppsService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  /** Only shipped apps are listed. `coming_soon` manifests stay in code as the roadmap. */
   getCatalog() {
-    return APP_MANIFESTS;
+    return APP_MANIFESTS.filter((manifest) => manifest.status === 'available');
   }
 
   async listInstalled(workspaceId: string) {
@@ -37,6 +38,9 @@ export class AppsService {
     const manifest = getAppManifest(input.appKey);
     if (!manifest) {
       throw new NotFoundException(`Unknown app: ${input.appKey}`);
+    }
+    if (manifest.status !== 'available') {
+      throw new BadRequestException(`${manifest.name} is not available yet`);
     }
     const installed = await this.db
       .select()

@@ -6,7 +6,7 @@ import {
   serializeNoteMarkdown,
   type NoteBlock,
   type NoteChecklistBlock,
-} from '@erp-tiza/shared';
+} from '@life-room/shared';
 import { cn } from '../../lib/utils';
 
 type NoteEditorProps = {

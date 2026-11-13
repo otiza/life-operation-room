@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { calendarDateKeyInTimeZone, describeTaskRecurrence, type TaskSettings } from '@erp-tiza/shared';
+import { calendarDateKeyInTimeZone, describeTaskRecurrence, type TaskSettings } from '@life-room/shared';
 import { CalendarDays, Flag, FolderKanban, CircleDot, UserRound } from 'lucide-react';
 import { deleteTask, getTask, updateTask, type Task } from './tasks-api';
 import {

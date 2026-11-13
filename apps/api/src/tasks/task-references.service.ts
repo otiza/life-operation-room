@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, count, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DEFAULT_TASK_SETTINGS, taskSettingsSchema } from '@erp-tiza/shared';
+import { DEFAULT_TASK_SETTINGS, taskSettingsSchema } from '@life-room/shared';
 import { tasks, workspaceApps } from '../db/schema.js';
 import { toIso } from '../common/utils/crypto.js';
 

@@ -2,7 +2,7 @@ import { ConflictException, Inject, Injectable, UnauthorizedException, forwardRe
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { LoginInput, SignupInput } from '@erp-tiza/shared';
+import type { LoginInput, SignupInput } from '@life-room/shared';
 import { workspaceMembers, workspaces } from '../db/schema.js';
 import { hashPassword, verifyPassword } from '../common/utils/crypto.js';
 import { isEmailUniqueViolation } from '../common/utils/db-errors.js';

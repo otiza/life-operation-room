@@ -1,4 +1,4 @@
-import type { AppManifest } from '@erp-tiza/shared';
+import type { AppManifest } from '@life-room/shared';
 import { api } from '../../lib/api';
 
 export type WorkspaceApp = {

@@ -8,7 +8,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { CreateWorkspaceInput, InviteMemberInput, MemberRole } from '@erp-tiza/shared';
+import type { CreateWorkspaceInput, InviteMemberInput, MemberRole } from '@life-room/shared';
 import { users, workspaceMembers, workspaces, type User, type Workspace, type WorkspaceMember } from '../db/schema.js';
 import { createInviteToken, slugify, toIso } from '../common/utils/crypto.js';
 import { DOMAIN_EVENTS, type MemberInvitedEvent, type MemberRemovedEvent } from '../common/events/domain-events.js';

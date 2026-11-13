@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { formatTaskMarker } from '@erp-tiza/shared';
+import { formatTaskMarker } from '@life-room/shared';
 import { NotesService } from './notes.service.js';
 
 const workspaceId = '11111111-1111-4111-8111-111111111111';

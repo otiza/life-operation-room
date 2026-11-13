@@ -1,4 +1,4 @@
-# Design system (Life room)
+# Design system (Life Room)
 
 Read this before shipping UI. Tokens live in [`apps/web/src/app/globals.css`](../apps/web/src/app/globals.css). Primitives live in [`apps/web/src/components/ui`](../apps/web/src/components/ui). Work-surface behavior stays in [UI.md](./UI.md).
 
@@ -6,7 +6,7 @@ Read this before shipping UI. Tokens live in [`apps/web/src/app/globals.css`](..
 
 | Decision | Choice |
 |---|---|
-| Product name in the UI | **Life room** |
+| Product name in the UI | **Life Room** |
 | Heading typeface | Literata (`--font-heading`, `text-page-title` / `text-section-title`) |
 | Body typeface | IBM Plex Sans (`--font-body` / `font-sans`) |
 | Accent | Terracotta `oklch(0.58 0.12 45)` → `--primary` / `--ring` |
