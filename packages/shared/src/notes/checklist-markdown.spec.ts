@@ -43,3 +43,12 @@ describe('checklist-markdown', () => {
     expect(getChecklistBlock(next, 0).taskId).toBe(taskId);
   });
 });
+
+describe('parseNoteMarkdown blank lines', () => {
+  it('does not start a paragraph with the blank line after a checklist item', () => {
+    expect(parseNoteMarkdown('- [ ] Buy milk\n\nAfter the list')).toEqual([
+      { type: 'checklist', checked: false, text: 'Buy milk', taskId: null },
+      { type: 'paragraph', text: 'After the list' },
+    ]);
+  });
+});

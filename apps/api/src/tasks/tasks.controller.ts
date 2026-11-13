@@ -72,6 +72,7 @@ export class TasksController {
       due: query.due || undefined,
       view: query.view || undefined,
       cursor: query.cursor || undefined,
+      completedOn: query.completedOn || undefined,
       limit: query.limit || undefined,
       tz: query.tz || undefined,
     });

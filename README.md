@@ -59,6 +59,13 @@ pnpm dev:api
 pnpm dev:web
 ```
 
+Turbo only passes environment variables declared in `turbo.json`, so `DATABASE_URL=… pnpm dev` is ignored and the API falls back to the root `.env`. To point dev servers at local Docker Postgres, run the apps directly:
+
+```bash
+export DATABASE_URL=postgresql://tiza:tiza@localhost:5432/tiza DATABASE_URL_UNPOOLED=$DATABASE_URL
+pnpm --filter api dev & pnpm --filter web dev
+```
+
 Useful checks:
 
 ```bash

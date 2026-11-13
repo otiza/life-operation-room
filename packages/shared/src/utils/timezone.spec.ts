@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DateTime } from 'luxon';
-import { zonedWallTimeToUtc } from './timezone.js';
+import { getDayBoundsForDateKey, zonedWallTimeToUtc } from './timezone.js';
 
 function wallInZone(isoUtc: string, zone: string) {
   return DateTime.fromISO(isoUtc, { zone: 'utc' }).setZone(zone);
@@ -56,5 +56,23 @@ describe('zonedWallTimeToUtc', () => {
     const local = wallInZone(utc.toISOString(), 'Pacific/Auckland');
     expect(local.hour).toBe(1);
     expect(utc.toISOString()).toBe('2026-09-26T13:00:00.000Z');
+  });
+});
+
+describe('getDayBoundsForDateKey', () => {
+  it('returns local midnight to midnight for a plain day', () => {
+    const bounds = getDayBoundsForDateKey('2026-11-13', 'Europe/Paris');
+    expect(bounds.startOfToday.toISOString()).toBe('2026-11-12T23:00:00.000Z');
+    expect(bounds.startOfTomorrow.toISOString()).toBe('2026-11-13T23:00:00.000Z');
+  });
+
+  it('spans 25 hours on the autumn DST change', () => {
+    const bounds = getDayBoundsForDateKey('2026-10-25', 'Europe/Paris');
+    expect(bounds.startOfToday.toISOString()).toBe('2026-10-24T22:00:00.000Z');
+    expect(bounds.startOfTomorrow.toISOString()).toBe('2026-10-25T23:00:00.000Z');
+  });
+
+  it('rejects a non-date key', () => {
+    expect(() => getDayBoundsForDateKey('tomorrow', 'UTC')).toThrow();
   });
 });

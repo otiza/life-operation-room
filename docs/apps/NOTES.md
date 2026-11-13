@@ -58,6 +58,14 @@ Every route: cookie auth → workspace membership → Notes installed.
 
 When Notes is installed, the home header has **Today's note**. The home stays events, then tasks. The note is not a third decision list. Today task decisions are unchanged.
 
+## Daily review
+
+The review's **Reflect** step writes one paragraph starting `Day review: ` into today's note through the normal `PATCH` route. Saving again replaces that paragraph, and clearing it removes it; other paragraphs and checklist lines are kept. See [REVIEW.md](./REVIEW.md).
+
+## Parsing note
+
+Blank lines only separate blocks. A blank line after a checklist line does not become the first line of the next paragraph.
+
 ## Non-goals (this batch)
 
 Files / FilesGateway, folders, search across notes, sharing, mentions, templates, capture with `q`, turning capture into a note, headings toolbar, bold, tables, images, wiki links, raw source mode, TipTap / ProseMirror / MDX / block database.

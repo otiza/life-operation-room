@@ -42,7 +42,7 @@ export const MANUAL_CHAPTERS: ManualChapter[] = [
           { title: 'Organize', text: 'Leave it in Inbox, attach a project, or park it in Anytime or Someday.' },
           { title: 'Plan', text: 'On the home, read the events first, then keep, finish, or move each task.' },
           { title: 'Act', text: 'Mark the work done. A repeating task schedules its next occurrence.' },
-          { title: 'Review', text: 'The next morning, unfinished when dates are back on Today for another decision.' },
+          { title: 'Review', text: 'In the evening, open Review day: see what got done, decide what is still open, write a line, look at tomorrow, and close the day.' },
         ],
       },
       {
@@ -136,6 +136,32 @@ export const MANUAL_CHAPTERS: ManualChapter[] = [
         type: 'callout',
         title: 'A deadline holds the task on today',
         text: 'None of the planning actions clear a deadline. If the task is due today or overdue, it remains on Today, and a toast explains why.',
+      },
+      { type: 'h2', text: 'Reading the home' },
+      {
+        type: 'p',
+        text: 'Past events are faded. The event happening now is highlighted, and the next one says how long until it starts. Beside Tasks, a bar shows how much of today is done. Evening tasks sit in their own section.',
+      },
+      { type: 'h2', text: 'Review the day' },
+      {
+        type: 'p',
+        text: 'Open Review day from the sidebar, the home, or the command palette. From 17:00 the home also offers it until you close the day.',
+      },
+      {
+        type: 'table',
+        columns: ['Step', 'What happens'],
+        rows: [
+          ['What got done', 'Tasks you completed today, with the time'],
+          ['Decide what is still open', 'Tomorrow, Not today, or Someday on each row, or move all to tomorrow. Anything you skip stays on today.'],
+          ['Reflect', 'A line or two saved to today’s note. Ctrl or Cmd + Enter saves.'],
+          ['Look at tomorrow', 'Free and booked time between 9:00 and 18:00, the tasks already planned, and whether the day looks light, balanced, or heavy. Add tasks for tomorrow here.'],
+          ['Close the day', 'Hides the evening reminder and marks the home Day closed. It does not change any task.'],
+        ],
+      },
+      {
+        type: 'callout',
+        title: 'Heavy means more tasks than free hours',
+        text: 'There are no time estimates. The review compares the number of tasks with the free hours your calendar leaves, so treat it as a hint, not a schedule.',
       },
     ],
   },

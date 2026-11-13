@@ -46,7 +46,7 @@ Task delete is soft (`deleted_at`). Undo calls restore so id, position, and link
 | `upcoming` | Open, when or due after today; appears once on `when_date` else due date; `groupKey` for day/month grouping |
 | `anytime` | Open, has a project, no when, not someday |
 | `someday` | Open, `is_someday` |
-| `logbook` | Completed (`completed_at` set), ordered by `completed_at` desc, paginated (`cursor`, `limit`) |
+| `logbook` | Completed (`completed_at` set), ordered by `completed_at` desc, paginated (`cursor`, `limit`). `completedOn=YYYY-MM-DD` keeps tasks completed on that calendar day in `tz` (used by the daily review). |
 
 "Open" = not soft-deleted and status not `isDone`. Project list/board keep working via `projectId` / board filters. `GET …/tasks/counts` returns open counts for each smart view plus per-project totals.
 
@@ -98,7 +98,7 @@ Payload: `{ workspaceId, taskId, projectId: string | null, title, status, dueAt,
 
 - `GET/POST /workspaces/:id/projects`
 - `GET/PATCH/DELETE /workspaces/:id/projects/:projectId`
-- `GET/POST /workspaces/:id/tasks` (GET: `view`, `projectId`, `status`, `assignee`, `due`, `tz`, `cursor`, `limit`)
+- `GET/POST /workspaces/:id/tasks` (GET: `view`, `projectId`, `status`, `assignee`, `due`, `tz`, `cursor`, `completedOn`, `limit`)
 - `POST /workspaces/:id/tasks/reorder` (supports `todayPosition`)
 - `GET /workspaces/:id/tasks/counts` and `counts-by-project`
 - `GET/PATCH /workspaces/:id/tasks/settings`

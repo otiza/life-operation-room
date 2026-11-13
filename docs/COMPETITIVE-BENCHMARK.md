@@ -76,8 +76,8 @@ Life Room today (from this repo, not from the comparison products): capture with
 |---|---|
 | Best workflow | A daily ritual: look at yesterday, choose today, cut what can wait, then shut down. Shutdown reviews what was completed. Incomplete tasks can roll to tomorrow automatically, or the product can ask you which ones roll. |
 | Why it works | The decision is a ritual with a stopping point, not an ever-growing list. Fixed events bound how much task time is left. |
-| Life Room already | Today, evening, calendar on the home, time blocks on the calendar. No shutdown ritual and no prompt when when dates roll forward. |
-| Missing | Guided planning, time estimates, and publishing a plan. The missing piece that matches the current apps is the explicit "what rolls forward?" decision. |
+| Life Room already | Today, evening, calendar on the home, time blocks on the calendar. Since 13 Nov 2026: a daily review page (done today, decide what rolls, reflection in the daily note, tomorrow's booked vs free time, close the day) and an evening nudge on the home. |
+| Missing | Time estimates, automatic rollover, a weekly review, and publishing a plan. |
 | Integration | Tasks, Calendar, Today, Projects. Future notes can be a reflection step later. Do not add Slack publish yet. |
 | Complexity | Small for when-date decisions on tasks already on Today. Large for the full ritual, channels, and agent planning. |
 | Source | Verified 10 Nov 2026: [Daily planning and shutdown](https://www.sunsama.com/features/daily-planning-and-shutdown), [Daily planning manual](https://help.sunsama.com/docs/usage-guides/daily-planning/) (agentic planning is in beta there), [Account settings](https://help.sunsama.com/docs/settings/user-settings/) (rollover during evening planning can be automatic or a prompt). |

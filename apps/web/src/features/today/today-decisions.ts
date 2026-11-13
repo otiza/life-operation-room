@@ -85,11 +85,23 @@ export function decisionFeedback(decision: TodayDecision, staysBecauseDue: boole
     : { title: 'Taken off today' };
 }
 
-export function carriedOverMoveFeedback(movedCount: number, stayedBecauseDueCount: number) {
+function plural(count: number, one: string, many: string) {
+  return count === 1 ? `1 ${one}` : `${count} ${many}`;
+}
+
+/** Toast copy when one scheduling decision is applied to several tasks at once. */
+export function bulkDecisionFeedback(
+  decision: Exclude<TodayDecision, 'done' | 'evening'>,
+  movedCount: number,
+  stayedBecauseDueCount: number,
+) {
+  const tasks = plural(movedCount, 'task', 'tasks');
   const title =
-    movedCount === 1
-      ? 'Moved 1 carried-over task to tomorrow'
-      : `Moved ${movedCount} carried-over tasks to tomorrow`;
+    decision === 'tomorrow'
+      ? `Moved ${tasks} to tomorrow`
+      : decision === 'someday'
+        ? `Parked ${tasks} in Someday`
+        : `Took ${tasks} off today`;
   if (stayedBecauseDueCount === 0) return { title };
   const description =
     stayedBecauseDueCount === 1

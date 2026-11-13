@@ -281,7 +281,8 @@ Work surfaces (how a project, task, or the next list-shaped app should behave) l
 |---|---|
 | `/login`, `/signup` | auth |
 | `/w` | redirect to current/personal workspace |
-| `/w/[workspaceId]` | workspace home: capture for today, today's calendar, and decisions on open tasks |
+| `/w/[workspaceId]` | workspace home: capture for today, today's calendar (past, now, next), progress, and decisions on open tasks |
+| `/w/[workspaceId]/review` | daily review: done today, decide open tasks, reflection into today's note, tomorrow's load, close the day (needs Tasks) |
 | `/w/[workspaceId]/apps` | marketplace |
 | `/w/[workspaceId]/settings` | members / invites |
 | `/w/[workspaceId]/projects` | project index; a card opens that project's tasks |
