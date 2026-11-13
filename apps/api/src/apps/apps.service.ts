@@ -21,8 +21,9 @@ export class AppsService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  /** Only shipped apps are listed. `coming_soon` manifests stay in code as the roadmap. */
   getCatalog() {
-    return APP_MANIFESTS;
+    return APP_MANIFESTS.filter((manifest) => manifest.status === 'available');
   }
 
   async listInstalled(workspaceId: string) {
@@ -37,6 +38,9 @@ export class AppsService {
     const manifest = getAppManifest(input.appKey);
     if (!manifest) {
       throw new NotFoundException(`Unknown app: ${input.appKey}`);
+    }
+    if (manifest.status !== 'available') {
+      throw new BadRequestException(`${manifest.name} is not available yet`);
     }
     const installed = await this.db
       .select()

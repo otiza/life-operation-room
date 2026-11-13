@@ -25,7 +25,7 @@ Life Room is a **modular life OS**, not a single monolithic feature app.
 | Cross-app links | Generic table for interconnect (Odoo-like). Apps do not share tables. |
 | Platform services | Files / AI / Integrations / Goals — contracts exist; implement when first needed. |
 
-The **shell** plus **Projects**, **Tasks**, **Calendar**, and **Notes** are available mini-apps (`status: available`); other catalog entries remain stubs (`coming_soon`).
+The **shell** plus **Projects**, **Tasks**, **Calendar**, and **Notes** are available mini-apps (`status: available`); other manifests are `coming_soon`: `AppsService.getCatalog` hides them and `install` rejects them.
 
 Vision roadmap (do not build unless asked):
 

@@ -25,7 +25,7 @@ docs/
 - **Tasks** — lists, board, smart views (Today, Upcoming, …), and keyboard-driven capture.
 - **Calendar** — events, recurrence, ICS feed, and optional task time blocks via cross-app links.
 
-Other catalog entries remain marketplace stubs until implemented.
+Other planned apps (costs, chat, learning, work finder, goals, fitness) are `coming_soon` manifests in `@life-room/shared`. They are hidden from the catalog and cannot be installed until they ship.
 
 ## Prerequisites
 
@@ -76,7 +76,6 @@ pnpm --filter api test:e2e
 - Installable app catalog with dependency checks
 - In-app notifications + Socket.IO delivery
 - Notes daily page with checklist → task promotion
-- Marketplace stubs for remaining vision apps (costs, chat, learning, work finder, goals, fitness)
 
 ## Branching & CI
 
