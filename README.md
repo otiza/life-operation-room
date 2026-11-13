@@ -69,6 +69,22 @@ pnpm --filter api test:e2e
 DATABASE_URL=postgresql://tiza:tiza@localhost:5432/tiza pnpm --filter web test:e2e   # Playwright daily loop
 ```
 
+## Run it for daily use on this PC
+
+A production build in Docker, separate from development:
+
+```bash
+pnpm local:up       # build + start → http://localhost:8080 (API on :8081)
+pnpm local:logs     # follow API/web logs
+pnpm local:down     # stop (data is kept)
+pnpm local:backup   # dump the database to life-room-backup-YYYY-MM-DD.sql
+```
+
+- Its data lives in its own Postgres container and volume (`app-db`, `life_room_data`). It is separate from the dev/test database on `:5432` and from Neon, so test runs never touch it.
+- Migrations run automatically when the API container starts.
+- Containers restart with Docker, so it comes back after a reboot. Run `pnpm local:up` again after pulling changes.
+- Ports are bound to `127.0.0.1` only, so nothing on your network can reach it.
+
 ## Shell capabilities
 
 - Email/password auth with HTTP-only session cookies
