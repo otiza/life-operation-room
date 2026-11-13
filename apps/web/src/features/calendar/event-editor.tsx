@@ -6,10 +6,14 @@ import type { CalendarOccurrenceDto } from './calendar-api';
 import { Button } from '../../components/ui/button';
 import { Dialog } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
+import { cn } from '../../lib/utils';
+import { EVENT_SWATCHES, isSwatchKey } from './event-colors';
 
 export type EventEditorSaveInput = {
   title: string;
   location: string | null;
+  /** A swatch key ("event-1"…"event-8"), or null for the Calendar default. */
+  color: string | null;
   scope: CalendarMutationScope;
   isAllDay: boolean;
   timezone: string;
@@ -27,6 +31,34 @@ type EventEditorProps = {
   onDelete: (scope: CalendarMutationScope) => Promise<void>;
   onCompleteTask?: () => Promise<void>;
 };
+
+function SwatchButton({
+  label,
+  color,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  color: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={cn(
+        'flex h-8 w-8 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        selected && 'ring-2 ring-foreground/70 ring-offset-2 ring-offset-popover',
+      )}
+    >
+      <span className="h-5 w-5 rounded-full" style={{ backgroundColor: color }} />
+    </button>
+  );
+}
 
 function toLocalInputValue(iso: string | null): string {
   if (!iso) return '';
@@ -50,6 +82,7 @@ function EventEditorForm({
 }) {
   const [title, setTitle] = useState(occurrence.title);
   const [location, setLocation] = useState(occurrence.location ?? '');
+  const [color, setColor] = useState<string | null>(occurrence.color ?? null);
   const [scope, setScope] = useState<CalendarMutationScope>('all');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isAllDay, setIsAllDay] = useState(occurrence.isAllDay);
@@ -71,6 +104,31 @@ function EventEditorForm({
         placeholder="Location"
         disabled={occurrence.kind === 'due_chip'}
       />
+      {occurrence.kind === 'event' ? (
+        <fieldset className="space-y-1.5">
+          <legend className="text-sm text-muted-foreground">Colour</legend>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <SwatchButton
+              label="Calendar default"
+              color="var(--app-calendar)"
+              selected={!color}
+              onSelect={() => setColor(null)}
+            />
+            {EVENT_SWATCHES.map((swatch) => (
+              <SwatchButton
+                key={swatch.key}
+                label={swatch.label}
+                color={`var(--${swatch.key})`}
+                selected={color === swatch.key}
+                onSelect={() => setColor(swatch.key)}
+              />
+            ))}
+            {color && !isSwatchKey(color) ? (
+              <SwatchButton label="Current colour" color={color} selected onSelect={() => undefined} />
+            ) : null}
+          </div>
+        </fieldset>
+      ) : null}
       {occurrence.kind !== 'due_chip' ? (
         <>
           <label className="flex items-center gap-2 text-sm">
@@ -109,6 +167,7 @@ function EventEditorForm({
               await onSave({
                 title,
                 location: location.trim() || null,
+                color,
                 scope,
                 isAllDay,
                 timezone,

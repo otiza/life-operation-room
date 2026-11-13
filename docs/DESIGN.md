@@ -47,7 +47,7 @@ Semantic colors (use Tailwind utilities mapped in `@theme inline`):
 | `border` / `input` / `ring` | Hairlines and focus |
 | `sidebar*` | Shell chrome |
 | `priority-urgent\|high\|medium\|low\|none` | Priority accents |
-| `event-1` … `event-8` | Calendar event colours: one lightness and chroma, only the hue turns |
+| `event-1` … `event-8` | Calendar event colours: one lightness and chroma, only the hue turns. Stored on events as the key (`event-3`). No colour = `app-calendar`. |
 | `app-tasks\|calendar\|notes\|projects` (+ `-soft`) | An app's signature tint: its icon, nav marker, small labels, empty-state marks. Never large fills. |
 | `nav-active` / `nav-marker` | Active shell nav: soft tint background and a 2 px marker |
 | `paper` / `paper-foreground` | Writing surfaces (Notes) |

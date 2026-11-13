@@ -11,9 +11,11 @@ import { addDays, startOfDay } from '../../../features/calendar/calendar-range';
 import { useShellStore } from '../../../features/shell/shell-store';
 import { createTask, listTasks } from '../../../features/tasks/tasks-api';
 import { TodayTaskList } from '../../../features/today/today-review';
+import { TodayMasthead, type MastheadNext } from '../../../features/today/masthead';
+import { me } from '../../../features/auth/auth-api';
 import { shouldSuggestReview } from '../../../features/review/review-plan';
 import { useDayClosed } from '../../../features/review/use-day-closed';
-import { PageContainer, PageHeader } from '../../../components/layout/page-container';
+import { PageContainer } from '../../../components/layout/page-container';
 import { Button } from '../../../components/ui/button';
 import { RowList } from '../../../components/ui/row-list';
 import { SectionHeading } from '../../../components/ui/section-heading';
@@ -49,6 +51,8 @@ export default function WorkspaceHomePage() {
     const from = startOfDay(new Date());
     return { from: from.toISOString(), to: addDays(from, 1).toISOString() };
   }, []);
+
+  const meQuery = useQuery({ queryKey: ['me'], queryFn: me });
 
   const appsQuery = useQuery({
     queryKey: ['installed-apps', workspaceId],
@@ -101,11 +105,6 @@ export default function WorkspaceHomePage() {
   });
 
   const appsLoading = appsQuery.isLoading;
-  const todayLabel = new Date().toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
 
   const tasks = tasksQuery.data?.tasks ?? [];
   const doneCount = doneTodayQuery.data?.tasks.length ?? 0;
@@ -166,6 +165,29 @@ export default function WorkspaceHomePage() {
     return rest ? `in ${hours} h ${rest} min` : `in ${hours} h`;
   }
 
+  function formatClock(iso: string) {
+    return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  const currentOccurrence = occurrences.find(
+    (occurrence, index) => occurrencePhase(occurrence, index) === 'now' && occurrence.kind !== 'due_chip',
+  );
+  const nextOccurrence = nextTimedIndex >= 0 ? occurrences[nextTimedIndex] : undefined;
+  const mastheadNext: MastheadNext = currentOccurrence
+    ? {
+        kind: 'now',
+        title: currentOccurrence.title,
+        until: currentOccurrence.endAt ? formatClock(currentOccurrence.endAt) : '',
+      }
+    : nextOccurrence?.startAt
+      ? {
+          kind: 'next',
+          title: nextOccurrence.title,
+          at: formatClock(nextOccurrence.startAt),
+          relative: minutesUntil(nextOccurrence.startAt),
+        }
+      : { kind: 'none' };
+
   function kindLabel(occurrence: (typeof occurrences)[number]) {
     if (occurrence.kind === 'time_block') return 'Task block';
     if (occurrence.kind === 'due_chip') return 'Due';
@@ -174,9 +196,11 @@ export default function WorkspaceHomePage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Today"
-        description={todayLabel}
+      <TodayMasthead
+        now={now}
+        name={meQuery.data?.user.name}
+        next={calendarInstalled && !calendarQuery.isLoading ? mastheadNext : undefined}
+        progress={tasksInstalled && plannedCount > 0 ? { done: doneCount, planned: plannedCount } : undefined}
         actions={
           notesInstalled || tasksInstalled ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -367,21 +391,7 @@ export default function WorkspaceHomePage() {
           <section className="space-y-3">
             <SectionHeading
               title="Tasks"
-              meta={
-                tasksInstalled && plannedCount > 0 ? (
-                  <div className="flex items-center gap-2" aria-label={`${doneCount} of ${plannedCount} done today`}>
-                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted" aria-hidden>
-                      <div
-                        className="h-full rounded-full bg-primary transition-[width]"
-                        style={{ width: `${Math.round((doneCount / plannedCount) * 100)}%` }}
-                      />
-                    </div>
-                    <span>
-                      {doneCount} of {plannedCount} done
-                    </span>
-                  </div>
-                ) : undefined
-              }
+              meta={tasksInstalled && tasks.length > 0 ? `${tasks.length} left` : undefined}
               action={tasksInstalled ? { label: 'Open tasks', href: `/w/${workspaceId}/tasks?view=today` } : undefined}
             />
             {tasksInstalled ? (

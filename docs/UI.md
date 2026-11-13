@@ -48,7 +48,8 @@ Copy `apps/web/src/features/tasks/tasks-workspace.tsx` for the next list-shaped 
 ## Home and daily review
 
 - Home calendar: past events are faded and struck through, the current one is highlighted **Now**, and the next timed one shows **Next · in N min**.
-- Home tasks: a `done of planned` progress bar beside the heading, and **This evening** as its own section.
+- Home masthead (`features/today/masthead.tsx`): the date in `text-display`, a greeting by time of day, the sun arc over the 09:00 to 18:00 work window (`WORK_WINDOW`), **Next up** (or **Happening now**), and `done of planned` progress. On a phone it keeps the date and the next event. The intention slot below it is left for Notes.
+- Home tasks: an `N left` count beside the heading, and **This evening** as its own section.
 - From 17:00 the home shows a wrap-up banner until the day is closed; after that the header button reads **Day closed**.
 - The review (`/review`) is one page with four numbered steps. In step 2 the scheduling decisions are buttons on the row so a whole list can be triaged without opening menus. See [apps/REVIEW.md](./apps/REVIEW.md).
 
