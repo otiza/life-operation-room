@@ -66,6 +66,7 @@ pnpm build
 pnpm lint
 pnpm test
 pnpm --filter api test:e2e
+DATABASE_URL=postgresql://tiza:tiza@localhost:5432/tiza pnpm --filter web test:e2e   # Playwright daily loop
 ```
 
 ## Shell capabilities

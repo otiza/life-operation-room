@@ -12,3 +12,5 @@ coverage
 *.tsbuildinfo
 note.txt
 .neon
+playwright-report
+test-results
