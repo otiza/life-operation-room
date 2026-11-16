@@ -92,7 +92,8 @@ export const paperPalette: Palette = {
     'accent': 'oklch(0.3 0.03 45)',
     'accent-foreground': 'oklch(0.94 0.01 70)',
     'destructive': 'oklch(0.65 0.18 25)',
-    'destructive-foreground': 'oklch(0.98 0.01 70)',
+    // Dark text on the light red: white on oklch(0.65 0.18 25) was 3.3:1.
+    'destructive-foreground': 'oklch(0.2 0.03 25)',
     'success': 'oklch(0.7 0.12 155)',
     'success-foreground': 'oklch(0.18 0.03 155)',
     'warning': 'oklch(0.78 0.12 80)',

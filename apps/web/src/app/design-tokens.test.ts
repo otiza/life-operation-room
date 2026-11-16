@@ -23,6 +23,9 @@ const MUTED_PAIRS: [string, string][] = [
 
 const TEXT_PAIRS: [string, string][] = [
   ['primary-foreground', 'primary'],
+  ['destructive-foreground', 'destructive'],
+  ['success-foreground', 'success'],
+  ['warning-foreground', 'warning'],
   ['primary', 'background'],
   ['foreground', 'nav-active-bg'],
   ['app-tasks', 'background'],

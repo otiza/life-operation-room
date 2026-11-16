@@ -17,7 +17,7 @@ colors:
   paper: "#1c1611"
   paper-foreground: "#e9e4dc"
   destructive: "#e85854"
-  destructive-foreground: "#fdf7f1"
+  destructive-foreground: "#22100f"
   success: "#59b47d"
   success-foreground: "#06150c"
   warning: "#e0ae57"

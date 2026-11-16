@@ -73,6 +73,9 @@ Checked for every theme in the registry by `apps/web/src/app/design-tokens.test.
 |---|---|---|
 | foreground on background | 15.4:1 | 15.8:1 |
 | muted-foreground on sidebar | 7.2:1 | 7.8:1 |
+| destructive-foreground on destructive | 5.1:1 | 5.2:1 |
+| success-foreground on success | 5.1:1 | 7.4:1 |
+| warning-foreground on warning | 5.8:1 | 8.6:1 |
 | muted-foreground on background | 7.0:1 | 7.6:1 |
 | muted-foreground on card | 7.4:1 | 7.0:1 |
 | primary-foreground on primary | 4.9:1 | 7.1:1 |
