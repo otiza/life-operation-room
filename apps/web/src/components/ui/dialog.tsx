@@ -102,7 +102,7 @@ export function Dialog({
         aria-describedby={ariaDescribedBy}
         tabIndex={-1}
         className={cn(
-          'relative z-10 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-popover text-popover-foreground shadow-2xl outline-none sm:max-h-[85vh] sm:max-w-lg sm:rounded-2xl',
+          'relative z-10 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-border surface-floating text-popover-foreground shadow-2xl outline-none sm:max-h-[85vh] sm:max-w-lg sm:rounded-2xl',
           className,
         )}
       >

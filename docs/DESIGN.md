@@ -37,6 +37,22 @@ A theme is **data** in [`src/themes/registry.ts`](../apps/web/src/themes/registr
 - Never edit `app/themes.generated.css` or `docs/themes/*.DESIGN.md` by hand. Change the registry, then run `pnpm --filter web themes:build`. A test fails when the generated files are stale.
 - `docs/themes/<id>.<mode>.DESIGN.md` describes each theme in [Google's DESIGN.md format](https://github.com/google-labs-code/design.md) for coding agents.
 - Every theme must pass the contrast test below, in both modes, before it is registered.
+- `<html>` carries the active theme as `data-theme`, `data-canvas`, `data-pattern`, `data-grain`, `data-surface`, `data-skin`, `data-cb`, `data-divider`, `data-chip` (from `themeAttributes()`); mode stays the `.dark` class.
+
+### Surface roles
+
+Say what a surface **is**, not what colour it has, so a theme can turn it into paper, glass or nothing:
+
+| Utility | Use for |
+|---|---|
+| `surface-card` | Cards and boxed panels (composer, settings sections, calendar grid, board cards) |
+| `surface-floating` | Menus, popovers, dropdowns, dialogs, sheets, toasts — always solid, never glass on glass |
+| `surface-chrome` | The sidebar and other shell chrome |
+| `surface-control` | Inputs, textareas, outline buttons, the selected segment of a segmented control |
+
+Lists are reading content: `RowList` marks itself `data-region="reading"`, and themes keep textures out from under it. Do not use `bg-card`, `bg-popover` or `bg-sidebar` for new surfaces. Shadows: `shadow-sm…2xl`, `shadow-raised`, `shadow-overlay` are all theme tokens; never use arbitrary `shadow-[…]`.
+
+`src/themes/no-literals.test.ts` fails on hex colours, colour functions, font families or arbitrary shadows in `.tsx` files (user-editable status/priority colours are the only exception).
 
 ## Tokens
 
@@ -101,6 +117,9 @@ Checked for every theme in the registry by `apps/web/src/app/design-tokens.test.
 | `RowList` | Lists on the canvas (Home, Tasks, Logbook, Review, Apps): no box, rows bring a hairline divider, a hover tint, and 44 px height |
 | `EmptyState` | Empty lists with title, hint, and a **clickable** primary action (keyboard hint alone is not enough) |
 | `Skeleton` | Loading placeholders that match final layout (never bare “Loading…”) |
+| `CheckMark` / `checkMarkClassName` | Every "done" mark (task rows, Home, Review). Its shape is the theme's `--check-radius` |
+| `ProgressMeter` | Progress bars (Home masthead) |
+| `components/ui/icons` | The only place to import icons from (ESLint blocks `lucide-react` elsewhere), so skins can swap glyphs |
 | `Dialog` | Modal flows; focus trap, initial focus, focus return, `aria-labelledby` / `aria-describedby` |
 | `Sheet` | Side panels; use `modal={false}` for the task panel so j/k still works |
 

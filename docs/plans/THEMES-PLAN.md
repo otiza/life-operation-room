@@ -89,11 +89,14 @@ Exit: the user answers the open questions at the end of this plan.
 
 ## PR 2: Surface roles and skin-aware ornaments (no visual change)
 
-- `@utility surface-card | surface-floating | surface-chrome` and `.reading`; migrate the 34 `bg-card` / 6 `bg-popover` uses and the 13 shadows.
-- One `Checkbox` (`components/ui/checkbox.tsx`) replacing the four hand-rolled ones (Home, Review, Notes, event editor); `ProgressMeter` (used by the masthead and Review); dividers owned by `RowList`; `<Icon name>` wrapping the 24 lucide icons.
-- Detail tokens wired: `data-cb`, `data-divider`, `data-chip` (Paper: circle · solid · pill).
-- Test: no font-family literals, inline colours or raw shadows in TSX (extends the "no hardcoded palette" rule).
-- **Exit:** same screenshots as PR 1, still identical.
+- `@utility surface-card | surface-floating | surface-chrome | surface-control`; the 44 `bg-card` / `bg-popover` / `bg-sidebar` uses are classified by hand and migrated. `cn()` knows the roles (tailwind-merge), so caller overrides still win.
+- Shadows: Tailwind's `shadow-sm…2xl` become theme tokens (`--elevation-*`) with Tailwind's exact default values — no component edits needed.
+- One `CheckMark` (`components/ui/check-mark.tsx`) for the three "done" marks (task rows, Home, Review); its shape is `rounded-check` → `--check-radius`. The Notes checklist keeps the native checkbox until the Notes plan rebuilds it.
+- `ProgressMeter` for the masthead progress bar.
+- `components/ui/icons` is the single icon import point (re-exports lucide today; ESLint blocks direct `lucide-react` imports) so skins can swap glyphs in PR 7.
+- `<html>` gets the theme's `data-*` attributes; `RowList` is marked `data-region="reading"`.
+- Test: no hex colours, colour functions, font families or arbitrary shadows in `.tsx` (user-editable status/priority colours excepted).
+- **Exit:** screenshots of every screen (13 pages + profile menu, light/dark, 1440/390) compared pixel by pixel with master.
 
 ## PR 3: Layers, text protection and the Theme lab
 

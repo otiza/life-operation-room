@@ -5,6 +5,7 @@ import { cn } from '../../lib/utils';
  * (`border-t` from the second row), a hover tint, and a 44px minimum height.
  * The negative margin lines row text up with the section heading while the
  * hover tint reaches past it.
+ * `data-region="reading"` marks it as reading content: themes keep textures out from under it.
  */
 export const rowListClass = '-mx-3 sm:-mx-4';
 
@@ -19,7 +20,7 @@ export function RowList({
   children: React.ReactNode;
 } & Omit<React.HTMLAttributes<HTMLElement>, 'className' | 'children'>) {
   return (
-    <Tag className={cn(rowListClass, className)} {...rest}>
+    <Tag className={cn(rowListClass, className)} data-region="reading" {...rest}>
       {children}
     </Tag>
   );

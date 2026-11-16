@@ -70,7 +70,7 @@ export function SegmentedControl({
             className={cn(
               'rounded-[5px] px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               selected
-                ? 'bg-card text-foreground shadow-sm'
+                ? 'surface-control text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',
             )}
             onClick={() => onChange(option.value)}

@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal } from '../../../../../components/ui/icons';
 import { deleteProject, getProject, updateProject } from '../../../../../features/projects/projects-api';
 import { TasksWorkspace } from '../../../../../features/tasks/tasks-workspace';
 import { Button } from '../../../../../components/ui/button';

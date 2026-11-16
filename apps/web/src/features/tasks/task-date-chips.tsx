@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarDays, Flag } from 'lucide-react';
+import { CalendarDays, Flag } from '../../components/ui/icons';
 import { cn } from '../../lib/utils';
 import { taskDateChips, type TaskDateChip } from './task-status';
 

@@ -30,7 +30,7 @@ function SettingsForm({
 
   return (
     <div className="space-y-6">
-      <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <section className="space-y-3 rounded-xl border border-border surface-card p-4">
         <label className="block space-y-1 text-sm">
           <span>Week starts on</span>
           <select

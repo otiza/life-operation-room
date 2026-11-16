@@ -208,7 +208,7 @@ export function NotesWorkspace({ workspaceId }: { workspaceId: string }) {
       ) : noteQuery.isError ? (
         <p className="text-sm text-destructive">Could not open today’s note.</p>
       ) : (
-        <div className="min-h-[50vh] rounded-xl border border-border bg-card px-4 py-5 shadow-flat sm:px-6 sm:py-6">
+        <div className="min-h-[50vh] rounded-xl border border-border surface-card px-4 py-5 shadow-flat sm:px-6 sm:py-6">
           <NoteEditor
             value={body}
             onChange={onBodyChange}

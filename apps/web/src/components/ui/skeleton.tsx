@@ -31,7 +31,7 @@ export function SkeletonText({
 export function SkeletonRow({ className }: { className?: string }) {
   return (
     <div
-      className={cn('flex items-center gap-3 rounded-md border border-border bg-card px-3 py-3', className)}
+      className={cn('flex items-center gap-3 rounded-md border border-border surface-card px-3 py-3', className)}
       aria-hidden="true"
     >
       <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
@@ -47,7 +47,7 @@ export function SkeletonRow({ className }: { className?: string }) {
 export function SkeletonCard({ className }: { className?: string }) {
   return (
     <div
-      className={cn('space-y-3 rounded-xl border border-border bg-card p-4', className)}
+      className={cn('space-y-3 rounded-xl border border-border surface-card p-4', className)}
       aria-hidden="true"
     >
       <Skeleton className="h-4 w-1/3" />

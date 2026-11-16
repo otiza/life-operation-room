@@ -1,13 +1,14 @@
 'use client';
 
 import { Fragment } from 'react';
-import { Flag } from 'lucide-react';
+import { Flag } from '../../components/ui/icons';
 import { describeTaskRecurrence, type TaskSettings } from '@life-room/shared';
 import type { Task } from './tasks-api';
 import { TaskDateChips } from './task-date-chips';
 import { isDoneStatus, isOverdue, priorityColor, priorityLabel, statusLabel } from './task-status';
 import { RowList } from '../../components/ui/row-list';
 import { cn } from '../../lib/utils';
+import { checkMarkClassName } from '../../components/ui/check-mark';
 
 export function ScopeButton({
   active,
@@ -23,7 +24,7 @@ export function ScopeButton({
       type="button"
       className={cn(
         'inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors',
-        active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+        active ? 'surface-control text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
       )}
       aria-pressed={active}
       onClick={onClick}
@@ -119,13 +120,12 @@ export function TaskRows({
             ) : null}
             <button
               type="button"
-              className={cn(
-                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] motion-safe:transition-colors',
-                done
-                  ? 'border-success bg-success text-success-foreground'
-                  : 'border-border text-transparent hover:border-foreground/40',
-                pending && 'motion-safe:scale-110',
-              )}
+              className={checkMarkClassName({
+                checked: done,
+                hover: 'subtle',
+                glyph: 'tiny',
+                className: cn('motion-safe:transition-colors', pending && 'motion-safe:scale-110'),
+              })}
               aria-label={done ? 'Mark as open' : 'Mark as done'}
               onClick={(event) => {
                 event.stopPropagation();

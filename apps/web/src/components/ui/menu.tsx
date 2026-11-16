@@ -187,7 +187,7 @@ export function Menu({
           aria-label={ariaLabel}
           tabIndex={-1}
           className={cn(
-            'absolute z-50 min-w-[10rem] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-overlay outline-none',
+            'absolute z-50 min-w-[10rem] rounded-md border border-border surface-floating p-1 text-popover-foreground shadow-overlay outline-none',
             side === 'top' ? 'bottom-full mb-1' : 'top-full mt-1',
             align === 'end' ? 'right-0' : align === 'stretch' ? 'inset-x-0' : 'left-0',
             panelClassName,

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { calendarDateKeyInTimeZone, describeTaskRecurrence, type TaskSettings } from '@life-room/shared';
-import { CalendarDays, Flag, FolderKanban, CircleDot, UserRound } from 'lucide-react';
+import { CalendarDays, Flag, FolderKanban, CircleDot, UserRound } from '../../components/ui/icons';
 import { deleteTask, getTask, updateTask, type Task } from './tasks-api';
 import {
   dueLocalFromDateInput,
@@ -508,7 +508,7 @@ function DueMenu({
         ? createPortal(
             <div
               ref={menuRef}
-              className="fixed z-[80] overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
+              className="fixed z-[80] overflow-y-auto rounded-lg border border-border surface-floating p-1 shadow-lg"
               style={{ top: box.top, left: box.left, maxHeight: box.maxHeight, minWidth: box.minWidth }}
             >
               <button type="button" className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent" onClick={onToday}>
@@ -607,7 +607,7 @@ function PropertyMenu({
             <div
               ref={menuRef}
               role="listbox"
-              className="fixed z-[80] overflow-y-auto rounded-lg border border-border bg-popover py-1 shadow-lg"
+              className="fixed z-[80] overflow-y-auto rounded-lg border border-border surface-floating py-1 shadow-lg"
               style={{ top: box.top, left: box.left, maxHeight: box.maxHeight, minWidth: box.minWidth }}
             >
               {options.map((option) => (

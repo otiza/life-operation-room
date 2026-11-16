@@ -23,7 +23,7 @@ import { EmptyState } from '../../../components/ui/empty-state';
 import { Input } from '../../../components/ui/input';
 import { Skeleton, SkeletonRow } from '../../../components/ui/skeleton';
 import { cn } from '../../../lib/utils';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from '../../../components/ui/icons';
 
 export default function WorkspaceHomePage() {
   const params = useParams<{ workspaceId: string }>();
@@ -277,7 +277,7 @@ export default function WorkspaceHomePage() {
           {tasksInstalled ? (
             <section className="space-y-3">
               <form
-                className="flex flex-col gap-2 rounded-lg border border-border bg-card px-2 py-1.5 transition-shadow focus-within:border-ring/50 has-[input:not(:placeholder-shown)]:ring-2 has-[input:not(:placeholder-shown)]:ring-ring sm:flex-row sm:items-center"
+                className="flex flex-col gap-2 rounded-lg border border-border surface-card px-2 py-1.5 transition-shadow focus-within:border-ring/50 has-[input:not(:placeholder-shown)]:ring-2 has-[input:not(:placeholder-shown)]:ring-ring sm:flex-row sm:items-center"
                 onSubmit={onComposerSubmit}
               >
                 <Input

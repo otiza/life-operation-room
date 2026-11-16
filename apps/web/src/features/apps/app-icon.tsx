@@ -1,5 +1,5 @@
-import * as lucideIcons from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import * as lucideIcons from '../../components/ui/icons';
+import type { LucideIcon } from '../../components/ui/icons';
 import { cn } from '../../lib/utils';
 
 /** Each app's quiet signature tint. Only for its icon, nav marker and small labels. */

@@ -38,6 +38,24 @@ export function getTheme(id: string): ThemeDefinition | undefined {
   return THEMES.find((theme) => theme.id === id);
 }
 
+/**
+ * The data-* attributes that select a theme's layers and detail tokens. Set on <html>;
+ * all theme CSS keys off them. (Mode stays the `.dark` class from next-themes.)
+ */
+export function themeAttributes(theme: ThemeDefinition) {
+  return {
+    'data-theme': theme.id,
+    'data-canvas': theme.layers.canvas,
+    'data-pattern': theme.layers.pattern,
+    'data-grain': theme.layers.grain,
+    'data-surface': theme.layers.surface,
+    'data-skin': theme.skin,
+    'data-cb': theme.details.checkbox,
+    'data-divider': theme.details.divider,
+    'data-chip': theme.details.chip,
+  } as const;
+}
+
 /** The full token map of a theme in one mode (dark = light + dark overrides). */
 export function resolveTokens(theme: ThemeDefinition, mode: ThemeMode): TokenMap {
   return mode === 'light' ? { ...theme.palette.light } : { ...theme.palette.light, ...theme.palette.dark };

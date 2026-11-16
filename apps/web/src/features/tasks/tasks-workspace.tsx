@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings, X } from 'lucide-react';
+import { Settings, X } from '../../components/ui/icons';
 import type { TaskView } from '@life-room/shared';
 import { parseTaskQuickAdd } from '@life-room/shared';
 import {

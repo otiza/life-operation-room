@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { describeTaskRecurrence } from '@life-room/shared';
-import { Moon, MoreHorizontal } from 'lucide-react';
+import { Moon, MoreHorizontal } from '../../components/ui/icons';
 import { Menu } from '../../components/ui/menu';
 import { Button } from '../../components/ui/button';
 import { SkeletonRow } from '../../components/ui/skeleton';
 import { EmptyState } from '../../components/ui/empty-state';
 import { RowList } from '../../components/ui/row-list';
 import { cn } from '../../lib/utils';
+import { CheckMark } from '../../components/ui/check-mark';
 import type { Task } from '../tasks/tasks-api';
 import { isOverdue, taskDateChips } from '../tasks/task-status';
 import { decisionDisabled, isCarriedOver, type TodayDecision } from './today-decisions';
@@ -195,9 +196,7 @@ function TodayTaskRow({
           disabled={busy || doneDisabled}
           onClick={() => onDecide('done')}
         >
-          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-xs text-transparent group-hover:border-primary group-hover:text-primary">
-            ✓
-          </span>
+          <CheckMark hover="group-primary" />
         </button>
         <Link
           href={`/w/${workspaceId}/tasks?view=today&task=${task.id}`}

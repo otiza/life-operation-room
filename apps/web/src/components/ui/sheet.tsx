@@ -50,7 +50,7 @@ export function Sheet({
         role="dialog"
         aria-modal={modal}
         className={cn(
-          'relative z-10 flex h-full w-full flex-col overflow-hidden border-l border-border bg-card text-card-foreground shadow-2xl sm:max-w-md md:max-w-lg',
+          'relative z-10 flex h-full w-full flex-col overflow-hidden border-l border-border surface-floating text-card-foreground shadow-2xl sm:max-w-md md:max-w-lg',
           !modal && 'pointer-events-auto',
           className,
         )}

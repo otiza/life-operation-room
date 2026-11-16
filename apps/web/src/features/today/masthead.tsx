@@ -3,6 +3,7 @@
 import { WORK_WINDOW } from '../review/review-plan';
 import { greetingFor, pointOnArc, sunArcPosition } from './sun-arc';
 import { cn } from '../../lib/utils';
+import { ProgressMeter } from '../../components/ui/progress-meter';
 
 export type MastheadNext =
   | { kind: 'now'; title: string; until: string }
@@ -107,7 +108,6 @@ export function TodayMasthead({
 }) {
   const date = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   const firstName = name?.trim().split(/\s+/)[0];
-  const percent = progress && progress.planned > 0 ? Math.round((progress.done / progress.planned) * 100) : 0;
 
   const nextNode =
     next?.kind === 'now' ? (
@@ -157,16 +157,12 @@ export function TodayMasthead({
                 <div className="font-heading text-xl font-medium tabular-nums text-foreground">
                   {progress.done} of {progress.planned} done
                 </div>
-                <div
-                  className="mt-2 h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-muted"
-                  role="progressbar"
-                  aria-label="Tasks done today"
-                  aria-valuemin={0}
-                  aria-valuemax={progress.planned}
-                  aria-valuenow={progress.done}
-                >
-                  <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${percent}%` }} />
-                </div>
+                <ProgressMeter
+                  className="mt-2 max-w-48"
+                  value={progress.done}
+                  max={progress.planned}
+                  label="Tasks done today"
+                />
               </Fact>
             ) : null}
           </div>

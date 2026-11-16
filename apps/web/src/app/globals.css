@@ -73,6 +73,11 @@
   --font-sans: var(--font-body);
   --font-heading: var(--font-heading);
   --font-mono: var(--font-mono);
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
+  --shadow-lg: var(--elevation-lg);
+  --shadow-xl: var(--elevation-xl);
+  --shadow-2xl: var(--elevation-2xl);
   --shadow-flat: var(--elevation-flat);
   --shadow-raised: var(--elevation-raised);
   --shadow-overlay: var(--elevation-overlay);
@@ -126,6 +131,35 @@ body {
   font-family: var(--font-body), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   font-size: 0.75rem;
   line-height: 1.4;
+}
+
+/*
+  Surface roles (THEMES-PLAN PR 2). Components say what a surface *is*; the theme decides how it looks.
+  Paper: card = the card colour, floating = popover, chrome = sidebar, control = the card colour.
+  Later themes restyle a role (glass, paper, flat) under html[data-surface=…] without touching components.
+*/
+@utility surface-card {
+  background-color: var(--card);
+}
+
+/* Menus, popovers, dialogs, sheets, toasts: always solid, never glass on glass. */
+@utility surface-floating {
+  background-color: var(--popover);
+}
+
+/* Sidebar and other shell chrome. */
+@utility surface-chrome {
+  background-color: var(--sidebar);
+}
+
+/* Inputs, outline buttons, the selected segment of a segmented control. */
+@utility surface-control {
+  background-color: var(--card);
+}
+
+/* The "done" mark's shape: a detail token (data-cb). Paper: circle. */
+@utility rounded-check {
+  border-radius: var(--check-radius);
 }
 
 @utility shadow-flat {
