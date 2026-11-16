@@ -1,0 +1,174 @@
+# Themes plan: rooms you can choose
+
+Written 16 November 2026, after the themes mockup and its design review. Reference mockup (local, git-excluded): `docs/plans/mockups/life-room-themes.html`; exported tokens: `docs/plans/mockups/design-md/*.DESIGN.md`.
+
+Goal: let each person pick the room they work in — not just colours, but material, texture, type and small component shapes — **without** turning Life Room into a page builder and **without** ever making text hard to read.
+
+This plan replaces the "custom user themes" line in the *Out of scope* list of [VISUAL-IDENTITY-PLAN.md](./VISUAL-IDENTITY-PLAN.md).
+
+## Decisions already made
+
+| Decision | Choice |
+|---|---|
+| What a theme is | A **palette** (light + dark tokens) plus **layer slots**: canvas, pattern, grain, surface, type, skin, and **detail tokens** (checkbox, divider, chip). |
+| What a theme is not | A layout. Structure stays fixed: sidebar, reading column, masthead, the day as the hero. Arrangement presets are out of scope for now. |
+| Text protection | An engine rule, not a setting. Busy textures (pattern, mosaic, tiles, ASCII) are **masked out** of the reading column and the top bar. Glass themes give lists a dense backing (≥ 76 % opaque). |
+| Contrast bar | Body text ≥ 7:1, muted text ≥ 5.5:1 (canvas, card, sidebar), text on primary ≥ 4.5:1, event/priority/app hues ≥ 3:1 — in light and dark, for every theme. |
+| Categorical hues | Each palette sets one lightness + chroma (`--hue-l`, `--hue-c`). Event colours, app tints and priority turn only the hue, so they always belong to the theme. |
+| Source of truth | A typed **theme registry** in TypeScript. CSS tokens and one `DESIGN.md` per theme are **generated** from it. |
+| Who chooses | Per **user**, not per workspace (appearance is personal). Mode (light / dark / system) stays per user too. |
+| Default | **Paper** = today's Life Room, pixel for pixel. Nothing changes for anyone who doesn't open Appearance. |
+
+## The ten themes (from the mockup)
+
+| Theme | Palette | Canvas | Pattern | Grain | Surface | Type | Skin | Checkbox · Divider · Chip |
+|---|---|---|---|---|---|---|---|---|
+| Paper | cream | plain | — | paper | paper | Literata + Plex Sans | classic | circle · solid · pill |
+| Atelier | cream | plain | halftone | noise | flat | Fraunces + Work Sans | classic | square · dotted · tag |
+| Dot | ink | plain | dots | — | flat | Instrument Serif + Inter | classic | square · dotted · pill |
+| Blueprint | blueprint | plain | grid | noise | flat | JetBrains Mono + Plex Condensed | drafting | square · dashed · square |
+| Studio | felt | plain | — | felt | paper | Young Serif + Figtree | classic | rounded · stitch · pill |
+| Thermal | thermal | gradient | — | noise | frosted | Syne + DM Sans | classic | circle · solid · pill |
+| Fluted | deco | gradient | — | noise | fluted | Bodoni Moda + Jost | classic | diamond · double · square |
+| Mosaic | cream | tiles | — | noise | frosted | Bricolage Grotesque | classic | rounded · solid · tag |
+| Arcade | arcade | mosaic | — | — | paper | Pixelify + Plex Mono + Silkscreen | pixel | square · dotted · square |
+| Terminal | terminal | ascii | scanlines | — | paper | JetBrains Mono | ascii | square · dashed · square |
+
+All 20 variants (10 × light/dark) pass the contrast bar above and the documented `@google/design.md` lint rules (0 errors, 0 warnings; lowest text pair 4.91:1).
+
+## What exists today (and what it means for the work)
+
+- Tokens: `apps/web/src/app/globals.css` (`:root` + `.dark`, mapped in `@theme inline`). Names follow the shadcn convention (`background`, `card`, `muted-foreground`, `nav-active-bg`, `event-1…8`, `app-*`, `paper`). **Keep these names**; palettes fill them.
+- Mode: `next-themes` with the class strategy (`components/theme-provider.tsx`, `theme-toggle.tsx`). Keep it for light / dark / system.
+- Fonts: `next/font/google` in `app/layout.tsx` (Plex Sans, Literata, JetBrains Mono as CSS variables).
+- Contrast: `app/design-tokens.test.ts` parses `globals.css`. It moves to the registry.
+- Surfaces: `bg-card` appears 34 times, `bg-popover` 6, `rounded-*` 136, `shadow-*` 13 across 77 TSX files. Most `rounded-*` already map to `--radius`, so they theme for free; `bg-card` and shadows need **roles**.
+- Ornaments: checkboxes are implemented separately in Home, Review, Notes and the event editor; 24 lucide icons are used.
+- Users: `users` table has no preferences column; `GET /auth/me` returns the user.
+- Settings: `app/w/[workspaceId]/settings` is **workspace** settings; there is no personal settings page yet.
+
+## Architecture
+
+```
+apps/web/src/themes/
+  registry.ts          ← ThemeDefinition[] (the 10 themes), typed, validated with zod
+  palettes.ts          ← palette token sets (light/dark), incl. --hue-l / --hue-c
+  layers/              ← canvas, pattern, grain, surface CSS (keyed on data-* attributes)
+  type.ts              ← font pairings (next/font, preload: false except Paper)
+  skins/               ← classic | drafting | pixel | ascii ornament styles + icon maps
+  build.ts             ← generates themes.generated.css + docs/themes/<id>.DESIGN.md + baked textures
+components/
+  room-backdrop.tsx    ← the three texture layers, fixed behind the shell, with the text mask
+  theme-provider.tsx   ← next-themes (mode) + data-theme/data-canvas/... on <html>
+  ui/checkbox.tsx, ui/progress-meter.tsx, ui/icon.tsx, ui/divider (in RowList)  ← skin-aware ornaments
+```
+
+- `<html>` carries `class="dark"` (mode) and `data-theme`, `data-canvas`, `data-pattern`, `data-grain`, `data-surface`, `data-type`, `data-skin`, `data-cb`, `data-divider`, `data-chip`, `data-focus`. All styling keys off these attributes; components never read the theme in JS except the skin-aware ornaments.
+- **Surface roles** replace raw `bg-card`: `surface-card` (lists on paper themes, cards), `surface-floating` (popover, menu, dialog, sheet — always solid, never glass on glass), `surface-chrome` (sidebar, header), and a `reading` region (lists and writing). Each is a Tailwind `@utility` whose look comes from the active surface material.
+- **No flash:** the chosen theme is mirrored in a cookie; `app/layout.tsx` reads it server-side and writes the `data-*` attributes before first paint.
+- **Fonts:** every pairing is declared with `next/font/google` and `preload: false` (Paper's stay preloaded). A font face is only downloaded when the active theme references its variable.
+- **Textures:** grain tiles are static SVG files in `public/themes/`; mosaic, tiles and ASCII art are generated at build time per palette × mode (PNG / text). Nothing is generated in the browser.
+- **Mask geometry:** `AppShell` publishes `--sidebar-w` and `PageContainer` publishes `--reading-w` (760 px, or `full` for calendar grid and board → the whole main area is masked). On phone the texture is a 20 % wash and lists become cards.
+
+## Phase 0: Mockup and sign-off — done
+
+- Mockup with the 10 themes, layer controls, live WCAG check, gallery, phone width.
+- Design review applied (masking instead of plates, derived hues, own signatures for Fluted and Mosaic, detail tokens, phone type sizes).
+- DESIGN.md export of all 20 variants, linted.
+
+Exit: the user answers the open questions at the end of this plan.
+
+## PR 1: Theme registry, Paper as data (no visual change)
+
+- `themes/registry.ts`, `palettes.ts`, `ThemeDefinition` type. Only **Paper** is registered; its tokens are today's `globals.css` values, unchanged. (Registry invariants are enforced by tests; a zod schema arrives with the API in PR 5, in `packages/shared`.)
+- `themes/generate.ts` + `pnpm --filter web themes:build` generate `app/themes.generated.css` (Paper owns `:root` / `.dark`; other themes `html[data-theme=…]` and `html[data-theme=…].dark`) and `docs/themes/<id>.<mode>.DESIGN.md`. Generated files are committed; a test fails if they are stale.
+- Derived hues (`--hue-l` / `--hue-c` → `event-*`, `app-*`, `priority-*`) move to PR 3, when the first non-Paper palette needs them; Paper keeps its explicit values.
+- `design-tokens.test.ts` iterates the registry instead of parsing CSS, with the new bar (7 / 5.5 / 4.5 / 3).
+- Docs: `docs/DESIGN.md` gets a *Themes* section (registry, roles, the protection rule); principle 2 says "primary" instead of "terracotta", principle 5 becomes "the theme's display face is the voice".
+- **Exit:** screenshots of Home, Tasks, Calendar, Notes identical to master in light and dark.
+
+## PR 2: Surface roles and skin-aware ornaments (no visual change)
+
+- `@utility surface-card | surface-floating | surface-chrome` and `.reading`; migrate the 34 `bg-card` / 6 `bg-popover` uses and the 13 shadows.
+- One `Checkbox` (`components/ui/checkbox.tsx`) replacing the four hand-rolled ones (Home, Review, Notes, event editor); `ProgressMeter` (used by the masthead and Review); dividers owned by `RowList`; `<Icon name>` wrapping the 24 lucide icons.
+- Detail tokens wired: `data-cb`, `data-divider`, `data-chip` (Paper: circle · solid · pill).
+- Test: no font-family literals, inline colours or raw shadows in TSX (extends the "no hardcoded palette" rule).
+- **Exit:** same screenshots as PR 1, still identical.
+
+## PR 3: Layers, text protection and the Theme lab
+
+- `RoomBackdrop`: canvas (plain, gradient, mosaic, tiles, ascii), pattern (grid, dots, halftone, scanlines), grain (noise, paper, felt), strength.
+- The mask rule, driven by `--sidebar-w` / `--reading-w`; phone wash; `prefers-reduced-motion` stops the gradient drift and blinking; `prefers-reduced-transparency` makes glass solid.
+- Build-time textures in `public/themes/`.
+- **Theme lab** (dev-only route `/dev/themes`, absent in production): every primitive and the Home / Tasks / Calendar / Notes / dialog screens across all registered themes × modes. Playwright screenshot tests run from it (1440 px and 390 px).
+- Registers the texture-light themes: **Atelier, Dot, Blueprint (with the drafting skin), Studio** — not yet selectable by users.
+- **Exit:** Theme lab green for 5 themes × 2 modes × 2 widths; contrast test green.
+
+## PR 4: Type pairings
+
+- `themes/type.ts`: the nine pairings with display / heading / body / label tokens, weights, casing, tracking, phone display size. `next/font` with `preload: false`.
+- Section headings, masthead date, labels and meta read only type tokens (`text-display`, `text-section-title`, `text-meta` become token-driven).
+- **Exit:** no layout shift on theme switch (fallback metrics set), Lighthouse font budget for Paper unchanged.
+
+## PR 5: Appearance — storage, switcher and focus mode (first release)
+
+- Migration: `users.appearance jsonb not null default '{"theme":"paper","strength":0.5}'`. `GET /auth/me` returns it; `PATCH /auth/me/appearance` validates against the registry ids (zod, shared in `packages/shared`).
+- Cookie mirror for first paint; `ThemeProvider` sets the `data-*` attributes.
+- **Appearance page** (personal, reached from the profile menu; the light/dark/system toggle stays there too): a gallery of live mini previews, mode, texture strength, focus mode.
+- **Focus mode**: one command (registered in the shell command registry, with a clickable switch) that turns texture and motion off and keeps palette and type.
+- In-app Manual: an *Appearance* page.
+- Ships to users: **Paper, Atelier, Dot, Blueprint, Studio**.
+- **Exit:** e2e — change theme, reload, still applied, no flash; API e2e for validation of unknown ids.
+
+## PR 6: Glass themes
+
+- Surface materials `frosted` and `fluted` (rib overlay, ribs masked off display type), with the one-blur-layer budget and the solid fallback.
+- Registers **Thermal, Fluted (deco palette), Mosaic (tiles canvas)**.
+- Check dialogs, sheets and popovers over glass (always `surface-floating`, solid).
+- **Exit:** Theme lab green; a scroll-performance check on the Calendar week in Thermal (no dropped frames on a mid-range laptop profile).
+
+## PR 7: Skins with their own glyphs — Arcade and Terminal
+
+- `pixel` skin: notched borders, stepped sun arc, **pixel icon set for the 24 icons** (8 × 8 grid, drawn as SVG rects), Silkscreen labels.
+- `ascii` skin: box-drawing borders drawn by CSS, `[x]` checkboxes, tree nav, `##` headings, ASCII sun arc and progress meter **computed from real values**, blinking cursor.
+- All decorative glyph art `aria-hidden`, with the real text next to it; screen-reader check on Home and Tasks.
+- Registers **Arcade, Terminal**.
+
+## PR 8: Motion, density and states per theme
+
+- Motion tokens per skin (duration, easing; `steps()` for pixel, typewriter for ASCII), including the task-completion animation.
+- Density per theme (compact for Blueprint and Terminal, airy for Paper and Studio) through the existing `--density-*` tokens.
+- Hover / focus / selected / disabled / error states checked per theme in the Theme lab — focus rings on glass and over textures especially.
+
+## For every PR
+
+- Screenshots from the Theme lab for the changed screens: light and dark, 1440 px and 390 px, checked by hand.
+- Typecheck, lint, unit tests, API e2e, and Playwright against **local** Postgres. Start dev servers directly, not through turbo (see README).
+- Regenerate themes (`themes:build`) and commit the generated CSS and `DESIGN.md` files.
+- Update `docs/DESIGN.md`, `docs/UI.md` and the in-app Manual when a rule or on-screen wording changes.
+- One branch off `master` per PR, opened as a pull request. Ask the user before merging.
+
+## Order with the Notes plan
+
+PR 1 and PR 2 change no pixels and give Notes the surface roles and the shared `Checkbox` it needs. Recommended order: **PR 1 → PR 2 → [NOTES-PLAN.md](./NOTES-PLAN.md) → PR 3 …** so Notes is built theme-ready instead of being retrofitted.
+
+## Later (not in this plan)
+
+- A theme that follows the day: the palette warms along the sun arc, light/dark switches at sunset.
+- Accent picker within a palette (hue only; lightness and chroma fixed so contrast holds).
+- User-made themes from the same schema (the registry already validates them).
+- Arrangement presets (sidebar vs. top dock, Home slot order).
+
+## Decisions on the open questions (16 November 2026)
+
+The user approved the plan as written, so the recommended defaults apply:
+
+1. Appearance is **per user only**; a per-device override can come later.
+2. The first release (PR 5) ships **five themes**; the rest follow in PR 6–7.
+3. Our own checks only (contrast test + generated DESIGN.md); `@google/design.md` can be added once it leaves alpha.
+4. The focus-mode shortcut is chosen in PR 5 against the existing shortcut list.
+5. **PR 1 → PR 2 → Notes → PR 3…**
+
+## Out of scope
+
+Free-form layouts or a page builder, per-workspace themes, importing themes from other apps, animated backgrounds beyond the slow gradient drift, sound.
