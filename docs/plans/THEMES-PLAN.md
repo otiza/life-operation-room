@@ -110,9 +110,11 @@ Exit: the user answers the open questions at the end of this plan.
 
 ## PR 4: Type pairings
 
-- `themes/type.ts`: the nine pairings with display / heading / body / label tokens, weights, casing, tracking, phone display size. `next/font` with `preload: false`.
-- Section headings, masthead date, labels and meta read only type tokens (`text-display`, `text-section-title`, `text-meta` become token-driven).
-- **Exit:** no layout shift on theme switch (fallback metrics set), Lighthouse font budget for Paper unchanged.
+- `themes/fonts.ts`: the font catalogue (family → next/font variable → fallback). `app/layout.tsx` loads each family once; only Paper's are preloaded, the rest use `preload: false` (downloaded only when the active theme uses them). next/font's variables are renamed (`--font-literata`, `--font-plex`, `--font-jetbrains`, …) so the **theme** owns `--font-heading`, `--font-body`, `--font-display`, `--font-section`, `--font-meta`, `--font-mono`.
+- The registry's `typography` (display, page title, section title, body, meta; size or fluid clamp, weight, leading, tracking, style, case, variation) generates `--type-*` tokens; the text utilities read them.
+- Pairings shipped with the registered themes: Paper (Literata + Plex, unchanged), Atelier (Fraunces + Work Sans), Dot (Instrument Serif + Inter), Blueprint (JetBrains Mono + Plex Condensed, Plex Mono meta), Studio (Young Serif + Figtree). The other pairings (Syne, Bodoni Moda + Jost, Bricolage, pixel, mono) arrive with their themes in PR 6–7.
+- Tests: every family a theme uses is in the catalogue, and every catalogue family is loaded in the layout.
+- **Exit:** Paper pixel-identical to master; the four pairings checked in the Theme lab.
 
 ## PR 5: Appearance — storage, switcher and focus mode (first release)
 

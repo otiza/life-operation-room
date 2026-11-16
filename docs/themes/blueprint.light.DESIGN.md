@@ -44,29 +44,30 @@ colors:
   priority-low: "#0080ad"
 typography:
   display:
-    fontFamily: "Literata"
-    fontSize: 2.5rem
-    fontWeight: 500
+    fontFamily: "JetBrains Mono"
+    fontSize: 2.375rem
+    fontWeight: 700
     lineHeight: 1.1
-    letterSpacing: -0.025em
+    letterSpacing: -0.045em
   page-title:
-    fontFamily: "Literata"
-    fontSize: 1.625rem
-    fontWeight: 600
-    lineHeight: 1.25
-    letterSpacing: -0.02em
+    fontFamily: "JetBrains Mono"
+    fontSize: 1.5rem
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: -0.03em
   section-title:
-    fontFamily: "Literata"
-    fontSize: 1.125rem
-    fontWeight: 600
-    lineHeight: 1.35
+    fontFamily: "JetBrains Mono"
+    fontSize: 0.8125rem
+    fontWeight: 700
+    lineHeight: 1.4
+    letterSpacing: 0.16em
   body:
-    fontFamily: "IBM Plex Sans"
-    fontSize: 0.9375rem
+    fontFamily: "IBM Plex Sans Condensed"
+    fontSize: 1rem
     fontWeight: 400
-    lineHeight: 1.5
+    lineHeight: 1.45
   meta:
-    fontFamily: "IBM Plex Sans"
+    fontFamily: "IBM Plex Mono"
     fontSize: 0.75rem
     fontWeight: 400
     lineHeight: 1.4
@@ -206,9 +207,9 @@ Life Room is a calm daily planner: the day is the hero. Every theme shares one l
 
 ## Typography
 
-- Display (Home date): Literata 500, 2.5rem.
-- Page and section titles: Literata.
-- Body, controls and metadata: IBM Plex Sans.
+- Display (Home date): JetBrains Mono 700, 2.375rem.
+- Page and section titles: JetBrains Mono.
+- Body, controls and metadata: IBM Plex Sans Condensed.
 - Sentence case everywhere; no all-caps eyebrows.
 
 ## Layout

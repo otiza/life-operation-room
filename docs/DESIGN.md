@@ -7,8 +7,8 @@ Read this before shipping UI. Colour tokens come from the theme registry ([`apps
 | Decision | Choice |
 |---|---|
 | Product name in the UI | **Life Room** |
-| Heading typeface | Literata (`--font-heading`, `text-page-title` / `text-section-title`) |
-| Body typeface | IBM Plex Sans (`--font-body` / `font-sans`) |
+| Heading typeface | Paper: Literata (`--font-heading`, `text-page-title` / `text-section-title`); other themes set their own |
+| Body typeface | Paper: IBM Plex Sans (`--font-body` / `font-sans`); other themes set their own |
 | Accent | Terracotta `oklch(0.55 0.12 45)` (dark: `oklch(0.72 0.12 50)`) → `--primary` / `--ring` |
 | Width | One reading width, about 760 px (`PageContainer` default `size="reading"`). `full` only for the calendar grid and the task board; `lg` for the Manual. |
 
@@ -44,6 +44,10 @@ A theme is **data** in [`src/themes/registry.ts`](../apps/web/src/themes/registr
 `RoomBackdrop` (in the shell) draws the theme's canvas, pattern and grain behind everything; styles live in `app/themes-layers.css`. **Rule:** canvas and pattern are masked out of the reading column and the top bar (the column is found from `PageContainer`'s `data-page-size`; `full` pages get no canvas/pattern at all). Grain is fine enough to run under text. Grain tiles are static SVGs in `public/themes/`.
 
 New palettes are built from a few seeds with `buildPalette()` (`src/themes/derive.ts`): event, priority and app colours share one lightness and chroma per palette.
+
+### Type
+
+Each theme sets its type pairing in the registry (`typography`: display, page title, section title, body, meta). The generator turns it into tokens (`--font-display`, `--font-heading`, `--font-section`, `--font-body`, `--font-meta`, `--type-*-size|weight|leading|tracking|style|transform|variation`) that `text-display`, `text-page-title`, `text-section-title`, `text-body`, `text-meta`, `font-heading` and `font-sans` read. Families come from `src/themes/fonts.ts`; each is loaded once in `app/layout.tsx` with `next/font` (only Paper's are preloaded; next/font needs literal options). `text-body` and `text-meta` only set family, size and leading, so `font-medium` or `leading-*` next to them still win.
 
 ### Theme lab (development only)
 
