@@ -289,6 +289,11 @@ export const MANUAL_CHAPTERS: ManualChapter[] = [
           ['Dot', 'A dot-grid notebook in black and white, with large serif titles.'],
           ['Blueprint', 'A drafting table: a fine grid, square corners, monospaced titles. Dark mode is the blue sheet.'],
           ['Studio', 'Wool felt: sage in light, billiard green with brass in dark.'],
+          ['Thermal', 'A grainy heat map drifting slowly behind frosted glass, with big poster type.'],
+          ['Fluted', 'Art deco: emerald and brass behind ribbed glass, Bodoni italics, diamond checkboxes.'],
+          ['Mosaic', 'Large tiles in the Paper colours seen through frosted glass, with heavy grotesque type.'],
+          ['Arcade', 'Pixel art: a pixel mosaic, pixel type, notched borders. Mint on indigo in dark.'],
+          ['Terminal', 'ASCII art: a character-drawn sun, scanlines, [x] checkboxes and a blinking cursor.'],
         ],
       },
       {

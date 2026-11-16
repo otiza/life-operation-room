@@ -36,7 +36,9 @@ html:has([data-page-size="lg"]) .room-backdrop {
 }
 
 @media (min-width: 768px) {
-  .room-backdrop :is(.room-canvas, .room-pattern) {
+  /* A smooth gradient may sit behind text (glass themes show it through their surfaces); busy layers may not. */
+  html:not([data-canvas="gradient"]) .room-backdrop .room-canvas,
+  .room-backdrop .room-pattern {
     --room-mask:
       linear-gradient(90deg, #000 calc(var(--hole-c) - var(--hole-out)), transparent calc(var(--hole-c) - var(--hole-in)),
         transparent calc(var(--hole-c) + var(--hole-in)), #000 calc(var(--hole-c) + var(--hole-out))),
@@ -47,14 +49,16 @@ html:has([data-page-size="lg"]) .room-backdrop {
     mask-composite: intersect;
   }
   /* Full-width pages (calendar grid, board): the work fills the room; keep texture out entirely. */
-  html:has([data-page-size="full"]) .room-backdrop :is(.room-canvas, .room-pattern) {
+  html:not([data-canvas="gradient"]):has([data-page-size="full"]) .room-backdrop .room-canvas,
+  html:has([data-page-size="full"]) .room-backdrop .room-pattern {
     display: none;
   }
 }
 
 /* Phone: no gutters to show texture in, so it stays a faint wash. */
 @media (max-width: 767px) {
-  .room-backdrop :is(.room-canvas, .room-pattern) {
+  html:not([data-canvas="gradient"]) .room-backdrop .room-canvas,
+  .room-backdrop .room-pattern {
     opacity: 0.2;
   }
 }
@@ -62,6 +66,30 @@ html:has([data-page-size="lg"]) .room-backdrop {
 /* Focus mode (data-focus="on"): textures off; palette and type stay. */
 html[data-focus="on"] .room-backdrop > div {
   display: none;
+}
+
+/* ── Canvas ── */
+html[data-canvas="gradient"] .room-canvas {
+  background:
+    radial-gradient(42% 50% at 12% 8%, var(--canvas-1), transparent 70%),
+    radial-gradient(38% 46% at 88% 14%, var(--canvas-2), transparent 70%),
+    radial-gradient(50% 50% at 62% 96%, var(--canvas-3), transparent 72%),
+    radial-gradient(30% 34% at 30% 70%, color-mix(in oklch, var(--canvas-2) 70%, var(--canvas-1)), transparent 70%),
+    var(--background);
+  background-size: 140% 140%;
+  animation: room-drift 40s ease-in-out infinite alternate;
+}
+@keyframes room-drift {
+  from { background-position: 0% 0%; }
+  to { background-position: 100% 60%; }
+}
+/* Painted canvases are static SVGs generated from the theme (--canvas-image). */
+html:is([data-canvas="mosaic"], [data-canvas="tiles"], [data-canvas="ascii"]) .room-canvas {
+  background: var(--canvas-image) center / cover no-repeat, var(--background);
+  opacity: calc(0.4 + var(--texture-strength) * 0.6);
+}
+html[data-canvas="mosaic"] .room-canvas {
+  image-rendering: pixelated;
 }
 
 /* ── Pattern ── */
@@ -200,4 +228,152 @@ html[data-chip="pill"] {
 }
 html[data-chip="square"] {
   --chip-radius: 2px;
+}
+
+/* ── Glass surfaces (frosted, fluted). Floating surfaces stay solid: never glass on glass. ── */
+html:is([data-surface="frosted"], [data-surface="fluted"]) .surface-card {
+  background-color: color-mix(in oklch, var(--card) 76%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  backdrop-filter: blur(18px) saturate(1.35);
+}
+html:is([data-surface="frosted"], [data-surface="fluted"]) .surface-chrome {
+  background-color: color-mix(in oklch, var(--sidebar) 72%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  backdrop-filter: blur(22px) saturate(1.35);
+}
+/* Lists are reading content: a dense glass backing behind them. */
+html:is([data-surface="frosted"], [data-surface="fluted"]) [data-region="reading"] {
+  border-radius: var(--radius);
+  background-color: color-mix(in oklch, var(--card) 86%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+/* Fluted: vertical ribs, each a little cylinder (highlight → shade → highlight), drawn over the glass. */
+html[data-surface="fluted"] :is(.surface-card, .surface-chrome) {
+  background-image: repeating-linear-gradient(90deg,
+    color-mix(in oklch, white 22%, transparent) 0px, color-mix(in oklch, white 4%, transparent) 4px,
+    color-mix(in oklch, black 6%, transparent) 9px, color-mix(in oklch, white 22%, transparent) 13px);
+}
+html.dark[data-surface="fluted"] :is(.surface-card, .surface-chrome) {
+  background-image: repeating-linear-gradient(90deg,
+    color-mix(in oklch, white 7%, transparent) 0px, transparent 4px,
+    color-mix(in oklch, black 18%, transparent) 9px, color-mix(in oklch, white 7%, transparent) 13px);
+}
+@media (prefers-reduced-transparency: reduce) {
+  html :is(.surface-card, .surface-chrome, [data-region="reading"]) {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html:is([data-surface="frosted"], [data-surface="fluted"]) .surface-card { background-color: var(--card); }
+  html:is([data-surface="frosted"], [data-surface="fluted"]) .surface-chrome { background-color: var(--sidebar); }
+}
+
+/* ── Diamond done marks (Fluted): the box turns, the tick stays upright. ── */
+html[data-cb="diamond"] {
+  --check-radius: 2px;
+}
+html[data-cb="diamond"] .rounded-check {
+  transform: rotate(45deg) scale(0.84);
+}
+html[data-cb="diamond"] .rounded-check .check-glyph {
+  display: inline-block;
+  transform: rotate(-45deg);
+}
+
+/* ── Skin: pixel (Arcade) ── */
+html[data-skin="pixel"] {
+  --radius: 0px;
+  --check-radius: 0px;
+  --chip-radius: 0px;
+}
+html[data-skin="pixel"] :is(.surface-card, .surface-floating) {
+  border-color: transparent !important;
+  box-shadow:
+    3px 0 0 var(--foreground), -3px 0 0 var(--foreground), 0 3px 0 var(--foreground), 0 -3px 0 var(--foreground),
+    6px 6px 0 color-mix(in oklch, var(--foreground) 22%, transparent) !important;
+}
+html[data-skin="pixel"] svg.lucide {
+  shape-rendering: crispEdges;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+html[data-skin="pixel"] [role="progressbar"] {
+  height: 0.625rem;
+}
+html[data-skin="pixel"] [role="progressbar"] > div {
+  background: repeating-linear-gradient(90deg, var(--primary) 0 8px, transparent 8px 10px);
+}
+html[data-skin="pixel"] * {
+  transition-timing-function: steps(3, end) !important;
+}
+
+/* ── Skin: ASCII (Terminal) ── */
+html[data-skin="ascii"] {
+  --radius: 0px;
+  --check-radius: 0px;
+  --chip-radius: 0px;
+}
+html[data-skin="ascii"] :is(.surface-card, .surface-floating) {
+  border: 3px double var(--border) !important;
+  box-shadow: none !important;
+}
+/* Done marks become [ ] and [x]. */
+html[data-skin="ascii"] .rounded-check {
+  width: auto !important;
+  border: 0 !important;
+  background: none !important;
+  font-size: 0 !important;
+}
+html[data-skin="ascii"] .rounded-check > * {
+  display: none;
+}
+html[data-skin="ascii"] .rounded-check::before {
+  content: "[ ]";
+  font: 600 0.8125rem/1 var(--font-mono);
+  color: var(--muted-foreground);
+  white-space: pre;
+}
+html[data-skin="ascii"] .rounded-check.bg-success::before {
+  content: "[x]";
+  color: var(--primary);
+}
+html[data-skin="ascii"] .text-section-title::before {
+  content: "## ";
+  color: var(--muted-foreground);
+}
+/* Progress becomes [###·····]: ProgressMeter renders that text, hidden in other skins. */
+.progress-ascii {
+  display: none;
+}
+html[data-skin="ascii"] .progress-ascii {
+  display: block;
+  font: 600 0.8125rem/1 var(--font-mono);
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+html[data-skin="ascii"] [role="progressbar"] {
+  height: auto;
+  overflow: visible;
+  background: none;
+}
+html[data-skin="ascii"] [role="progressbar"] > div:not(.progress-ascii) {
+  display: none;
+}
+/* A blinking cursor after the Home date. */
+html[data-skin="ascii"] .text-display::after {
+  content: "\2588";
+  margin-left: 0.12em;
+  color: var(--primary);
+  font-weight: 400;
+  animation: room-blink 1.1s steps(1) infinite;
+}
+@keyframes room-blink {
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html .room-canvas,
+  html[data-skin="ascii"] .text-display::after {
+    animation: none !important;
+  }
 }

@@ -29,6 +29,8 @@ export interface PaletteSeed {
   apps: { l: number; c: number; softL: number };
   /** Notes writing surface; defaults to the surface colour. */
   paper?: L_C_H;
+  /** Three colours for painted canvases (gradient blobs, mosaic tiles). Default: tints of soft and primary. */
+  canvas?: [L_C_H, L_C_H, L_C_H];
 }
 
 const fmt = (n: number) => String(Math.round(n * 1000) / 1000);
@@ -50,6 +52,11 @@ const SHAPE: TokenMap = {
   'elevation-2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
   'check-radius': 'calc(infinity * 1px)',
 };
+
+function canvasTokens(seed: PaletteSeed): TokenMap {
+  const [a, b, c] = seed.canvas ?? [seed.soft, seed.quiet, [seed.soft[0], seed.soft[1], seed.primary[2]] as L_C_H];
+  return { 'canvas-1': oklch(a), 'canvas-2': oklch(b), 'canvas-3': oklch(c) };
+}
 
 function modeTokens(seed: PaletteSeed, mode: 'light' | 'dark'): TokenMap {
   const dark = mode === 'dark';
@@ -116,6 +123,7 @@ function modeTokens(seed: PaletteSeed, mode: 'light' | 'dark'): TokenMap {
     'danger-soft-foreground': oklch(dark ? [0.85, 0.08, 25] : [0.48, 0.16, 25]),
     'success-soft': oklch(dark ? [seed.background[0] + 0.12, 0.05, 155] : [0.95, 0.03, 155]),
     'success-soft-foreground': oklch(dark ? [0.85, 0.08, 155] : [0.4, 0.1, 155]),
+    ...canvasTokens(seed),
   };
   return dark ? t : { ...t, ...SHAPE };
 }

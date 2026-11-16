@@ -4,7 +4,7 @@ import { z } from 'zod';
   Appearance: the room a person works in (docs/plans/THEMES-PLAN.md). Stored per user.
   THEME_IDS lists the themes users may pick; the web registry (apps/web/src/themes) must define each one.
 */
-export const THEME_IDS = ['paper', 'atelier', 'dot', 'blueprint', 'studio'] as const;
+export const THEME_IDS = ['paper', 'atelier', 'dot', 'blueprint', 'studio', 'thermal', 'fluted', 'mosaic', 'arcade', 'terminal'] as const;
 
 export const themeIdSchema = z.enum(THEME_IDS);
 

@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { canvasArt } from './canvas-art';
 import { generateDesignMd, generateThemesCss } from './generate';
 import { THEMES } from './registry';
 
@@ -31,6 +32,12 @@ function check(path: string, expected: string) {
 describe('generated theme files', () => {
   it('themes.generated.css matches the registry', () => {
     check(cssPath, generateThemesCss(THEMES));
+  });
+
+  it('canvas art in public/themes matches the registry', () => {
+    for (const theme of THEMES) {
+      for (const [path, svg] of Object.entries(canvasArt(theme))) check(join(__dirname, '../../public', path), svg);
+    }
   });
 
   it('docs/themes has one DESIGN.md per theme and mode, all up to date', () => {

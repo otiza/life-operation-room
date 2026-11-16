@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import {
+  Bodoni_Moda,
+  Bricolage_Grotesque,
+  DM_Sans,
   Figtree,
   Fraunces,
   IBM_Plex_Mono,
@@ -8,7 +11,10 @@ import {
   Instrument_Serif,
   Inter,
   JetBrains_Mono,
+  Jost,
   Literata,
+  Pixelify_Sans,
+  Syne,
   Work_Sans,
   Young_Serif,
 } from 'next/font/google';
@@ -35,8 +41,14 @@ const plexCondensed = IBM_Plex_Sans_Condensed({ variable: '--font-plex-condensed
 const plexMono = IBM_Plex_Mono({ variable: '--font-plex-mono', subsets: ['latin'], preload: false, display: 'swap', weight: ['400', '500'] });
 const youngSerif = Young_Serif({ variable: '--font-young-serif', subsets: ['latin'], preload: false, display: 'swap', weight: '400' });
 const figtree = Figtree({ variable: '--font-figtree', subsets: ['latin'], preload: false, display: 'swap' });
+const syne = Syne({ variable: '--font-syne', subsets: ['latin'], preload: false, display: 'swap' });
+const dmSans = DM_Sans({ variable: '--font-dm-sans', subsets: ['latin'], preload: false, display: 'swap' });
+const bodoni = Bodoni_Moda({ variable: '--font-bodoni', subsets: ['latin'], preload: false, display: 'swap', style: ['normal', 'italic'], axes: ['opsz'] });
+const jost = Jost({ variable: '--font-jost', subsets: ['latin'], preload: false, display: 'swap' });
+const bricolage = Bricolage_Grotesque({ variable: '--font-bricolage', subsets: ['latin'], preload: false, display: 'swap', axes: ['opsz'] });
+const pixelify = Pixelify_Sans({ variable: '--font-pixelify', subsets: ['latin'], preload: false, display: 'swap' });
 
-const fontVariables = [plex, literata, jetbrains, fraunces, workSans, instrumentSerif, inter, plexCondensed, plexMono, youngSerif, figtree]
+const fontVariables = [plex, literata, jetbrains, fraunces, workSans, instrumentSerif, inter, plexCondensed, plexMono, youngSerif, figtree, syne, dmSans, bodoni, jost, bricolage, pixelify]
   .map((font) => font.variable)
   .join(' ');
 

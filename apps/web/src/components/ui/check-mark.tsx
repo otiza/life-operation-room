@@ -40,7 +40,7 @@ export function checkMarkClassName({ checked = false, hover = 'none', glyph = 'x
 export function CheckMark(options: CheckMarkOptions) {
   return (
     <span className={checkMarkClassName(options)} aria-hidden>
-      {options.glyph === 'icon' ? <Check className="h-3 w-3" aria-hidden /> : '✓'}
+      <span className="check-glyph">{options.glyph === 'icon' ? <Check className="h-3 w-3" aria-hidden /> : '✓'}</span>
     </span>
   );
 }

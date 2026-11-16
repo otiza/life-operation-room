@@ -83,6 +83,10 @@ export const paperPalette: Palette = {
     'elevation-2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
     // Detail token: the shape of the done mark (data-cb). Paper: circle (same as rounded-full).
     'check-radius': 'calc(infinity * 1px)',
+    // Painted canvases (Mosaic tiles reuse Paper's colours).
+    'canvas-1': 'oklch(0.86 0.08 45)',
+    'canvas-2': 'oklch(0.9 0.07 85)',
+    'canvas-3': 'oklch(0.88 0.05 150)',
   },
   dark: {
     'color-scheme': 'dark',
@@ -148,6 +152,9 @@ export const paperPalette: Palette = {
     'danger-soft-foreground': 'oklch(0.85 0.08 25)',
     'success-soft': 'oklch(0.3 0.05 155)',
     'success-soft-foreground': 'oklch(0.85 0.08 155)',
+    'canvas-1': 'oklch(0.36 0.09 40)',
+    'canvas-2': 'oklch(0.31 0.07 75)',
+    'canvas-3': 'oklch(0.28 0.05 160)',
   },
 };
 
@@ -190,5 +197,67 @@ export const feltPalette: Palette = buildPalette({
     background: [0.28, 0.045, 160], foreground: [0.95, 0.012, 100], mutedText: [0.82, 0.03, 120], surface: [0.32, 0.045, 160],
     sidebar: [0.25, 0.04, 160], border: [0.42, 0.045, 160], quiet: [0.35, 0.045, 160], primary: [0.8, 0.12, 75],
     onPrimary: [0.22, 0.03, 160], soft: [0.37, 0.05, 160], hues: { l: 0.82, c: 0.09 }, apps: { l: 0.84, c: 0.08, softL: 0.38 },
+  },
+});
+
+/** Thermal: heat-map oranges and pinks (light), embers on plum (dark). */
+export const thermalPalette: Palette = buildPalette({
+  light: {
+    background: [0.965, 0.02, 60], foreground: [0.24, 0.04, 30], mutedText: [0.44, 0.05, 35], surface: [0.99, 0.01, 60],
+    sidebar: [0.98, 0.012, 60], border: [0.87, 0.03, 50], quiet: [0.94, 0.03, 50], primary: [0.53, 0.18, 32],
+    onPrimary: [0.99, 0.01, 60], soft: [0.93, 0.05, 40], hues: { l: 0.58, c: 0.15 }, apps: { l: 0.48, c: 0.12, softL: 0.93 },
+    canvas: [[0.78, 0.16, 38], [0.78, 0.14, 350], [0.88, 0.13, 88]],
+  },
+  dark: {
+    background: [0.17, 0.03, 300], foreground: [0.96, 0.01, 60], mutedText: [0.78, 0.04, 40], surface: [0.22, 0.04, 300],
+    sidebar: [0.15, 0.03, 300], border: [0.36, 0.05, 310], quiet: [0.26, 0.04, 300], primary: [0.76, 0.16, 48],
+    onPrimary: [0.18, 0.03, 300], soft: [0.3, 0.07, 30], hues: { l: 0.76, c: 0.14 }, apps: { l: 0.78, c: 0.11, softL: 0.3 },
+    canvas: [[0.5, 0.2, 32], [0.42, 0.2, 345], [0.36, 0.17, 290]],
+  },
+});
+
+/** Deco: ivory and emerald (light), emerald and brass (dark) — Fluted. */
+export const decoPalette: Palette = buildPalette({
+  light: {
+    background: [0.965, 0.014, 90], foreground: [0.23, 0.04, 170], mutedText: [0.42, 0.04, 170], surface: [0.985, 0.01, 90],
+    sidebar: [0.955, 0.016, 90], border: [0.84, 0.03, 120], quiet: [0.93, 0.02, 120], primary: [0.45, 0.09, 165],
+    onPrimary: [0.98, 0.01, 90], soft: [0.92, 0.035, 165], hues: { l: 0.55, c: 0.09 }, apps: { l: 0.46, c: 0.08, softL: 0.92 },
+    canvas: [[0.72, 0.1, 165], [0.84, 0.12, 85], [0.78, 0.07, 200]],
+  },
+  dark: {
+    background: [0.17, 0.03, 170], foreground: [0.95, 0.02, 90], mutedText: [0.79, 0.04, 100], surface: [0.21, 0.035, 170],
+    sidebar: [0.15, 0.03, 170], border: [0.36, 0.05, 165], quiet: [0.25, 0.04, 170], primary: [0.8, 0.12, 85],
+    onPrimary: [0.17, 0.03, 170], soft: [0.28, 0.05, 165], hues: { l: 0.76, c: 0.1 }, apps: { l: 0.8, c: 0.09, softL: 0.28 },
+    canvas: [[0.42, 0.1, 165], [0.5, 0.11, 85], [0.32, 0.07, 200]],
+  },
+});
+
+/** Arcade: pale screen and magenta (light), mint on indigo (dark). */
+export const arcadePalette: Palette = buildPalette({
+  light: {
+    background: [0.955, 0.025, 105], foreground: [0.26, 0.07, 285], mutedText: [0.42, 0.07, 285], surface: [0.99, 0.012, 105],
+    sidebar: [0.97, 0.02, 105], border: [0.8, 0.04, 285], quiet: [0.93, 0.03, 105], primary: [0.52, 0.21, 352],
+    onPrimary: [0.99, 0.01, 105], soft: [0.92, 0.06, 340], hues: { l: 0.56, c: 0.19 }, apps: { l: 0.46, c: 0.14, softL: 0.92 },
+    canvas: [[0.88, 0.09, 200], [0.86, 0.11, 340], [0.92, 0.12, 105]],
+  },
+  dark: {
+    background: [0.17, 0.045, 285], foreground: [0.95, 0.04, 145], mutedText: [0.78, 0.07, 160], surface: [0.21, 0.055, 285],
+    sidebar: [0.15, 0.04, 285], border: [0.45, 0.1, 160], quiet: [0.25, 0.06, 285], primary: [0.83, 0.19, 145],
+    onPrimary: [0.17, 0.045, 285], soft: [0.28, 0.08, 150], hues: { l: 0.82, c: 0.16 }, apps: { l: 0.84, c: 0.13, softL: 0.28 },
+    canvas: [[0.32, 0.13, 285], [0.3, 0.11, 205], [0.27, 0.13, 335]],
+  },
+});
+
+/** Terminal: dot-matrix printout (light), green phosphor with amber (dark). */
+export const terminalPalette: Palette = buildPalette({
+  light: {
+    background: [0.968, 0.014, 95], foreground: [0.22, 0.012, 250], mutedText: [0.42, 0.015, 250], surface: [0.985, 0.01, 95],
+    sidebar: [0.95, 0.02, 100], border: [0.55, 0.012, 250], quiet: [0.93, 0.02, 100], primary: [0.45, 0.12, 150],
+    onPrimary: [0.98, 0.01, 95], soft: [0.91, 0.045, 150], hues: { l: 0.5, c: 0.11 }, apps: { l: 0.44, c: 0.1, softL: 0.91 },
+  },
+  dark: {
+    background: [0.15, 0.02, 150], foreground: [0.9, 0.17, 145], mutedText: [0.76, 0.12, 145], surface: [0.18, 0.025, 150],
+    sidebar: [0.13, 0.02, 150], border: [0.55, 0.11, 145], quiet: [0.22, 0.03, 150], primary: [0.83, 0.15, 78],
+    onPrimary: [0.15, 0.02, 150], soft: [0.25, 0.05, 145], hues: { l: 0.84, c: 0.14 }, apps: { l: 0.84, c: 0.12, softL: 0.25 },
   },
 });

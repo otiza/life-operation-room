@@ -125,25 +125,18 @@ Exit: the user answers the open questions at the end of this plan.
 - Manual: an Appearance chapter; `f` in Shortcuts.
 - Ships to users: **Paper, Atelier, Dot, Blueprint, Studio**.
 
-## PR 6: Glass themes
+## PR 6–8 (shipped together): glass, skins, the last five themes
 
-- Surface materials `frosted` and `fluted` (rib overlay, ribs masked off display type), with the one-blur-layer budget and the solid fallback.
-- Registers **Thermal, Fluted (deco palette), Mosaic (tiles canvas)**.
-- Check dialogs, sheets and popovers over glass (always `surface-floating`, solid).
-- **Exit:** Theme lab green; a scroll-performance check on the Calendar week in Thermal (no dropped frames on a mid-range laptop profile).
+The user asked to finish the plan in one run, so PR 6, 7 and the essentials of 8 shipped as one pull request.
 
-## PR 7: Skins with their own glyphs — Arcade and Terminal
+- Palettes Thermal, Deco, Arcade, Terminal (plus `canvas-1…3` tokens for painted canvases; Paper gains them for Mosaic).
+- Canvas: `gradient` (slow drift, stops with reduced motion; exempt from the mask because it is smooth) and `mosaic` / `tiles` / `ascii` as **static SVGs generated from the theme** into `public/themes/canvas-<theme>-<mode>.svg` (checked by the stale test).
+- Surfaces `frosted` and `fluted` (ribs drawn over the glass; lists get a dense backing; floating surfaces stay solid; solid fallback under `prefers-reduced-transparency`).
+- Skins: `pixel` (square corners, notched borders, crisp icons, segmented progress, stepped transitions) and `ascii` (double-line panels, `[ ]`/`[x]` marks, `##` headings, `[###·····]` progress from real values, blinking cursor on the Home date). Diamond done marks for Fluted.
+- Pairings: Syne + DM Sans (Thermal), Bodoni Moda + Jost (Fluted), Bricolage (Mosaic), Pixelify + Plex Mono (Arcade), JetBrains Mono (Terminal).
+- All ten themes selectable.
 
-- `pixel` skin: notched borders, stepped sun arc, **pixel icon set for the 24 icons** (8 × 8 grid, drawn as SVG rects), Silkscreen labels.
-- `ascii` skin: box-drawing borders drawn by CSS, `[x]` checkboxes, tree nav, `##` headings, ASCII sun arc and progress meter **computed from real values**, blinking cursor.
-- All decorative glyph art `aria-hidden`, with the real text next to it; screen-reader check on Home and Tasks.
-- Registers **Arcade, Terminal**.
-
-## PR 8: Motion, density and states per theme
-
-- Motion tokens per skin (duration, easing; `steps()` for pixel, typewriter for ASCII), including the task-completion animation.
-- Density per theme (compact for Blueprint and Terminal, airy for Paper and Studio) through the existing `--density-*` tokens.
-- Hover / focus / selected / disabled / error states checked per theme in the Theme lab — focus rings on glass and over textures especially.
+**Left for later** (not needed for the themes to work): a hand-drawn pixel icon set (Arcade uses crisp line icons), pixel/ASCII versions of the sun arc, per-theme density, and a full interaction-state review in the Theme lab.
 
 ## For every PR
 

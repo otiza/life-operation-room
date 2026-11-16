@@ -27,6 +27,10 @@ export function ProgressMeter({
       aria-valuenow={value}
     >
       <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${percent}%` }} />
+      {/* The ASCII skin shows progress as text, e.g. [###·····]; other skins hide it. */}
+      <div className="progress-ascii" aria-hidden>
+        [{'#'.repeat(Math.round((percent / 100) * 8))}{'·'.repeat(8 - Math.round((percent / 100) * 8))}]
+      </div>
     </div>
   );
 }

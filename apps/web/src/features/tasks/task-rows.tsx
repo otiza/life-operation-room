@@ -132,7 +132,7 @@ export function TaskRows({
                 onToggleDone(task);
               }}
             >
-              ✓
+              <span className="check-glyph">✓</span>
             </button>
             <button
               type="button"
