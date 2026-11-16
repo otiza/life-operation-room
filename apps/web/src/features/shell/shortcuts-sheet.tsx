@@ -7,6 +7,7 @@ import { listRegisteredShortcuts } from './command-registry';
 const SHELL_SHORTCUTS = [
   { id: 'shell-palette', label: 'Command palette', shortcut: '⌘K' },
   { id: 'shell-help', label: 'Keyboard shortcuts', shortcut: '?' },
+  { id: 'shell-focus', label: 'Focus mode on or off', shortcut: 'f' },
 ];
 
 export function ShortcutsSheet({

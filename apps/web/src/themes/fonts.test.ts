@@ -18,3 +18,11 @@ describe('theme fonts', () => {
     }
   });
 });
+
+describe('selectable themes', () => {
+  it('every theme id users can pick exists in the registry', async () => {
+    const { THEME_IDS } = await import('@life-room/shared');
+    const ids = new Set(THEMES.map((theme) => theme.id));
+    for (const id of THEME_IDS) expect(ids, id).toContain(id);
+  });
+});

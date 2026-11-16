@@ -49,6 +49,10 @@ New palettes are built from a few seeds with `buildPalette()` (`src/themes/deriv
 
 Each theme sets its type pairing in the registry (`typography`: display, page title, section title, body, meta). The generator turns it into tokens (`--font-display`, `--font-heading`, `--font-section`, `--font-body`, `--font-meta`, `--type-*-size|weight|leading|tracking|style|transform|variation`) that `text-display`, `text-page-title`, `text-section-title`, `text-body`, `text-meta`, `font-heading` and `font-sans` read. Families come from `src/themes/fonts.ts`; each is loaded once in `app/layout.tsx` with `next/font` (only Paper's are preloaded; next/font needs literal options). `text-body` and `text-meta` only set family, size and leading, so `font-medium` or `leading-*` next to them still win.
 
+### Appearance (per user)
+
+`users.appearance` (`{ theme, strength, focus }`, schema in `@life-room/shared`) is the source of truth; `PATCH /auth/me/appearance` changes it. `THEME_IDS` lists the themes people can pick. On the web, `features/appearance` applies it to `<html>` (theme `data-*`, `--texture-strength`, `data-focus`) and caches it in `localStorage`; `AppearanceBootScript` in `<head>` applies the cache before first paint, and the shell re-applies the server copy when `/auth/me` loads. Focus mode (`f`, or the switch on the Appearance page) hides textures.
+
 ### Theme lab (development only)
 
 - `/dev/themes` shows every primitive in every registered theme, with a light/dark switch. It returns 404 in production.

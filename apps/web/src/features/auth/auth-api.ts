@@ -1,3 +1,4 @@
+import type { Appearance } from '@life-room/shared';
 import { api } from '../../lib/api';
 
 export type User = {
@@ -5,6 +6,7 @@ export type User = {
   email: string;
   name: string;
   createdAt: string;
+  appearance: Appearance;
 };
 
 export type Workspace = {

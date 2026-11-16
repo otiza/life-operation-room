@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { appearanceSchema } from './appearance.js';
 
 export const signupSchema = z.object({
   email: z.string().email(),
@@ -16,6 +17,7 @@ export const userSchema = z.object({
   email: z.string().email(),
   name: z.string(),
   createdAt: z.string(),
+  appearance: appearanceSchema,
 });
 
 export type SignupInput = z.infer<typeof signupSchema>;

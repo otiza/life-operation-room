@@ -13,6 +13,7 @@ import {
   Young_Serif,
 } from 'next/font/google';
 import { Providers } from '../components/providers';
+import { AppearanceBootScript } from '../features/appearance/appearance-boot-script';
 import { DEFAULT_THEME_ID, getTheme, themeAttributes } from '../themes/registry';
 import './globals.css';
 
@@ -56,9 +57,13 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       lang="en"
       className={`${fontVariables} h-full antialiased`}
       suppressHydrationWarning
-      // Until Appearance ships (THEMES-PLAN PR 5) everyone is on the default theme.
+      // Server render uses the default theme; AppearanceBootScript swaps in the person's theme before first paint.
       {...themeAttributes(getTheme(DEFAULT_THEME_ID)!)}
+      data-focus="off"
     >
+      <head>
+        <AppearanceBootScript />
+      </head>
       <body className="min-h-full font-sans" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>

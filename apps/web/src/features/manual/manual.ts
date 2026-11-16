@@ -270,6 +270,39 @@ export const MANUAL_CHAPTERS: ManualChapter[] = [
     ],
   },
   {
+    slug: 'appearance',
+    title: 'Appearance',
+    group: 'Reference',
+    summary: 'Pick the room you work in: theme, light or dark, texture, focus mode.',
+    blocks: [
+      {
+        type: 'p',
+        text: 'Open the profile menu at the bottom of the sidebar and choose Appearance. Your choice is saved to your account, so it follows you to every device you sign in on.',
+      },
+      {
+        type: 'table',
+        variant: 'examples',
+        columns: ['Theme', 'What it feels like'],
+        rows: [
+          ['Paper', 'Warm cream paper and a terracotta accent. The original Life Room.'],
+          ['Atelier', 'A print shop: a halftone wash in the corner and light grain.'],
+          ['Dot', 'A dot-grid notebook in black and white, with large serif titles.'],
+          ['Blueprint', 'A drafting table: a fine grid, square corners, monospaced titles. Dark mode is the blue sheet.'],
+          ['Studio', 'Wool felt: sage in light, billiard green with brass in dark.'],
+        ],
+      },
+      {
+        type: 'p',
+        text: 'Light or dark works with every theme. Texture strength makes a theme’s pattern or grain stronger or quieter; “Use the theme’s default” resets it. Texture never sits under lists or writing.',
+      },
+      {
+        type: 'callout',
+        title: 'Focus mode',
+        text: 'Press f anywhere (when you are not typing) to hide textures and keep only the colours and type. Press f again to bring them back. The switch is also on the Appearance page.',
+      },
+    ],
+  },
+  {
     slug: 'shortcuts',
     title: 'Shortcuts',
     group: 'Reference',
@@ -287,6 +320,7 @@ export const MANUAL_CHAPTERS: ManualChapter[] = [
         rows: [
           ['q', 'Open capture'],
           ['?', 'Open the shortcut list'],
+          ['f', 'Focus mode on or off'],
           ['Cmd/Ctrl+K', 'Open the command palette'],
         ],
       },
@@ -341,7 +375,7 @@ export const MANUAL_CHAPTERS: ManualChapter[] = [
       },
       {
         type: 'p',
-        text: 'The bell in the header lists notifications. The profile menu at the bottom of the sidebar holds Settings, this Manual, Add apps, the theme (light, dark, or system), and Log out.',
+        text: 'The bell in the header lists notifications. The profile menu at the bottom of the sidebar holds Settings, Appearance, this Manual, Add apps, light or dark (or system), and Log out.',
       },
     ],
   },
