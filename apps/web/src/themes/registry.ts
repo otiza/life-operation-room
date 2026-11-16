@@ -18,7 +18,7 @@ export const paperTheme: ThemeDefinition = {
   palette: paperPalette,
   layers: { canvas: 'plain', pattern: 'none', grain: 'none', surface: 'paper' },
   typography: {
-    display: { fontFamily: literata, fontSize: '2.5rem', fontWeight: 500, lineHeight: 1.1, letterSpacing: '-0.025em' },
+    display: { fontFamily: literata, fontSize: '2.5rem', fluid: 'clamp(1.875rem, 1.4rem + 2vw, 2.5rem)', fontWeight: 500, lineHeight: 1.1, letterSpacing: '-0.025em' },
     pageTitle: { fontFamily: literata, fontSize: '1.625rem', fontWeight: 600, lineHeight: 1.25, letterSpacing: '-0.02em' },
     sectionTitle: { fontFamily: literata, fontSize: '1.125rem', fontWeight: 600, lineHeight: 1.35 },
     body: { fontFamily: plex, fontSize: '0.9375rem', fontWeight: 400, lineHeight: 1.5 },
@@ -30,8 +30,7 @@ export const paperTheme: ThemeDefinition = {
 };
 
 /*
-  Texture themes (THEMES-PLAN PR 3). Registered for the Theme lab; users can pick them once Appearance ships (PR 5).
-  Their own type pairings arrive in PR 4; until then they use Paper's typography.
+  Texture themes (THEMES-PLAN PR 3–4). Registered for the Theme lab; users can pick them once Appearance ships (PR 5).
 */
 
 export const atelierTheme: ThemeDefinition = {
@@ -40,7 +39,13 @@ export const atelierTheme: ThemeDefinition = {
   description: 'A print shop: Paper colours with a halftone wash fading in from the corner, light noise, and no boxes.',
   palette: paperPalette,
   layers: { canvas: 'plain', pattern: 'halftone', grain: 'noise', surface: 'flat' },
-  typography: paperTheme.typography,
+  typography: {
+    display: { fontFamily: 'Fraunces', fontSize: '3rem', fluid: 'clamp(2rem, 1.5rem + 2.4vw, 3rem)', fontWeight: 650, lineHeight: 1.05, letterSpacing: '-0.03em', fontVariation: '"SOFT" 100, "opsz" 144' },
+    pageTitle: { fontFamily: 'Fraunces', fontSize: '1.75rem', fontWeight: 600, lineHeight: 1.2, letterSpacing: '-0.02em', fontVariation: '"SOFT" 100' },
+    sectionTitle: { fontFamily: 'Fraunces', fontSize: '1.25rem', fontWeight: 600, lineHeight: 1.3, fontVariation: '"SOFT" 100' },
+    body: { fontFamily: 'Work Sans', fontSize: '0.9375rem', fontWeight: 400, lineHeight: 1.5 },
+    meta: { fontFamily: 'Work Sans', fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.4 },
+  },
   skin: 'classic',
   details: { checkbox: 'square', divider: 'dotted', chip: 'tag' },
   strength: 0.5,
@@ -52,7 +57,13 @@ export const dotTheme: ThemeDefinition = {
   description: 'A dot-grid notebook: monochrome paper with the terracotta accent. The quietest room.',
   palette: inkPalette,
   layers: { canvas: 'plain', pattern: 'dots', grain: 'none', surface: 'flat' },
-  typography: paperTheme.typography,
+  typography: {
+    display: { fontFamily: 'Instrument Serif', fontSize: '3.25rem', fluid: 'clamp(2.25rem, 1.6rem + 2.8vw, 3.25rem)', fontWeight: 400, lineHeight: 1.02, letterSpacing: '-0.02em' },
+    pageTitle: { fontFamily: 'Instrument Serif', fontSize: '2rem', fontWeight: 400, lineHeight: 1.15, letterSpacing: '-0.01em' },
+    sectionTitle: { fontFamily: 'Instrument Serif', fontSize: '1.5rem', fontWeight: 400, lineHeight: 1.2, fontStyle: 'italic' },
+    body: { fontFamily: 'Inter', fontSize: '0.9375rem', fontWeight: 400, lineHeight: 1.5 },
+    meta: { fontFamily: 'Inter', fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.4 },
+  },
   skin: 'classic',
   details: { checkbox: 'square', divider: 'dotted', chip: 'pill' },
   strength: 0.55,
@@ -64,7 +75,13 @@ export const blueprintTheme: ThemeDefinition = {
   description: 'A drafting table: a major and minor grid, square corners, dashed rules. Dark mode is the classic blue sheet.',
   palette: blueprintPalette,
   layers: { canvas: 'plain', pattern: 'grid', grain: 'noise', surface: 'flat' },
-  typography: paperTheme.typography,
+  typography: {
+    display: { fontFamily: 'JetBrains Mono', fontSize: '2.375rem', fluid: 'clamp(1.625rem, 1.2rem + 1.8vw, 2.375rem)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.045em' },
+    pageTitle: { fontFamily: 'JetBrains Mono', fontSize: '1.5rem', fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.03em' },
+    sectionTitle: { fontFamily: 'JetBrains Mono', fontSize: '0.8125rem', fontWeight: 700, lineHeight: 1.4, letterSpacing: '0.16em', textTransform: 'uppercase' },
+    body: { fontFamily: 'IBM Plex Sans Condensed', fontSize: '1rem', fontWeight: 400, lineHeight: 1.45 },
+    meta: { fontFamily: 'IBM Plex Mono', fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.4 },
+  },
   skin: 'drafting',
   details: { checkbox: 'square', divider: 'dashed', chip: 'square' },
   strength: 0.55,
@@ -76,7 +93,13 @@ export const studioTheme: ThemeDefinition = {
   description: 'Wool felt: sage in light, billiard green with brass in dark. Paper cards sit on it; rules are stitched.',
   palette: feltPalette,
   layers: { canvas: 'plain', pattern: 'none', grain: 'felt', surface: 'paper' },
-  typography: paperTheme.typography,
+  typography: {
+    display: { fontFamily: 'Young Serif', fontSize: '2.75rem', fluid: 'clamp(1.875rem, 1.4rem + 2vw, 2.75rem)', fontWeight: 400, lineHeight: 1.08, letterSpacing: '-0.015em' },
+    pageTitle: { fontFamily: 'Young Serif', fontSize: '1.75rem', fontWeight: 400, lineHeight: 1.2, letterSpacing: '-0.01em' },
+    sectionTitle: { fontFamily: 'Young Serif', fontSize: '1.25rem', fontWeight: 400, lineHeight: 1.3 },
+    body: { fontFamily: 'Figtree', fontSize: '0.9375rem', fontWeight: 400, lineHeight: 1.5 },
+    meta: { fontFamily: 'Figtree', fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.4 },
+  },
   skin: 'classic',
   details: { checkbox: 'rounded', divider: 'stitch', chip: 'pill' },
   strength: 0.7,

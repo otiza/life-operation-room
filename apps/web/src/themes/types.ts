@@ -22,17 +22,24 @@ export type DividerStyle = 'solid' | 'dashed' | 'dotted' | 'double' | 'stitch';
 export type ChipShape = 'pill' | 'tag' | 'square';
 
 export interface TypeStyle {
+  /** A family from themes/fonts.ts (by name). */
   fontFamily: string;
-  /** CSS length; rem preferred. */
+  /** Largest size as a CSS length (rem); also what DESIGN.md reports. */
   fontSize: string;
+  /** Optional fluid size for CSS, e.g. `clamp(1.875rem, 1.4rem + 2vw, 2.5rem)`. */
+  fluid?: string;
   fontWeight: number;
   lineHeight: number;
   letterSpacing?: string;
+  fontStyle?: 'normal' | 'italic';
+  textTransform?: 'none' | 'uppercase';
+  /** font-variation-settings, e.g. `"SOFT" 100, "opsz" 144`. */
+  fontVariation?: string;
 }
 
 /**
- * Type pairing. Until the type slot ships (THEMES-PLAN PR 4), these describe what the
- * text utilities in globals.css render; they feed the generated DESIGN.md.
+ * The theme's type pairing. Drives the text utilities (text-display, text-page-title,
+ * text-section-title, text-body, text-meta), font-heading / font-sans, and the generated DESIGN.md.
  */
 export interface Typography {
   display: TypeStyle;

@@ -91,7 +91,7 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-body), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-body);
   overflow-x: hidden;
 }
 
@@ -99,39 +99,52 @@ body {
   min-height: 100dvh;
 }
 
+/* Text styles: every value is a theme token (generated from the registry's typography). */
 @utility text-page-title {
-  font-family: var(--font-heading), Literata, ui-serif, Georgia, serif;
-  font-size: 1.625rem;
-  line-height: 1.25;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--font-heading);
+  font-size: var(--type-title-size);
+  line-height: var(--type-title-leading);
+  font-weight: var(--type-title-weight);
+  letter-spacing: var(--type-title-tracking);
+  font-style: var(--type-title-style);
+  text-transform: var(--type-title-transform);
+  font-variation-settings: var(--type-title-variation);
 }
 
 @utility text-display {
-  font-family: var(--font-heading), Literata, ui-serif, Georgia, serif;
-  font-size: clamp(1.875rem, 1.4rem + 2vw, 2.5rem);
-  line-height: 1.1;
-  font-weight: 500;
-  letter-spacing: -0.025em;
+  font-family: var(--font-display);
+  font-size: var(--type-display-size);
+  line-height: var(--type-display-leading);
+  font-weight: var(--type-display-weight);
+  letter-spacing: var(--type-display-tracking);
+  font-style: var(--type-display-style);
+  text-transform: var(--type-display-transform);
+  font-variation-settings: var(--type-display-variation);
 }
 
 @utility text-section-title {
-  font-family: var(--font-heading), Literata, ui-serif, Georgia, serif;
-  font-size: 1.125rem;
-  line-height: 1.35;
-  font-weight: 600;
+  font-family: var(--font-section);
+  font-size: var(--type-section-size);
+  line-height: var(--type-section-leading);
+  font-weight: var(--type-section-weight);
+  letter-spacing: var(--type-section-tracking);
+  font-style: var(--type-section-style);
+  text-transform: var(--type-section-transform);
+  font-variation-settings: var(--type-section-variation);
 }
 
+/* Body and meta set only family, size and leading, so weight/leading utilities next to them still win. */
 @utility text-body {
-  font-family: var(--font-body), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.9375rem;
-  line-height: 1.5;
+  font-family: var(--font-body);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-leading);
 }
 
+/* Body and meta set only family, size and leading, so weight/leading utilities next to them still win. */
 @utility text-meta {
-  font-family: var(--font-body), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.75rem;
-  line-height: 1.4;
+  font-family: var(--font-meta);
+  font-size: var(--type-meta-size);
+  line-height: var(--type-meta-leading);
 }
 
 /*

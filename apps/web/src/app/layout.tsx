@@ -1,26 +1,43 @@
 import type { Metadata } from 'next';
-import { IBM_Plex_Sans, Literata, JetBrains_Mono } from 'next/font/google';
+import {
+  Figtree,
+  Fraunces,
+  IBM_Plex_Mono,
+  IBM_Plex_Sans,
+  IBM_Plex_Sans_Condensed,
+  Instrument_Serif,
+  Inter,
+  JetBrains_Mono,
+  Literata,
+  Work_Sans,
+  Young_Serif,
+} from 'next/font/google';
 import { Providers } from '../components/providers';
 import { DEFAULT_THEME_ID, getTheme, themeAttributes } from '../themes/registry';
 import './globals.css';
 
-const bodyFont = IBM_Plex_Sans({
-  variable: '--font-body',
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-});
+/*
+  Font families for every registered theme (see src/themes/fonts.ts for the variable names).
+  Paper's three are preloaded; the rest are declared with preload: false, so the browser only
+  downloads a face when the active theme actually uses it.
+*/
+const plex = IBM_Plex_Sans({ variable: '--font-plex', subsets: ['latin'], weight: ['400', '500', '600'] });
+const literata = Literata({ variable: '--font-literata', subsets: ['latin'], weight: ['500', '600', '700'] });
+const jetbrains = JetBrains_Mono({ variable: '--font-jetbrains', subsets: ['latin'], weight: ['400', '500', '700'] });
 
-const headingFont = Literata({
-  variable: '--font-heading',
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
-});
+// next/font needs literal options (no spreads or shared objects).
+const fraunces = Fraunces({ variable: '--font-fraunces', subsets: ['latin'], preload: false, display: 'swap', axes: ['SOFT', 'opsz'] });
+const workSans = Work_Sans({ variable: '--font-work-sans', subsets: ['latin'], preload: false, display: 'swap' });
+const instrumentSerif = Instrument_Serif({ variable: '--font-instrument-serif', subsets: ['latin'], preload: false, display: 'swap', weight: '400', style: ['normal', 'italic'] });
+const inter = Inter({ variable: '--font-inter', subsets: ['latin'], preload: false, display: 'swap' });
+const plexCondensed = IBM_Plex_Sans_Condensed({ variable: '--font-plex-condensed', subsets: ['latin'], preload: false, display: 'swap', weight: ['400', '500', '600'] });
+const plexMono = IBM_Plex_Mono({ variable: '--font-plex-mono', subsets: ['latin'], preload: false, display: 'swap', weight: ['400', '500'] });
+const youngSerif = Young_Serif({ variable: '--font-young-serif', subsets: ['latin'], preload: false, display: 'swap', weight: '400' });
+const figtree = Figtree({ variable: '--font-figtree', subsets: ['latin'], preload: false, display: 'swap' });
 
-const monoFont = JetBrains_Mono({
-  variable: '--font-mono',
-  subsets: ['latin'],
-  weight: ['400', '500'],
-});
+const fontVariables = [plex, literata, jetbrains, fraunces, workSans, instrumentSerif, inter, plexCondensed, plexMono, youngSerif, figtree]
+  .map((font) => font.variable)
+  .join(' ');
 
 export const metadata: Metadata = {
   title: 'Life Room',
@@ -37,7 +54,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html
       lang="en"
-      className={`${bodyFont.variable} ${headingFont.variable} ${monoFont.variable} h-full antialiased`}
+      className={`${fontVariables} h-full antialiased`}
       suppressHydrationWarning
       // Until Appearance ships (THEMES-PLAN PR 5) everyone is on the default theme.
       {...themeAttributes(getTheme(DEFAULT_THEME_ID)!)}

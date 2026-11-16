@@ -4,6 +4,7 @@
   when run with UPDATE_THEMES=1 (`pnpm --filter web themes:build`).
 */
 import { parseOklch, toHex } from './color';
+import { fontStack, FONTS } from './fonts';
 import { DEFAULT_THEME_ID, resolveTokens } from './registry';
 import type { ThemeDefinition, ThemeMode, TokenMap, TypeStyle } from './types';
 
@@ -18,12 +19,39 @@ function declarations(tokens: TokenMap) {
     .join('\n');
 }
 
+/** Type tokens read by the text utilities in globals.css (all mode-independent). */
+export function typeTokens(theme: ThemeDefinition): TokenMap {
+  const t = theme.typography;
+  const style = (prefix: string, s: TypeStyle): TokenMap => ({
+    [`type-${prefix}-size`]: s.fluid ?? s.fontSize,
+    [`type-${prefix}-weight`]: String(s.fontWeight),
+    [`type-${prefix}-leading`]: String(s.lineHeight),
+    [`type-${prefix}-tracking`]: s.letterSpacing ?? 'normal',
+    [`type-${prefix}-style`]: s.fontStyle ?? 'normal',
+    [`type-${prefix}-transform`]: s.textTransform ?? 'none',
+    [`type-${prefix}-variation`]: s.fontVariation ?? 'normal',
+  });
+  return {
+    'font-display': fontStack(t.display.fontFamily),
+    'font-heading': fontStack(t.pageTitle.fontFamily),
+    'font-section': fontStack(t.sectionTitle.fontFamily),
+    'font-body': fontStack(t.body.fontFamily),
+    'font-meta': fontStack(t.meta.fontFamily),
+    'font-mono': fontStack(FONTS.jetbrains.name),
+    ...style('display', t.display),
+    ...style('title', t.pageTitle),
+    ...style('section', t.sectionTitle),
+    ...style('body', t.body),
+    ...style('meta', t.meta),
+  };
+}
+
 export function generateThemesCss(themes: readonly ThemeDefinition[]) {
   const blocks = themes.map((theme) => {
     const isDefault = theme.id === DEFAULT_THEME_ID;
     const light = isDefault ? ':root' : `html[data-theme="${theme.id}"]`;
     const dark = isDefault ? '.dark' : `html[data-theme="${theme.id}"].dark`;
-    const lightTokens = { ...theme.palette.light, 'texture-strength': String(theme.strength) };
+    const lightTokens = { ...theme.palette.light, 'texture-strength': String(theme.strength), ...typeTokens(theme) };
     return `/* ${theme.name} */\n${light} {\n${declarations(lightTokens)}\n}\n\n${dark} {\n${declarations(theme.palette.dark)}\n}`;
   });
   return `${HEADER}\n\n${blocks.join('\n\n')}\n`;

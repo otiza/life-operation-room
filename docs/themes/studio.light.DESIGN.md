@@ -44,29 +44,29 @@ colors:
   priority-low: "#237293"
 typography:
   display:
-    fontFamily: "Literata"
-    fontSize: 2.5rem
-    fontWeight: 500
-    lineHeight: 1.1
-    letterSpacing: -0.025em
+    fontFamily: "Young Serif"
+    fontSize: 2.75rem
+    fontWeight: 400
+    lineHeight: 1.08
+    letterSpacing: -0.015em
   page-title:
-    fontFamily: "Literata"
-    fontSize: 1.625rem
-    fontWeight: 600
-    lineHeight: 1.25
-    letterSpacing: -0.02em
+    fontFamily: "Young Serif"
+    fontSize: 1.75rem
+    fontWeight: 400
+    lineHeight: 1.2
+    letterSpacing: -0.01em
   section-title:
-    fontFamily: "Literata"
-    fontSize: 1.125rem
-    fontWeight: 600
-    lineHeight: 1.35
+    fontFamily: "Young Serif"
+    fontSize: 1.25rem
+    fontWeight: 400
+    lineHeight: 1.3
   body:
-    fontFamily: "IBM Plex Sans"
+    fontFamily: "Figtree"
     fontSize: 0.9375rem
     fontWeight: 400
     lineHeight: 1.5
   meta:
-    fontFamily: "IBM Plex Sans"
+    fontFamily: "Figtree"
     fontSize: 0.75rem
     fontWeight: 400
     lineHeight: 1.4
@@ -206,9 +206,9 @@ Life Room is a calm daily planner: the day is the hero. Every theme shares one l
 
 ## Typography
 
-- Display (Home date): Literata 500, 2.5rem.
-- Page and section titles: Literata.
-- Body, controls and metadata: IBM Plex Sans.
+- Display (Home date): Young Serif 400, 2.75rem.
+- Page and section titles: Young Serif.
+- Body, controls and metadata: Figtree.
 - Sentence case everywhere; no all-caps eyebrows.
 
 ## Layout
