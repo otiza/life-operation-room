@@ -9,7 +9,7 @@ const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
       'bg-color': [{ surface: ['card', 'floating', 'chrome', 'control'] }],
-      rounded: [{ rounded: ['check'] }],
+      rounded: [{ rounded: ['check', 'chip'] }],
     },
   },
 });

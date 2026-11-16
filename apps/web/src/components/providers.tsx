@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
+import { DevThemeOverride } from './dev-theme-override';
 import { ThemeProvider } from './theme-provider';
 import { ToastProvider } from './ui/toast';
 
@@ -19,6 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
   return (
     <ThemeProvider>
+      {process.env.NODE_ENV !== 'production' ? <DevThemeOverride /> : null}
       <QueryClientProvider client={queryClient}>
         <ToastProvider>{children}</ToastProvider>
       </QueryClientProvider>

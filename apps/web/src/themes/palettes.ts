@@ -3,6 +3,7 @@
   Keys are CSS custom properties without the leading "--" ("color-scheme" is the one plain property).
   Light is complete; dark lists only what changes. Generated CSS lives in app/themes.generated.css.
 */
+import { buildPalette } from './derive';
 import type { Palette } from './types';
 
 /** Paper: the original Life Room palette (warm cream, terracotta, Literata + Plex). */
@@ -149,3 +150,45 @@ export const paperPalette: Palette = {
     'success-soft-foreground': 'oklch(0.85 0.08 155)',
   },
 };
+
+/** Ink: monochrome paper with the terracotta accent (Dot). */
+export const inkPalette: Palette = buildPalette({
+  light: {
+    background: [0.985, 0, 0], foreground: [0.2, 0, 0], mutedText: [0.46, 0, 0], surface: [1, 0, 0],
+    sidebar: [0.975, 0, 0], border: [0.9, 0, 0], quiet: [0.955, 0, 0], primary: [0.53, 0.13, 45],
+    onPrimary: [0.99, 0, 0], soft: [0.95, 0.015, 45], hues: { l: 0.6, c: 0.08 }, apps: { l: 0.5, c: 0.06, softL: 0.95 },
+  },
+  dark: {
+    background: [0.15, 0, 0], foreground: [0.95, 0, 0], mutedText: [0.74, 0, 0], surface: [0.19, 0, 0],
+    sidebar: [0.13, 0, 0], border: [0.3, 0, 0], quiet: [0.24, 0, 0], primary: [0.73, 0.13, 50],
+    onPrimary: [0.15, 0, 0], soft: [0.26, 0.03, 45], hues: { l: 0.74, c: 0.08 }, apps: { l: 0.76, c: 0.06, softL: 0.26 },
+  },
+});
+
+/** Blueprint: whiteprint in light, the classic blue sheet in dark. */
+export const blueprintPalette: Palette = buildPalette({
+  light: {
+    background: [0.972, 0.012, 240], foreground: [0.3, 0.09, 258], mutedText: [0.46, 0.07, 255], surface: [0.988, 0.008, 240],
+    sidebar: [0.962, 0.016, 240], border: [0.86, 0.04, 248], quiet: [0.94, 0.025, 245], primary: [0.5, 0.16, 258],
+    onPrimary: [0.98, 0.01, 240], soft: [0.93, 0.04, 248], hues: { l: 0.56, c: 0.12 }, apps: { l: 0.48, c: 0.09, softL: 0.93 },
+  },
+  dark: {
+    background: [0.34, 0.1, 260], foreground: [0.97, 0.012, 240], mutedText: [0.86, 0.045, 240], surface: [0.38, 0.1, 260],
+    sidebar: [0.31, 0.095, 260], border: [0.52, 0.08, 255], quiet: [0.42, 0.09, 260], primary: [0.88, 0.09, 210],
+    onPrimary: [0.3, 0.1, 260], soft: [0.43, 0.1, 258], hues: { l: 0.86, c: 0.09 }, apps: { l: 0.88, c: 0.08, softL: 0.45 },
+  },
+});
+
+/** Felt: sage wool in light, billiard green with brass in dark (Studio). */
+export const feltPalette: Palette = buildPalette({
+  light: {
+    background: [0.925, 0.022, 130], foreground: [0.24, 0.035, 150], mutedText: [0.42, 0.035, 150], surface: [0.97, 0.012, 110],
+    sidebar: [0.905, 0.026, 135], border: [0.84, 0.03, 135], quiet: [0.9, 0.03, 130], primary: [0.5, 0.12, 42],
+    onPrimary: [0.99, 0.01, 70], soft: [0.89, 0.04, 135], hues: { l: 0.52, c: 0.09 }, apps: { l: 0.44, c: 0.08, softL: 0.89 },
+  },
+  dark: {
+    background: [0.28, 0.045, 160], foreground: [0.95, 0.012, 100], mutedText: [0.82, 0.03, 120], surface: [0.32, 0.045, 160],
+    sidebar: [0.25, 0.04, 160], border: [0.42, 0.045, 160], quiet: [0.35, 0.045, 160], primary: [0.8, 0.12, 75],
+    onPrimary: [0.22, 0.03, 160], soft: [0.37, 0.05, 160], hues: { l: 0.82, c: 0.09 }, apps: { l: 0.84, c: 0.08, softL: 0.38 },
+  },
+});

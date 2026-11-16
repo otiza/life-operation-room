@@ -4,7 +4,7 @@
     pnpm --filter web themes:build
   A test fails when the generated files are stale.
 */
-import { paperPalette } from './palettes';
+import { blueprintPalette, feltPalette, inkPalette, paperPalette } from './palettes';
 import type { ThemeDefinition, ThemeMode, TokenMap } from './types';
 
 const plex = 'IBM Plex Sans';
@@ -25,14 +25,67 @@ export const paperTheme: ThemeDefinition = {
     meta: { fontFamily: plex, fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.4 },
   },
   skin: 'classic',
-  details: { checkbox: 'circle', divider: 'solid', chip: 'pill' },
+  details: { checkbox: 'circle', divider: 'solid', chip: 'tag' },
   strength: 0.5,
+};
+
+/*
+  Texture themes (THEMES-PLAN PR 3). Registered for the Theme lab; users can pick them once Appearance ships (PR 5).
+  Their own type pairings arrive in PR 4; until then they use Paper's typography.
+*/
+
+export const atelierTheme: ThemeDefinition = {
+  id: 'atelier',
+  name: 'Atelier',
+  description: 'A print shop: Paper colours with a halftone wash fading in from the corner, light noise, and no boxes.',
+  palette: paperPalette,
+  layers: { canvas: 'plain', pattern: 'halftone', grain: 'noise', surface: 'flat' },
+  typography: paperTheme.typography,
+  skin: 'classic',
+  details: { checkbox: 'square', divider: 'dotted', chip: 'tag' },
+  strength: 0.5,
+};
+
+export const dotTheme: ThemeDefinition = {
+  id: 'dot',
+  name: 'Dot',
+  description: 'A dot-grid notebook: monochrome paper with the terracotta accent. The quietest room.',
+  palette: inkPalette,
+  layers: { canvas: 'plain', pattern: 'dots', grain: 'none', surface: 'flat' },
+  typography: paperTheme.typography,
+  skin: 'classic',
+  details: { checkbox: 'square', divider: 'dotted', chip: 'pill' },
+  strength: 0.55,
+};
+
+export const blueprintTheme: ThemeDefinition = {
+  id: 'blueprint',
+  name: 'Blueprint',
+  description: 'A drafting table: a major and minor grid, square corners, dashed rules. Dark mode is the classic blue sheet.',
+  palette: blueprintPalette,
+  layers: { canvas: 'plain', pattern: 'grid', grain: 'noise', surface: 'flat' },
+  typography: paperTheme.typography,
+  skin: 'drafting',
+  details: { checkbox: 'square', divider: 'dashed', chip: 'square' },
+  strength: 0.55,
+};
+
+export const studioTheme: ThemeDefinition = {
+  id: 'studio',
+  name: 'Studio',
+  description: 'Wool felt: sage in light, billiard green with brass in dark. Paper cards sit on it; rules are stitched.',
+  palette: feltPalette,
+  layers: { canvas: 'plain', pattern: 'none', grain: 'felt', surface: 'paper' },
+  typography: paperTheme.typography,
+  skin: 'classic',
+  details: { checkbox: 'rounded', divider: 'stitch', chip: 'pill' },
+  strength: 0.7,
 };
 
 /** Paper is the default: it owns `:root` / `.dark`; every other theme overrides under `html[data-theme=…]`. */
 export const DEFAULT_THEME_ID = 'paper';
 
-export const THEMES: readonly ThemeDefinition[] = [paperTheme];
+export const THEMES: readonly ThemeDefinition[] = [paperTheme, atelierTheme, dotTheme, blueprintTheme, studioTheme];
 
 export function getTheme(id: string): ThemeDefinition | undefined {
   return THEMES.find((theme) => theme.id === id);

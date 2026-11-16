@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./themes.generated.css";
+@import "./themes-layers.css";
 
 /*
   Life Room design tokens. Rules: docs/DESIGN.md.
@@ -155,6 +156,11 @@ body {
 /* Inputs, outline buttons, the selected segment of a segmented control. */
 @utility surface-control {
   background-color: var(--card);
+}
+
+/* Badge and chip corners: a detail token (data-chip). Paper: the md radius. */
+@utility rounded-chip {
+  border-radius: var(--chip-radius);
 }
 
 /* The "done" mark's shape: a detail token (data-cb). Paper: circle. */
