@@ -1,7 +1,7 @@
 'use client';
 
 import { useDraggable } from '@dnd-kit/core';
-import { Square, SquareCheck } from 'lucide-react';
+import { Square, SquareCheck } from '../../../components/ui/icons';
 import type { CalendarOccurrenceDto } from '../calendar-api';
 import { formatClockTime } from '../calendar-range';
 import { eventColorFor } from '../event-colors';
@@ -75,7 +75,7 @@ export function EventBlock({
       className={cn(
         'absolute left-0 right-0 overflow-hidden px-1.5 py-0.5 text-left text-xs transition hover:brightness-95',
         isDueChip && 'rounded-md border border-dashed border-border bg-muted/60 text-muted-foreground',
-        isTaskTime && 'rounded-md border-[1.5px] border-dashed bg-card',
+        isTaskTime && 'rounded-md border-[1.5px] border-dashed surface-card',
         !isDueChip && !isTaskTime && 'rounded-r-md rounded-l-sm border-l-[3px]',
         isDone && 'text-muted-foreground line-through opacity-70',
         isDeleted && 'italic opacity-60',

@@ -49,7 +49,7 @@ export function TaskSidebar({ tasks, projectsById, blockedTaskIds }: TaskSidebar
   }, [tasks, blockedTaskIds, query]);
 
   return (
-    <aside className="flex h-full w-full flex-col gap-3 rounded-xl border border-border bg-card p-3 lg:w-72">
+    <aside className="flex h-full w-full flex-col gap-3 rounded-xl border border-border surface-card p-3 lg:w-72">
       <div>
         <h2 className="text-sm font-medium">Unscheduled tasks</h2>
         <p className="text-xs text-muted-foreground">Open tasks with no calendar time block</p>

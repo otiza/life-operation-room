@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { IBM_Plex_Sans, Literata, JetBrains_Mono } from 'next/font/google';
 import { Providers } from '../components/providers';
+import { DEFAULT_THEME_ID, getTheme, themeAttributes } from '../themes/registry';
 import './globals.css';
 
 const bodyFont = IBM_Plex_Sans({
@@ -38,6 +39,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       lang="en"
       className={`${bodyFont.variable} ${headingFont.variable} ${monoFont.variable} h-full antialiased`}
       suppressHydrationWarning
+      // Until Appearance ships (THEMES-PLAN PR 5) everyone is on the default theme.
+      {...themeAttributes(getTheme(DEFAULT_THEME_ID)!)}
     >
       <body className="min-h-full font-sans" suppressHydrationWarning>
         <Providers>{children}</Providers>

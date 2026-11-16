@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Flag, GripVertical } from 'lucide-react';
+import { Flag, GripVertical } from '../../components/ui/icons';
 import {
   DndContext,
   DragOverlay,
@@ -411,7 +411,7 @@ function TaskCardContent({
   return (
     <article
       className={cn(
-        'group relative cursor-grab rounded-xl border border-border/90 bg-card p-3 shadow-sm active:cursor-grabbing',
+        'group relative cursor-grab rounded-xl border border-border/90 surface-card p-3 shadow-sm active:cursor-grabbing',
         'hover:border-border hover:shadow-md',
         overdue && 'border-destructive/40 bg-danger-soft/50',
         dragging && 'shadow-xl ring-2 ring-ring',
@@ -490,7 +490,7 @@ function ColumnComposer({ onCreate }: { onCreate: (title: string) => void }) {
       }}
     >
       <input
-        className="h-9 w-full rounded-lg border border-dashed border-border bg-card px-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-ring"
+        className="h-9 w-full rounded-lg border border-dashed border-border surface-control px-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-ring"
         placeholder="Add task"
         value={title}
         aria-label="Add task"

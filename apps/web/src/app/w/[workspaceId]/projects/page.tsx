@@ -154,7 +154,7 @@ export default function ProjectsPage() {
             required
           />
           <textarea
-            className="min-h-24 w-full rounded-md border border-border bg-card px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
+            className="min-h-24 w-full rounded-md border border-border surface-control px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
             placeholder="Description (optional)"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
@@ -209,7 +209,7 @@ export default function ProjectsPage() {
                     <Link
                       key={project.id}
                       href={`/w/${workspaceId}/projects/${project.id}`}
-                      className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm hover:border-border"
+                      className="flex min-w-0 flex-col rounded-xl border border-border surface-card p-4 shadow-sm hover:border-border"
                     >
                       <h3 className="truncate text-base font-semibold text-foreground">{project.name}</h3>
                       {project.description ? (

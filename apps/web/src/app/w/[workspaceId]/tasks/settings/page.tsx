@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Trash2 } from 'lucide-react';
+import { GripVertical, Plus, Trash2 } from '../../../../../components/ui/icons';
 import type { TaskPriorityOption, TaskSettings, TaskStatusOption } from '@life-room/shared';
 import { me } from '../../../../../features/auth/auth-api';
 import { getTaskSettings, updateTaskSettings } from '../../../../../features/tasks/tasks-api';
@@ -320,7 +320,7 @@ function OptionList<T extends { key: string }>({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={items.map((item) => item.key)} strategy={verticalListSortingStrategy}>
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="overflow-hidden rounded-xl border border-border surface-card">
           {items.map((item, index) => (
             <SortableRow key={item.key} id={item.key} divided={index > 0}>
               {children(item)}
@@ -342,7 +342,7 @@ function SortableRow({ id, divided, children }: { id: string; divided?: boolean;
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform) }}
       className={cn(
-        'flex items-start gap-1 bg-card px-2 py-2.5 sm:items-center',
+        'flex items-start gap-1 surface-card px-2 py-2.5 sm:items-center',
         divided && 'border-t border-border',
         isDragging && 'relative z-10 shadow-lg',
       )}
@@ -448,7 +448,7 @@ function Switch({
       <span className={cn('relative h-4 w-7 rounded-full transition-colors', checked ? 'bg-primary' : 'bg-secondary')}>
         <span
           className={cn(
-            'absolute top-0.5 h-3 w-3 rounded-full bg-popover transition-transform',
+            'absolute top-0.5 h-3 w-3 rounded-full surface-control transition-transform',
             checked ? 'translate-x-3.5' : 'translate-x-0.5',
           )}
         />

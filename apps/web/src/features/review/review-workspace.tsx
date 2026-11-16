@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { calendarDateKeyInTimeZone, getDayBoundsForDateKey, zonedWallTimeToUtc } from '@life-room/shared';
-import { Check, CheckCircle2, Moon, Sunrise } from 'lucide-react';
+import { CheckCircle2, Moon, Sunrise } from '../../components/ui/icons';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { Button } from '../../components/ui/button';
 import { EmptyState } from '../../components/ui/empty-state';
@@ -15,6 +15,7 @@ import { useToast } from '../../components/ui/toast';
 import { ApiError } from '../../lib/api';
 import { RowList } from '../../components/ui/row-list';
 import { cn } from '../../lib/utils';
+import { CheckMark } from '../../components/ui/check-mark';
 import { listInstalledApps } from '../apps/apps-api';
 import { listCalendarEvents, viewerTimeZone, type CalendarOccurrenceDto } from '../calendar/calendar-api';
 import { getTodayNote, updateNoteBody } from '../notes/notes-api';
@@ -373,9 +374,7 @@ function DoneRow({ task, workspaceId, showDivider }: { task: Task; workspaceId: 
         href={`/w/${workspaceId}/tasks?view=logbook&task=${task.id}`}
         className="flex min-h-11 items-center gap-3 px-3 py-2 text-sm hover:bg-accent sm:px-4"
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground">
-          <Check className="h-3 w-3" aria-hidden />
-        </span>
+        <CheckMark checked glyph="icon" />
         <span className="min-w-0 flex-1 truncate text-muted-foreground">{task.title}</span>
         <span className="shrink-0 text-xs text-muted-foreground">{timeLabel(task.completedAt)}</span>
       </Link>
@@ -504,7 +503,7 @@ function ReflectionEditor({ workspaceId, timeZone }: { workspaceId: string; time
       }}
     >
       <textarea
-        className="min-h-24 w-full resize-y rounded-xl border border-input bg-card px-3 py-2 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
+        className="min-h-24 w-full resize-y rounded-xl border border-input surface-control px-3 py-2 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
         placeholder="What went well? What got in the way? What matters most tomorrow?"
         aria-label="Reflection for today"
         value={value}

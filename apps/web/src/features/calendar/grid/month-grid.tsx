@@ -65,7 +65,7 @@ export function MonthGrid({ days, anchor, events, onSelectOccurrence, onSelectDa
   const month = anchor.getMonth();
   const todayKey = toDateKey(new Date());
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
+    <div className="overflow-hidden rounded-xl border border-border surface-card">
       <div className="grid grid-cols-7 border-b border-border text-center text-xs text-muted-foreground">
         {days.slice(0, 7).map((day) => (
           <div key={day.toISOString()} className="px-2 py-2">

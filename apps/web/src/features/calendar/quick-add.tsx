@@ -81,7 +81,7 @@ export function QuickAdd({ onSubmit, inputRef }: QuickAddProps) {
   const draft: QuickAddDraft | null = useMemo(() => draftFromParsedEvent(parsed), [parsed]);
 
   return (
-    <div className="space-y-2 rounded-xl border border-border bg-card p-3">
+    <div className="space-y-2 rounded-xl border border-border surface-card p-3">
       <Input
         ref={inputRef}
         value={text}

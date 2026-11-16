@@ -121,7 +121,7 @@ function ChapterLink({
         compact
           ? 'shrink-0 rounded-full border border-border px-3 py-2'
           : '-ml-px border-l-2 border-transparent px-3 py-1.5',
-        active && compact && 'border-foreground bg-card text-foreground',
+        active && compact && 'border-foreground surface-control text-foreground',
         active && !compact && 'border-primary font-medium text-foreground',
       )}
     >
@@ -145,7 +145,7 @@ function ChapterPager({
     <Link
       href={href}
       className={cn(
-        'rounded-xl border border-border bg-card px-4 py-3 hover:bg-accent',
+        'rounded-xl border border-border surface-card px-4 py-3 hover:bg-accent',
         align === 'end' && 'sm:text-right',
       )}
     >
@@ -171,7 +171,7 @@ function ManualBlockView({ block }: { block: ManualBlock }) {
   }
   if (block.type === 'callout') {
     return (
-      <aside className="max-w-[68ch] rounded-xl border border-border border-l-2 border-l-primary bg-card px-4 py-3">
+      <aside className="max-w-[68ch] rounded-xl border border-border border-l-2 border-l-primary surface-card px-4 py-3">
         <p className="text-sm font-medium text-foreground">{block.title}</p>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">{block.text}</p>
       </aside>
@@ -183,7 +183,7 @@ function ManualBlockView({ block }: { block: ManualBlock }) {
         {block.items.map((step, stepIndex) => (
           <li key={step.title} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3">
             <div className="flex flex-col items-center">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-meta text-foreground">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border surface-control text-meta text-foreground">
                 {stepIndex + 1}
               </span>
               {stepIndex < block.items.length - 1 ? <span className="my-1 w-px flex-1 bg-border" /> : null}
@@ -198,7 +198,7 @@ function ManualBlockView({ block }: { block: ManualBlock }) {
     );
   }
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
+    <div className="overflow-hidden rounded-xl border border-border surface-card">
       <table className="w-full border-collapse text-left text-sm">
         <thead>
           <tr className="border-b border-border">

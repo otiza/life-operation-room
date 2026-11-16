@@ -1,6 +1,6 @@
 'use client';
 
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { Monitor, Moon, Sun } from './ui/icons';
 import { useTheme } from 'next-themes';
 import { useSyncExternalStore } from 'react';
 import { cn } from '../lib/utils';
@@ -43,7 +43,7 @@ export function ThemeToggle({ className }: { className?: string }) {
             className={cn(
               'inline-flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors',
               active
-                ? 'bg-card text-foreground shadow-raised'
+                ? 'surface-control text-foreground shadow-raised'
                 : 'text-muted-foreground hover:text-foreground',
             )}
             aria-pressed={active}

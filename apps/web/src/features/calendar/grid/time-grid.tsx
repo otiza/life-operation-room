@@ -280,7 +280,7 @@ export function TimeGrid({
   }
 
   return (
-    <div className="overflow-auto rounded-xl border border-border bg-card">
+    <div className="overflow-auto rounded-xl border border-border surface-card">
       <div className="grid min-w-[640px]" style={{ gridTemplateColumns: `56px repeat(${days.length}, minmax(0, 1fr))` }}>
         <div className="border-b border-border" />
         {days.map((day) => {

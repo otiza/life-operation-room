@@ -5,7 +5,7 @@ import { Skeleton } from '../../components/ui/skeleton';
 function ShellFallback() {
   return (
     <div className="flex min-h-dvh bg-background" aria-busy="true" aria-label="Loading">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-4 md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border surface-chrome p-4 md:flex">
         <Skeleton className="mb-6 h-7 w-28" />
         <Skeleton className="mb-3 h-10 w-full" />
         <div className="space-y-2 pt-4">

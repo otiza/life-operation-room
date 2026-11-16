@@ -25,7 +25,7 @@ export function AgendaList({ days, events, onSelectOccurrence }: AgendaListProps
           })
           .sort((a, b) => a.occurrenceStart.localeCompare(b.occurrenceStart));
         return (
-          <section key={day.toISOString()} className="rounded-xl border border-border bg-card p-3">
+          <section key={day.toISOString()} className="rounded-xl border border-border surface-card p-3">
             <h2 className="mb-2 text-sm font-medium">{formatDayLabel(day)}</h2>
             {dayEvents.length === 0 ? (
               <p className="text-sm text-muted-foreground">No events</p>

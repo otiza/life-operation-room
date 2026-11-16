@@ -10,7 +10,7 @@ import {
   type CalendarMutationScope,
   type CalendarView,
 } from '@life-room/shared';
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings } from '../../components/ui/icons';
 import { PageContainer, PageHeader } from '../../components/layout/page-container';
 import { Button } from '../../components/ui/button';
 import { SegmentedControl } from '../../components/ui/segmented-control';

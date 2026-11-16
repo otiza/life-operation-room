@@ -117,7 +117,7 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: () => void
       aria-labelledby={titleId}
       aria-describedby={item.description ? descriptionId : undefined}
       className={cn(
-        'pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border border-border bg-popover px-4 py-3 text-popover-foreground shadow-lg',
+        'pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border border-border surface-floating px-4 py-3 text-popover-foreground shadow-lg',
       )}
     >
       <div className="min-w-0 flex-1 space-y-0.5">

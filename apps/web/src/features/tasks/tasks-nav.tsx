@@ -8,7 +8,7 @@ import {
   Layers,
   Moon,
   Sun,
-} from 'lucide-react';
+} from '../../components/ui/icons';
 import type { TaskView } from '@life-room/shared';
 import type { Project } from '../projects/projects-api';
 import type { ProjectTaskCount, TaskViewCounts } from './tasks-api';

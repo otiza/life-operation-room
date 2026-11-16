@@ -1,14 +1,14 @@
 'use client';
 
 import { FormEvent, type RefObject } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus } from '../../components/ui/icons';
 import type { Project } from '../projects/projects-api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { cn } from '../../lib/utils';
 
 export const selectClass =
-  'h-11 w-full rounded-lg border border-border bg-card px-2.5 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:w-auto sm:text-sm';
+  'h-11 w-full rounded-lg border border-border surface-control px-2.5 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:w-auto sm:text-sm';
 
 export function TasksComposer({
   composerRef,
@@ -36,7 +36,7 @@ export function TasksComposer({
   return (
     <>
       <form
-        className="flex flex-col gap-2 rounded-lg border border-border bg-card px-2 py-1.5 transition-shadow focus-within:border-ring/50 has-[input:not(:placeholder-shown)]:ring-2 has-[input:not(:placeholder-shown)]:ring-ring sm:flex-row sm:items-center"
+        className="flex flex-col gap-2 rounded-lg border border-border surface-card px-2 py-1.5 transition-shadow focus-within:border-ring/50 has-[input:not(:placeholder-shown)]:ring-2 has-[input:not(:placeholder-shown)]:ring-ring sm:flex-row sm:items-center"
         onSubmit={onSubmit}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { BookOpen, ChevronsUpDown, LogOut, Plus, Settings } from 'lucide-react';
+import { BookOpen, ChevronsUpDown, LogOut, Plus, Settings } from '../../components/ui/icons';
 import { Menu } from '../../components/ui/menu';
 import { ThemeToggle } from '../../components/theme-toggle';
 

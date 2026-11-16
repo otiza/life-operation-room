@@ -12,7 +12,7 @@ import {
   Search,
   Sun,
   X,
-} from 'lucide-react';
+} from '../../components/ui/icons';
 import { logout, me } from '../auth/auth-api';
 import { listInstalledApps } from '../apps/apps-api';
 import { listNotifications, markNotificationRead } from '../notifications/notifications-api';
@@ -244,7 +244,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!hasHydrated || meQuery.isLoading || !meQuery.data) {
     return (
       <div className="flex min-h-dvh bg-background" aria-busy="true" aria-label="Loading">
-        <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-4 md:flex">
+        <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border surface-chrome p-4 md:flex">
           <Skeleton className="mb-6 h-7 w-28" />
           <Skeleton className="mb-3 h-10 w-full" />
           <div className="space-y-2 pt-4">
@@ -412,7 +412,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border surface-chrome text-sidebar-foreground md:flex">
         {sidebar}
       </aside>
 
@@ -435,7 +435,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
         <aside
           className={cn(
-            'absolute inset-y-0 left-0 flex w-[min(20rem,88vw)] flex-col bg-sidebar text-sidebar-foreground shadow-xl transition-transform duration-200 ease-out',
+            'absolute inset-y-0 left-0 flex w-[min(20rem,88vw)] flex-col surface-chrome text-sidebar-foreground shadow-xl transition-transform duration-200 ease-out',
             mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
           )}
           role="dialog"
@@ -529,7 +529,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             )}
             {notificationsOpen && (
-              <div className="absolute right-0 z-20 mt-2 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-card p-3 shadow-lg">
+              <div className="absolute right-0 z-20 mt-2 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-border surface-floating p-3 shadow-lg">
                 <div className="mb-2 text-sm font-semibold">Notifications</div>
                 <div className="max-h-[min(20rem,50vh)] space-y-2 overflow-y-auto">
                   {(notificationsQuery.data?.notifications ?? []).length === 0 && (

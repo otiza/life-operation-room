@@ -33,7 +33,7 @@ export function IcsSettings({ workspaceId }: IcsSettingsProps) {
   });
 
   return (
-    <section className="space-y-3 rounded-xl border border-border bg-card p-4">
+    <section className="space-y-3 rounded-xl border border-border surface-card p-4">
       <div>
         <h2 className="text-sm font-medium">ICS subscription</h2>
         <p className="text-sm text-muted-foreground">
