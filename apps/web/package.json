@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "themes:build": "UPDATE_THEMES=1 vitest run src/themes/generated.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
