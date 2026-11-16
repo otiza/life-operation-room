@@ -28,6 +28,12 @@ export const FONTS = {
   plexMono: { name: 'IBM Plex Mono', variable: '--font-plex-mono', fallback: MONO },
   youngSerif: { name: 'Young Serif', variable: '--font-young-serif', fallback: SERIF },
   figtree: { name: 'Figtree', variable: '--font-figtree', fallback: SANS },
+  syne: { name: 'Syne', variable: '--font-syne', fallback: SANS },
+  dmSans: { name: 'DM Sans', variable: '--font-dm-sans', fallback: SANS },
+  bodoni: { name: 'Bodoni Moda', variable: '--font-bodoni', fallback: SERIF },
+  jost: { name: 'Jost', variable: '--font-jost', fallback: SANS },
+  bricolage: { name: 'Bricolage Grotesque', variable: '--font-bricolage', fallback: SANS },
+  pixelify: { name: 'Pixelify Sans', variable: '--font-pixelify', fallback: MONO },
 } as const satisfies Record<string, FontFamily>;
 
 const BY_NAME = new Map<string, FontFamily>(Object.values(FONTS).map((font) => [font.name, font]));

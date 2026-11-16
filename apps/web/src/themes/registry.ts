@@ -4,7 +4,7 @@
     pnpm --filter web themes:build
   A test fails when the generated files are stale.
 */
-import { blueprintPalette, feltPalette, inkPalette, paperPalette } from './palettes';
+import { arcadePalette, blueprintPalette, decoPalette, feltPalette, inkPalette, paperPalette, terminalPalette, thermalPalette } from './palettes';
 import type { ThemeDefinition, ThemeMode, TokenMap } from './types';
 
 const plex = 'IBM Plex Sans';
@@ -108,7 +108,101 @@ export const studioTheme: ThemeDefinition = {
 /** Paper is the default: it owns `:root` / `.dark`; every other theme overrides under `html[data-theme=…]`. */
 export const DEFAULT_THEME_ID = 'paper';
 
-export const THEMES: readonly ThemeDefinition[] = [paperTheme, atelierTheme, dotTheme, blueprintTheme, studioTheme];
+/* Glass and skin themes (THEMES-PLAN PR 6–7). */
+
+export const thermalTheme: ThemeDefinition = {
+  id: 'thermal',
+  name: 'Thermal',
+  description: 'A grainy heat map: warm blobs drift slowly behind frosted glass. Big poster type.',
+  palette: thermalPalette,
+  layers: { canvas: 'gradient', pattern: 'none', grain: 'noise', surface: 'frosted' },
+  typography: {
+    display: { fontFamily: 'Syne', fontSize: '3rem', fluid: 'clamp(2rem, 1.4rem + 2.6vw, 3rem)', fontWeight: 800, lineHeight: 0.95, letterSpacing: '-0.04em' },
+    pageTitle: { fontFamily: 'Syne', fontSize: '1.75rem', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.02em' },
+    sectionTitle: { fontFamily: 'Syne', fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.25, letterSpacing: '-0.015em' },
+    body: { fontFamily: 'DM Sans', fontSize: '0.9375rem', fontWeight: 400, lineHeight: 1.5 },
+    meta: { fontFamily: 'DM Sans', fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.4 },
+  },
+  skin: 'classic',
+  details: { checkbox: 'circle', divider: 'solid', chip: 'pill' },
+  strength: 0.75,
+};
+
+export const flutedTheme: ThemeDefinition = {
+  id: 'fluted',
+  name: 'Fluted',
+  description: 'Art deco: emerald and brass behind ribbed glass, Bodoni italics, diamond checkboxes and double rules.',
+  palette: decoPalette,
+  layers: { canvas: 'gradient', pattern: 'none', grain: 'noise', surface: 'fluted' },
+  typography: {
+    display: { fontFamily: 'Bodoni Moda', fontSize: '3rem', fluid: 'clamp(2rem, 1.4rem + 2.6vw, 3rem)', fontWeight: 600, lineHeight: 1.05, letterSpacing: '-0.01em', fontStyle: 'italic', fontVariation: '"opsz" 28' },
+    pageTitle: { fontFamily: 'Bodoni Moda', fontSize: '1.875rem', fontWeight: 600, lineHeight: 1.15, fontStyle: 'italic', fontVariation: '"opsz" 28' },
+    sectionTitle: { fontFamily: 'Bodoni Moda', fontSize: '1.375rem', fontWeight: 500, lineHeight: 1.2, fontStyle: 'italic', fontVariation: '"opsz" 28' },
+    body: { fontFamily: 'Jost', fontSize: '0.9375rem', fontWeight: 400, lineHeight: 1.5 },
+    meta: { fontFamily: 'Jost', fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.4 },
+  },
+  skin: 'classic',
+  details: { checkbox: 'diamond', divider: 'double', chip: 'square' },
+  strength: 0.55,
+};
+
+export const mosaicTheme: ThemeDefinition = {
+  id: 'mosaic',
+  name: 'Mosaic',
+  description: 'Large tiles with grout lines in the Paper colours, seen through frosted glass. Heavy grotesque type.',
+  palette: paperPalette,
+  layers: { canvas: 'tiles', pattern: 'none', grain: 'noise', surface: 'frosted' },
+  typography: {
+    display: { fontFamily: 'Bricolage Grotesque', fontSize: '3rem', fluid: 'clamp(2rem, 1.4rem + 2.6vw, 3rem)', fontWeight: 800, lineHeight: 1, letterSpacing: '-0.05em', fontVariation: '"opsz" 96' },
+    pageTitle: { fontFamily: 'Bricolage Grotesque', fontSize: '1.75rem', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.03em' },
+    sectionTitle: { fontFamily: 'Bricolage Grotesque', fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.25, letterSpacing: '-0.02em' },
+    body: { fontFamily: 'Bricolage Grotesque', fontSize: '0.9375rem', fontWeight: 400, lineHeight: 1.5 },
+    meta: { fontFamily: 'Bricolage Grotesque', fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.4 },
+  },
+  skin: 'classic',
+  details: { checkbox: 'rounded', divider: 'solid', chip: 'tag' },
+  strength: 0.45,
+};
+
+export const arcadeTheme: ThemeDefinition = {
+  id: 'arcade',
+  name: 'Arcade',
+  description: 'Pixel art: a pixel mosaic, pixel type, notched borders and square checkboxes. Mint on indigo in dark.',
+  palette: arcadePalette,
+  layers: { canvas: 'mosaic', pattern: 'none', grain: 'none', surface: 'paper' },
+  typography: {
+    display: { fontFamily: 'Pixelify Sans', fontSize: '2.75rem', fluid: 'clamp(1.75rem, 1.3rem + 2vw, 2.75rem)', fontWeight: 600, lineHeight: 1.05 },
+    pageTitle: { fontFamily: 'Pixelify Sans', fontSize: '1.75rem', fontWeight: 600, lineHeight: 1.15 },
+    sectionTitle: { fontFamily: 'Pixelify Sans', fontSize: '1.375rem', fontWeight: 600, lineHeight: 1.2 },
+    body: { fontFamily: 'IBM Plex Mono', fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.5 },
+    meta: { fontFamily: 'IBM Plex Mono', fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.4 },
+  },
+  skin: 'pixel',
+  details: { checkbox: 'square', divider: 'dotted', chip: 'square' },
+  strength: 0.5,
+};
+
+export const terminalTheme: ThemeDefinition = {
+  id: 'terminal',
+  name: 'Terminal',
+  description: 'ASCII art: a character-drawn sun and hills, scanlines, double-line panels, [x] checkboxes and a blinking cursor.',
+  palette: terminalPalette,
+  layers: { canvas: 'ascii', pattern: 'scanlines', grain: 'none', surface: 'paper' },
+  typography: {
+    display: { fontFamily: 'JetBrains Mono', fontSize: '2.375rem', fluid: 'clamp(1.5rem, 1.1rem + 1.8vw, 2.375rem)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.03em' },
+    pageTitle: { fontFamily: 'JetBrains Mono', fontSize: '1.5rem', fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.02em' },
+    sectionTitle: { fontFamily: 'JetBrains Mono', fontSize: '0.9375rem', fontWeight: 700, lineHeight: 1.4 },
+    body: { fontFamily: 'JetBrains Mono', fontSize: '0.875rem', fontWeight: 400, lineHeight: 1.55 },
+    meta: { fontFamily: 'JetBrains Mono', fontSize: '0.75rem', fontWeight: 400, lineHeight: 1.4 },
+  },
+  skin: 'ascii',
+  details: { checkbox: 'square', divider: 'dashed', chip: 'square' },
+  strength: 0.55,
+};
+
+export const THEMES: readonly ThemeDefinition[] = [
+  paperTheme, atelierTheme, dotTheme, blueprintTheme, studioTheme, thermalTheme, flutedTheme, mosaicTheme, arcadeTheme, terminalTheme,
+];
 
 export function getTheme(id: string): ThemeDefinition | undefined {
   return THEMES.find((theme) => theme.id === id);

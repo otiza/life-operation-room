@@ -4,6 +4,7 @@
   when run with UPDATE_THEMES=1 (`pnpm --filter web themes:build`).
 */
 import { parseOklch, toHex } from './color';
+import { canvasPath } from './canvas-art';
 import { fontStack, FONTS } from './fonts';
 import { DEFAULT_THEME_ID, resolveTokens } from './registry';
 import type { ThemeDefinition, ThemeMode, TokenMap, TypeStyle } from './types';
@@ -51,8 +52,11 @@ export function generateThemesCss(themes: readonly ThemeDefinition[]) {
     const isDefault = theme.id === DEFAULT_THEME_ID;
     const light = isDefault ? ':root' : `html[data-theme="${theme.id}"]`;
     const dark = isDefault ? '.dark' : `html[data-theme="${theme.id}"].dark`;
-    const lightTokens = { ...theme.palette.light, 'texture-strength': String(theme.strength), ...typeTokens(theme) };
-    return `/* ${theme.name} */\n${light} {\n${declarations(lightTokens)}\n}\n\n${dark} {\n${declarations(theme.palette.dark)}\n}`;
+    const painted = ['mosaic', 'tiles', 'ascii'].includes(theme.layers.canvas);
+    const image = (mode: ThemeMode): TokenMap => (painted ? { 'canvas-image': `url("${canvasPath(theme.id, mode)}")` } : {});
+    const lightTokens = { ...theme.palette.light, 'texture-strength': String(theme.strength), ...typeTokens(theme), ...image('light') };
+    const darkTokens = { ...theme.palette.dark, ...image('dark') };
+    return `/* ${theme.name} */\n${light} {\n${declarations(lightTokens)}\n}\n\n${dark} {\n${declarations(darkTokens)}\n}`;
   });
   return `${HEADER}\n\n${blocks.join('\n\n')}\n`;
 }
