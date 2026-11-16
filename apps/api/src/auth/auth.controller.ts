@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { loginSchema, signupSchema } from '@life-room/shared';
+import { loginSchema, signupSchema, updateAppearanceSchema } from '@life-room/shared';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { User } from '../db/schema.js';
@@ -53,6 +53,14 @@ export class AuthController {
   @UseGuards(AuthGuard)
   me(@CurrentUser() user: User) {
     return { user: this.usersService.toDto(user) };
+  }
+
+  /** Theme, texture strength and focus mode for the signed-in user. Partial updates. */
+  @Patch('me/appearance')
+  @UseGuards(AuthGuard)
+  async updateAppearance(@CurrentUser() user: User, @Body() body: unknown) {
+    const input = updateAppearanceSchema.parse(body);
+    return { appearance: await this.usersService.updateAppearance(user.id, input) };
   }
 
   private setSessionCookie(response: Response, sessionToken: string) {

@@ -39,6 +39,9 @@ import { ProfileMenu } from './profile-menu';
 import { AppIcon } from '../apps/app-icon';
 import { isTypingTarget } from '../../lib/keyboard';
 import { RoomBackdrop } from '../../components/room-backdrop';
+import { useToast } from '../../components/ui/toast';
+import { applyAppearance } from '../appearance/appearance';
+import { useAppearance } from '../appearance/use-appearance';
 import { cn } from '../../lib/utils';
 import { useEffect, useId, useMemo, useState } from 'react';
 
@@ -71,6 +74,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     queryFn: me,
   });
   useNotificationsSocket(Boolean(meQuery.data));
+
+  // The server's appearance wins over the locally cached copy the boot script applied.
+  const { appearance, update: updateAppearance } = useAppearance();
+  const { toast } = useToast();
+  const serverAppearance = meQuery.data?.user.appearance;
+  useEffect(() => {
+    if (serverAppearance) applyAppearance(serverAppearance);
+  }, [serverAppearance]);
 
   useEffect(() => {
     if (meQuery.isError) {
@@ -189,6 +200,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         setShortcutsOpen(true);
         return;
       }
+      if (event.key === 'f' || event.key === 'F') {
+        event.preventDefault();
+        const focus = !appearance.focus;
+        updateAppearance({ focus });
+        toast({ title: focus ? 'Focus mode on' : 'Focus mode off', description: focus ? 'Textures are hidden. Press f to bring them back.' : undefined });
+        return;
+      }
       if (event.key !== 'q' && event.key !== 'Q') return;
       if (!tasksInstalled || !currentWorkspaceId) return;
       event.preventDefault();
@@ -196,7 +214,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [currentWorkspaceId, openQuickAdd, pathname, tasksInstalled]);
+  }, [appearance.focus, currentWorkspaceId, openQuickAdd, pathname, tasksInstalled, toast, updateAppearance]);
 
   const notificationsQuery = useQuery({
     queryKey: ['notifications'],

@@ -171,6 +171,29 @@ body {
   background-color: var(--card);
 }
 
+/* Theme preview cards (Appearance): colours and fonts come from inline --preview-* properties, not the active theme. */
+.theme-preview {
+  background-color: var(--preview-bg);
+  color: var(--preview-fg);
+  box-shadow: inset 0 0 0 1px var(--preview-border);
+}
+.theme-preview-card {
+  background-color: var(--preview-surface);
+  box-shadow: 0 0 0 1px var(--preview-border);
+}
+.theme-preview-accent {
+  background-color: var(--preview-primary);
+}
+.theme-preview-muted {
+  color: var(--preview-muted);
+}
+.theme-preview-display {
+  font-family: var(--preview-display);
+}
+.theme-preview-body {
+  font-family: var(--preview-body);
+}
+
 /* Badge and chip corners: a detail token (data-chip). Paper: the md radius. */
 @utility rounded-chip {
   border-radius: var(--chip-radius);

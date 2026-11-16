@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "appearance" jsonb DEFAULT '{"theme":"paper","strength":null,"focus":false}'::jsonb NOT NULL;

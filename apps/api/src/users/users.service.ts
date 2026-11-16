@@ -3,6 +3,7 @@ import { InjectDrizzle } from '@nestjs/drizzle';
 import { eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { users, type NewUser, type User } from '../db/schema.js';
+import { parseAppearance, type Appearance, type UpdateAppearanceInput } from '@life-room/shared';
 import { toIso } from '../common/utils/crypto.js';
 
 @Injectable()
@@ -27,12 +28,21 @@ export class UsersService {
     return created;
   }
 
+  /** Merge a partial change into the stored appearance and return the result. */
+  async updateAppearance(userId: string, patch: UpdateAppearanceInput): Promise<Appearance> {
+    const current = await this.findById(userId);
+    const next = parseAppearance({ ...parseAppearance(current?.appearance), ...patch });
+    await this.db.update(users).set({ appearance: next }).where(eq(users.id, userId));
+    return next;
+  }
+
   toDto(user: User) {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       createdAt: toIso(user.createdAt)!,
+      appearance: parseAppearance(user.appearance),
     };
   }
 }

@@ -59,6 +59,11 @@ html:has([data-page-size="lg"]) .room-backdrop {
   }
 }
 
+/* Focus mode (data-focus="on"): textures off; palette and type stay. */
+html[data-focus="on"] .room-backdrop > div {
+  display: none;
+}
+
 /* ── Pattern ── */
 html[data-pattern="grid"] .room-pattern {
   --minor: color-mix(in oklch, var(--foreground) calc(var(--texture-strength) * 20%), transparent);

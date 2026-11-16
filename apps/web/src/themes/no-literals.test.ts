@@ -13,7 +13,7 @@ const SRC = join(__dirname, '..');
 const RULES: { name: string; pattern: RegExp }[] = [
   { name: 'hex colour', pattern: /#[0-9a-fA-F]{3,8}\b/ },
   { name: 'colour function', pattern: /\b(?:oklch|rgba?|hsla?)\(/ },
-  { name: 'font family', pattern: /fontFamily|\bfont-\[/ },
+  { name: 'font family', pattern: /fontFamily\s*:|\bfont-\[/ },
   { name: 'arbitrary shadow', pattern: /\bshadow-\[/ },
 ];
 

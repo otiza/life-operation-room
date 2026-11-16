@@ -1,3 +1,4 @@
+import type { Appearance } from '@life-room/shared';
 import { boolean, date, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid, index } from 'drizzle-orm/pg-core';
 
 export const workspaceKindEnum = pgEnum('workspace_kind', ['personal', 'shared']);
@@ -10,6 +11,9 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
   passwordHash: text('password_hash').notNull(),
+  /** Theme, texture strength and focus mode (see @life-room/shared appearance). Existing users start on Paper. */
+  // Default spelled out (= DEFAULT_APPEARANCE): drizzle-kit cannot load runtime values from @life-room/shared.
+  appearance: jsonb('appearance').$type<Appearance>().notNull().default({ theme: 'paper', strength: null, focus: false }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

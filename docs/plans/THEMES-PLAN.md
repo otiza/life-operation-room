@@ -118,13 +118,12 @@ Exit: the user answers the open questions at the end of this plan.
 
 ## PR 5: Appearance — storage, switcher and focus mode (first release)
 
-- Migration: `users.appearance jsonb not null default '{"theme":"paper","strength":0.5}'`. `GET /auth/me` returns it; `PATCH /auth/me/appearance` validates against the registry ids (zod, shared in `packages/shared`).
-- Cookie mirror for first paint; `ThemeProvider` sets the `data-*` attributes.
-- **Appearance page** (personal, reached from the profile menu; the light/dark/system toggle stays there too): a gallery of live mini previews, mode, texture strength, focus mode.
-- **Focus mode**: one command (registered in the shell command registry, with a clickable switch) that turns texture and motion off and keeps palette and type.
-- In-app Manual: an *Appearance* page.
+- Migration `0010_user_appearance`: `users.appearance jsonb not null default {"theme":"paper","strength":null,"focus":false}`. `GET /auth/me` returns it; `PATCH /auth/me/appearance` takes partial, strict changes validated against `THEME_IDS` (`@life-room/shared`).
+- No flash: the choice is cached in `localStorage`, and a boot script in `<head>` applies it before first paint (instead of a cookie, so pages stay static); the shell re-applies the server copy when `/auth/me` loads.
+- **Appearance page** (profile menu → Appearance): live preview cards, light/dark/system, texture strength (with reset), focus mode switch.
+- **Focus mode**: `f` anywhere outside a text field (listed in `?` and the Manual) hides textures.
+- Manual: an Appearance chapter; `f` in Shortcuts.
 - Ships to users: **Paper, Atelier, Dot, Blueprint, Studio**.
-- **Exit:** e2e — change theme, reload, still applied, no flash; API e2e for validation of unknown ids.
 
 ## PR 6: Glass themes
 

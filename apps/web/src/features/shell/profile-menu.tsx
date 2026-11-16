@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { BookOpen, ChevronsUpDown, LogOut, Plus, Settings } from '../../components/ui/icons';
+import { BookOpen, ChevronsUpDown, LogOut, Palette, Plus, Settings } from '../../components/ui/icons';
 import { Menu } from '../../components/ui/menu';
 import { ThemeToggle } from '../../components/theme-toggle';
 
@@ -29,6 +29,7 @@ export function ProfileMenu({
   const base = `/w/${workspaceId}`;
   const links = [
     { href: `${base}/settings`, label: 'Settings', icon: Settings },
+    { href: `${base}/appearance`, label: 'Appearance', icon: Palette },
     { href: `${base}/docs/start`, label: 'Manual', icon: BookOpen },
     { href: `${base}/apps`, label: 'Add apps', icon: Plus },
   ];
