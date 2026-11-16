@@ -195,7 +195,7 @@ Life Room is a calm daily planner: the day is the hero. Every theme shares one l
 | Grain | none |
 | Surface | paper |
 | Skin | classic |
-| Checkbox · divider · chip | circle · solid · pill |
+| Checkbox · divider · chip | circle · solid · tag |
 
 ## Colors
 
@@ -221,7 +221,7 @@ Surface material: **paper**. Lists sit on the canvas with hairline dividers; car
 
 ## Shapes
 
-Base radius 14px. Checkboxes are **circle**, dividers **solid**, chips **pill**.
+Base radius 14px. Checkboxes are **circle**, dividers **solid**, chips **tag**.
 
 ## Components
 

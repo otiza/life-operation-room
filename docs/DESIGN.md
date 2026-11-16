@@ -39,6 +39,17 @@ A theme is **data** in [`src/themes/registry.ts`](../apps/web/src/themes/registr
 - Every theme must pass the contrast test below, in both modes, before it is registered.
 - `<html>` carries the active theme as `data-theme`, `data-canvas`, `data-pattern`, `data-grain`, `data-surface`, `data-skin`, `data-cb`, `data-divider`, `data-chip` (from `themeAttributes()`); mode stays the `.dark` class.
 
+### Layers and text protection
+
+`RoomBackdrop` (in the shell) draws the theme's canvas, pattern and grain behind everything; styles live in `app/themes-layers.css`. **Rule:** canvas and pattern are masked out of the reading column and the top bar (the column is found from `PageContainer`'s `data-page-size`; `full` pages get no canvas/pattern at all). Grain is fine enough to run under text. Grain tiles are static SVGs in `public/themes/`.
+
+New palettes are built from a few seeds with `buildPalette()` (`src/themes/derive.ts`): event, priority and app colours share one lightness and chroma per palette.
+
+### Theme lab (development only)
+
+- `/dev/themes` shows every primitive in every registered theme, with a light/dark switch. It returns 404 in production.
+- Add `?theme=<id>` to any page in development to view it in that theme (remembered in `localStorage` as `lr-dev-theme`). Users get a real switcher with Appearance (THEMES-PLAN PR 5).
+
 ### Surface roles
 
 Say what a surface **is**, not what colour it has, so a theme can turn it into paper, glass or nothing:

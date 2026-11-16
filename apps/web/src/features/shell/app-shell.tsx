@@ -38,6 +38,7 @@ import { Logo } from '../../components/brand/logo';
 import { ProfileMenu } from './profile-menu';
 import { AppIcon } from '../apps/app-icon';
 import { isTypingTarget } from '../../lib/keyboard';
+import { RoomBackdrop } from '../../components/room-backdrop';
 import { cn } from '../../lib/utils';
 import { useEffect, useId, useMemo, useState } from 'react';
 
@@ -411,7 +412,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="flex min-h-dvh bg-background text-foreground">
+    <div className="isolate flex min-h-dvh bg-background text-foreground">
+      <RoomBackdrop />
       <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border surface-chrome text-sidebar-foreground md:flex">
         {sidebar}
       </aside>

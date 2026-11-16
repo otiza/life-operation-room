@@ -20,10 +20,11 @@ const sizeClass = {
 /**
  * Standard page wrapper for shell + mini-app screens.
  * Mobile-first padding; grows comfortably on larger breakpoints.
+ * `data-page-size` tells the room backdrop where the reading column is (texture stays out of it).
  */
 export function PageContainer({ children, className, size = 'reading' }: PageContainerProps) {
   return (
-    <div className={cn('mx-auto w-full space-y-6', sizeClass[size], className)}>
+    <div className={cn('mx-auto w-full space-y-6', sizeClass[size], className)} data-page-size={size}>
       {children}
     </div>
   );

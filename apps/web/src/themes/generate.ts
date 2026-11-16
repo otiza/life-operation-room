@@ -23,7 +23,8 @@ export function generateThemesCss(themes: readonly ThemeDefinition[]) {
     const isDefault = theme.id === DEFAULT_THEME_ID;
     const light = isDefault ? ':root' : `html[data-theme="${theme.id}"]`;
     const dark = isDefault ? '.dark' : `html[data-theme="${theme.id}"].dark`;
-    return `/* ${theme.name} */\n${light} {\n${declarations(theme.palette.light)}\n}\n\n${dark} {\n${declarations(theme.palette.dark)}\n}`;
+    const lightTokens = { ...theme.palette.light, 'texture-strength': String(theme.strength) };
+    return `/* ${theme.name} */\n${light} {\n${declarations(lightTokens)}\n}\n\n${dark} {\n${declarations(theme.palette.dark)}\n}`;
   });
   return `${HEADER}\n\n${blocks.join('\n\n')}\n`;
 }

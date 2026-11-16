@@ -100,12 +100,13 @@ Exit: the user answers the open questions at the end of this plan.
 
 ## PR 3: Layers, text protection and the Theme lab
 
-- `RoomBackdrop`: canvas (plain, gradient, mosaic, tiles, ascii), pattern (grid, dots, halftone, scanlines), grain (noise, paper, felt), strength.
-- The mask rule, driven by `--sidebar-w` / `--reading-w`; phone wash; `prefers-reduced-motion` stops the gradient drift and blinking; `prefers-reduced-transparency` makes glass solid.
-- Build-time textures in `public/themes/`.
-- **Theme lab** (dev-only route `/dev/themes`, absent in production): every primitive and the Home / Tasks / Calendar / Notes / dialog screens across all registered themes × modes. Playwright screenshot tests run from it (1440 px and 390 px).
-- Registers the texture-light themes: **Atelier, Dot, Blueprint (with the drafting skin), Studio** — not yet selectable by users.
-- **Exit:** Theme lab green for 5 themes × 2 modes × 2 widths; contrast test green.
+- `RoomBackdrop` in the shell: each layer fixed behind the shell at z-index -1 (the wrapper is `display: contents` so blend modes blend with the room). Canvas: plain only for now (gradient, mosaic, tiles and ASCII arrive with their themes in PR 6–7). Patterns: grid, dots, halftone, scanlines. Grain: noise, paper, felt (static SVG tiles in `public/themes/`). Strength comes from the theme (`--texture-strength`).
+- The mask rule, driven by `PageContainer`'s `data-page-size` (`reading`, `lg`, `full` → no canvas/pattern); a faint wash on phones.
+- Surface `flat` (cards drawn by their hairline), skin `drafting` (small radius), detail tokens `data-cb` (circle/square/rounded), `data-divider` (solid/dashed/dotted/double/stitch, on `RowList` rows), `data-chip` (Badge via `rounded-chip`).
+- `buildPalette()` derives a full palette from seeds; Ink, Blueprint and Felt palettes.
+- Registers **Atelier, Dot, Blueprint, Studio** (Paper typography until PR 4). Not user-selectable yet.
+- **Theme lab** at `/dev/themes` (404 in production) and a dev-only `?theme=<id>` switch on every page.
+- **Exit:** contrast test green for 5 themes × 2 modes; Paper pixel-identical to master on every screen; the four new themes checked by eye in the lab and on Home, Tasks and Calendar.
 
 ## PR 4: Type pairings
 
