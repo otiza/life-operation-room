@@ -1,6 +1,6 @@
 # Design system (Life Room)
 
-Read this before shipping UI. Tokens live in [`apps/web/src/app/globals.css`](../apps/web/src/app/globals.css). Primitives live in [`apps/web/src/components/ui`](../apps/web/src/components/ui). Work-surface behavior stays in [UI.md](./UI.md).
+Read this before shipping UI. Colour tokens come from the theme registry ([`apps/web/src/themes/registry.ts`](../apps/web/src/themes/registry.ts)) and are generated into `app/themes.generated.css`; the Tailwind mapping and text utilities live in [`apps/web/src/app/globals.css`](../apps/web/src/app/globals.css). Primitives live in [`apps/web/src/components/ui`](../apps/web/src/components/ui). Work-surface behavior stays in [UI.md](./UI.md).
 
 ## Identity
 
@@ -19,7 +19,7 @@ Do not fall back to Inter/Geist-only, purple gradients, or ALL-CAPS tracked eyeb
 The direction is "a calm room, not an office" ([plan](./plans/VISUAL-IDENTITY-PLAN.md)).
 
 1. **The day is the hero.** The first thing on Home is the day: date, time of day, what is next, how far you are.
-2. **Terracotta means "this matters".** Solid terracotta only for the one primary action, **Now**, and progress. Navigation uses a soft tint plus a thin marker.
+2. **Primary means "this matters".** Solid primary (terracotta in Paper) only for the one primary action, **Now**, and progress. Navigation uses a soft tint plus a thin marker.
 3. **Fewer boxes.** Lists sit on the canvas with hairline dividers. Cards only for what floats: dialogs, sheets, popovers, calendar blocks, board cards.
 4. **One reading width.** About 760 px for lists and writing; full width only for the calendar grid and the board.
 5. **Literata is the voice.** Dates, page and section titles, empty states, and note text. Plex is for controls and metadata.
@@ -28,6 +28,15 @@ The direction is "a calm room, not an office" ([plan](./plans/VISUAL-IDENTITY-PL
 Theme: `next-themes` class strategy (`.dark`). Toggle light / dark / system in the profile menu at the bottom of the sidebar.
 
 Brand mark: "Day arc" (a horizon with the sun partway along its arc). `components/brand/logo.tsx` (`LogoMark`, `Logo`), `app/icon.svg` (follows the system theme), `app/apple-icon.png`, and `app/favicon.ico` for older browsers.
+
+## Themes
+
+A theme is **data** in [`src/themes/registry.ts`](../apps/web/src/themes/registry.ts): a palette (light, plus dark overrides) and layer slots — canvas, pattern, grain, surface, skin — with detail tokens (checkbox, divider, chip). Themes never change the layout. Plan: [THEMES-PLAN.md](./plans/THEMES-PLAN.md).
+
+- **Paper** (the original Life Room) is the default and owns `:root` / `.dark`. Other themes override under `html[data-theme="…"]`.
+- Never edit `app/themes.generated.css` or `docs/themes/*.DESIGN.md` by hand. Change the registry, then run `pnpm --filter web themes:build`. A test fails when the generated files are stale.
+- `docs/themes/<id>.<mode>.DESIGN.md` describes each theme in [Google's DESIGN.md format](https://github.com/google-labs-code/design.md) for coding agents.
+- Every theme must pass the contrast test below, in both modes, before it is registered.
 
 ## Tokens
 
@@ -58,10 +67,15 @@ Elevation: `shadow-flat`, `shadow-raised`, `shadow-overlay`.
 
 ### Contrast
 
-Checked by `apps/web/src/app/design-tokens.test.ts`, which reads `globals.css`. Text needs 4.5:1; event colours are shapes and need 3:1 against the canvas.
+Checked for every theme in the registry by `apps/web/src/app/design-tokens.test.ts`. Body text needs **7:1**, muted text **5.5:1** (on canvas, card, sidebar, paper), other text **4.5:1**; event colours are shapes and need 3:1 against the canvas. Paper:
 
 | Pair | Light | Dark |
 |---|---|---|
+| foreground on background | 15.4:1 | 15.8:1 |
+| muted-foreground on sidebar | 7.2:1 | 7.8:1 |
+| destructive-foreground on destructive | 5.1:1 | 5.2:1 |
+| success-foreground on success | 5.1:1 | 7.4:1 |
+| warning-foreground on warning | 5.8:1 | 8.6:1 |
 | muted-foreground on background | 7.0:1 | 7.6:1 |
 | muted-foreground on card | 7.4:1 | 7.0:1 |
 | primary-foreground on primary | 4.9:1 | 7.1:1 |

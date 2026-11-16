@@ -120,4 +120,4 @@ No layout change yet. Everything else builds on this.
 
 ## Out of scope
 
-A new palette or typeface, illustrations beyond the brand mark and empty-state marks, custom user themes, and motion beyond the existing completion animation.
+A new palette or typeface, illustrations beyond the brand mark and empty-state marks, custom user themes (now planned in [THEMES-PLAN.md](./THEMES-PLAN.md)), and motion beyond the existing completion animation.
