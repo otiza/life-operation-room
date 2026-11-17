@@ -63,9 +63,19 @@ export function formatWhenDateShort(whenDate: string | null, whenEvening = false
 }
 
 export type TaskDateChip = {
-  kind: 'when' | 'due';
+  kind: 'when' | 'due' | 'remind';
   label: string;
 };
+
+export function formatClock(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+/** "Today 17:00", "Tomorrow 09:30", "Nov 20 17:00". */
+export function formatDayAndClock(iso: string | null) {
+  if (!iso) return null;
+  return `${formatDueAtShort(iso)} ${formatClock(iso)}`;
+}
 
 /** Visual chips for rows/cards: when (plan) vs due (deadline) stay distinct. */
 export function taskDateChips(input: {
@@ -73,6 +83,8 @@ export function taskDateChips(input: {
   whenEvening?: boolean;
   isSomeday?: boolean;
   dueAt: string | null;
+  remindAt?: string | null;
+  remindedAt?: string | null;
 }): TaskDateChip[] {
   const chips: TaskDateChip[] = [];
   if (input.isSomeday) {
@@ -81,8 +93,18 @@ export function taskDateChips(input: {
     const whenLabel = formatWhenDateShort(input.whenDate, Boolean(input.whenEvening));
     if (whenLabel) chips.push({ kind: 'when', label: whenLabel });
   }
-  const dueLabel = formatDueAtShort(input.dueAt);
+  const remindPending = Boolean(input.remindAt && !input.remindedAt);
+  const remindOnDue = remindPending && input.dueAt && input.remindAt === input.dueAt;
+  if (remindOnDue) {
+    // One chip says it all: the time it's due is the time you'll be pinged. Drop "Tomorrow" if it repeats the day.
+    const dueDay = formatDueAtShort(input.dueAt);
+    const kept = chips.filter((chip) => !(chip.kind === 'when' && chip.label === dueDay));
+    kept.push({ kind: 'remind', label: formatDayAndClock(input.dueAt)! });
+    return kept;
+  }
+  const dueLabel = input.remindAt ? formatDayAndClock(input.dueAt) : formatDueAtShort(input.dueAt);
   if (dueLabel) chips.push({ kind: 'due', label: dueLabel });
+  if (remindPending) chips.push({ kind: 'remind', label: formatDayAndClock(input.remindAt!)! });
   return chips;
 }
 

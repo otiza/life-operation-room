@@ -214,6 +214,7 @@ export class TasksService {
       await this.assertAssigneeIsMember(workspaceId, assigneeUserId);
     }
     const dueAt = input.dueAt ? new Date(input.dueAt) : null;
+    const remindAt = input.remindAt ? new Date(input.remindAt) : null;
     const isDone = Boolean(settings.statuses.find((item) => item.key === status)?.isDone);
     const row = await this.db.transaction(async (tx) => {
       await this.taskOrderingService.lockProjectPositions(tx, workspaceId, projectId);
@@ -228,6 +229,7 @@ export class TasksService {
           status,
           priority,
           dueAt,
+          remindAt,
           whenDate: whenFields.whenDate,
           whenEvening: whenFields.whenEvening,
           isSomeday: whenFields.isSomeday,
@@ -273,6 +275,7 @@ export class TasksService {
         : input.dueAt === null
           ? null
           : new Date(input.dueAt);
+    const nextRemindAt = this.resolveRemindAt(existing, input, nextDueAt);
     const projectChanged =
       input.projectId !== undefined && input.projectId !== existing.projectId;
     const whenTouched =
@@ -315,6 +318,7 @@ export class TasksService {
           ...(input.status !== undefined ? { status: input.status } : {}),
           ...(input.priority !== undefined ? { priority: input.priority } : {}),
           ...(input.dueAt !== undefined ? { dueAt: nextDueAt } : {}),
+          ...(nextRemindAt !== undefined ? { remindAt: nextRemindAt, remindedAt: null } : {}),
           ...(input.assigneeUserId !== undefined ? { assigneeUserId: input.assigneeUserId } : {}),
           ...(input.whenDate !== undefined || input.isSomeday !== undefined || input.whenEvening !== undefined
             ? {
@@ -589,6 +593,25 @@ export class TasksService {
     };
   }
 
+  /**
+   * The new reminder, or undefined to leave it alone. An explicit `remindAt` wins. Otherwise a
+   * reminder that sat on the due time follows the due time when it moves.
+   */
+  private resolveRemindAt(existing: Task, input: UpdateTaskInput, nextDueAt: Date | null): Date | null | undefined {
+    if (input.remindAt !== undefined) return input.remindAt === null ? null : new Date(input.remindAt);
+    if (input.dueAt === undefined || !existing.remindAt || !existing.dueAt) return undefined;
+    if (existing.remindAt.getTime() !== existing.dueAt.getTime()) return undefined;
+    if (nextDueAt?.getTime() === existing.dueAt.getTime()) return undefined;
+    return nextDueAt;
+  }
+
+  /** Keep a repeating task's time of day: shift due and reminder by the days between occurrences. */
+  private shiftToOccurrence(value: Date | null, fromDateKey: string | null, toDateKey: string) {
+    if (!value || !fromDateKey) return null;
+    const days = Math.round((Date.parse(`${toDateKey}T00:00:00Z`) - Date.parse(`${fromDateKey}T00:00:00Z`)) / 86_400_000);
+    return new Date(value.getTime() + days * 86_400_000);
+  }
+
   private normalizeRecurrence(value: string | null | undefined) {
     if (value == null || value === '') return null;
     return value;
@@ -620,7 +643,8 @@ export class TasksService {
         description: completed.description,
         status: openStatus,
         priority: completed.priority,
-        dueAt: null,
+        dueAt: this.shiftToOccurrence(completed.dueAt, planned, whenDate),
+        remindAt: this.shiftToOccurrence(completed.remindAt, planned, whenDate),
         whenDate,
         whenEvening: completed.whenEvening,
         isSomeday: false,
@@ -665,6 +689,8 @@ export class TasksService {
       status: task.status,
       priority: task.priority,
       dueAt: toIso(task.dueAt),
+      remindAt: toIso(task.remindAt),
+      remindedAt: toIso(task.remindedAt),
       whenDate: task.whenDate ? String(task.whenDate) : null,
       whenEvening: Boolean(task.whenEvening),
       isSomeday: Boolean(task.isSomeday),

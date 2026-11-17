@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { calendarDateKeyInTimeZone, describeTaskRecurrence, type TaskSettings } from '@life-room/shared';
-import { CalendarDays, Flag, FolderKanban, CircleDot, UserRound } from '../../components/ui/icons';
+import { Bell, CalendarDays, Flag, FolderKanban, CircleDot, UserRound } from '../../components/ui/icons';
 import { deleteTask, getTask, updateTask, type Task } from './tasks-api';
 import {
   dueLocalFromDateInput,
@@ -13,7 +13,7 @@ import {
   enabledStatuses,
   findPriority,
   findStatus,
-  formatDueAtShort,
+  formatDayAndClock,
   formatWhenDateShort,
   fromDatetimeLocalValue,
   priorityLabel,
@@ -35,6 +35,9 @@ type Draft = {
   status: string;
   priority: string;
   dueLocal: string;
+  /** 'none', minutes before the deadline ('0', '15', '60', '1440'), or 'custom' (keep remindAtCustom). */
+  remind: string;
+  remindAtCustom: string | null;
   whenDate: string;
   whenEvening: boolean;
   isSomeday: boolean;
@@ -48,11 +51,13 @@ function draftFromTask(task: {
   status: string;
   priority: string;
   dueAt: string | null;
+  remindAt: string | null;
   whenDate: string | null;
   whenEvening: boolean;
   isSomeday: boolean;
   assigneeUserId: string | null;
 }): Draft {
+  const remind = remindChoiceFor(task.dueAt, task.remindAt);
   return {
     title: task.title,
     description: task.description ?? '',
@@ -60,6 +65,8 @@ function draftFromTask(task: {
     status: task.status,
     priority: task.priority,
     dueLocal: toDatetimeLocalValue(task.dueAt),
+    remind,
+    remindAtCustom: remind === 'custom' ? task.remindAt : null,
     whenDate: task.whenDate ?? '',
     whenEvening: task.whenEvening,
     isSomeday: task.isSomeday,
@@ -75,11 +82,36 @@ function sameDraft(left: Draft, right: Draft) {
     left.status === right.status &&
     left.priority === right.priority &&
     left.dueLocal === right.dueLocal &&
+    left.remind === right.remind &&
+    left.remindAtCustom === right.remindAtCustom &&
     left.whenDate === right.whenDate &&
     left.whenEvening === right.whenEvening &&
     left.isSomeday === right.isSomeday &&
     left.assigneeUserId === right.assigneeUserId
   );
+}
+
+const REMIND_OPTIONS = [
+  { value: '0', label: 'At the deadline' },
+  { value: '15', label: '15 minutes before' },
+  { value: '60', label: '1 hour before' },
+  { value: '1440', label: '1 day before' },
+  { value: 'none', label: 'No reminder' },
+];
+
+function remindChoiceFor(dueAt: string | null, remindAt: string | null) {
+  if (!remindAt) return 'none';
+  if (!dueAt) return 'custom';
+  const minutes = Math.round((Date.parse(dueAt) - Date.parse(remindAt)) / 60_000);
+  return REMIND_OPTIONS.some((option) => option.value === String(minutes)) ? String(minutes) : 'custom';
+}
+
+function remindAtFromDraft(draft: Draft): string | null {
+  if (draft.remind === 'none') return null;
+  if (draft.remind === 'custom') return draft.remindAtCustom;
+  const due = fromDatetimeLocalValue(draft.dueLocal);
+  if (!due) return null;
+  return new Date(Date.parse(due) - Number(draft.remind) * 60_000).toISOString();
 }
 
 function todayDateKey() {
@@ -151,19 +183,23 @@ export function TaskEditForm({
   });
 
   const saveMutation = useMutation({
-    mutationFn: (next: Draft) =>
-      updateTask(workspaceId, taskId, {
+    mutationFn: (next: Draft) => {
+      const remindAt = remindAtFromDraft(next);
+      const remindChanged = remindAt !== (taskQuery.data?.task.remindAt ?? null);
+      return updateTask(workspaceId, taskId, {
         title: next.title.trim(),
         description: next.description.trim() || null,
         projectId: next.projectId || null,
         status: next.status,
         priority: next.priority,
         dueAt: fromDatetimeLocalValue(next.dueLocal),
+        ...(remindChanged ? { remindAt } : {}),
         whenDate: next.isSomeday ? null : next.whenDate || null,
         whenEvening: next.isSomeday ? false : next.whenEvening,
         isSomeday: next.isSomeday,
         assigneeUserId: next.assigneeUserId || null,
-      }),
+      });
+    },
     onSuccess: async (_result, saved) => {
       if (draftRef.current && sameDraft(draftRef.current, saved)) dirtyRef.current = false;
       setError(null);
@@ -247,7 +283,19 @@ export function TaskEditForm({
     activeMembers.find((member) => member.userId === draft.assigneeUserId)?.name?.trim() ||
     activeMembers.find((member) => member.userId === draft.assigneeUserId)?.email ||
     'Unassigned';
-  const dueLabel = formatDueAtShort(fromDatetimeLocalValue(draft.dueLocal)) ?? 'None';
+  const dueLabel = formatDayAndClock(fromDatetimeLocalValue(draft.dueLocal)) ?? 'None';
+  const draftRemindAt = remindAtFromDraft(draft);
+  const sentRemindAt = taskQuery.data?.task.remindedAt ? taskQuery.data.task.remindAt : null;
+  const remindLabel = !draftRemindAt
+    ? 'None'
+    : sentRemindAt === draftRemindAt
+      ? `Sent · ${formatDayAndClock(draftRemindAt)}`
+      : formatDayAndClock(draftRemindAt)!;
+  /** Setting a deadline on a task with no reminder turns the reminder on: that's the point of a time. */
+  function patchDue(dueLocal: string) {
+    const remind = dueLocal && !draft!.dueLocal && draft!.remind === 'none' ? '0' : draft!.remind;
+    patch({ dueLocal, remind: dueLocal ? remind : remind === 'custom' ? remind : 'none' });
+  }
   const whenLabel = draft.isSomeday
     ? 'Someday'
     : formatWhenDateShort(draft.whenDate || null, draft.whenEvening) ?? 'None';
@@ -381,10 +429,27 @@ export function TaskEditForm({
             value={dueLabel}
             icon={<Flag className="h-4 w-4" />}
             dateValue={draft.dueLocal.slice(0, 10)}
-            onToday={() => patch({ dueLocal: dueLocalOnDay(0) })}
-            onTomorrow={() => patch({ dueLocal: dueLocalOnDay(1) })}
-            onClear={() => patch({ dueLocal: '' })}
-            onPickDate={(value) => patch({ dueLocal: dueLocalFromDateInput(value) })}
+            onToday={() => patchDue(withTime(dueLocalOnDay(0), draft.dueLocal))}
+            onTomorrow={() => patchDue(withTime(dueLocalOnDay(1), draft.dueLocal))}
+            onClear={() => patchDue('')}
+            onPickDate={(value) => patchDue(withTime(dueLocalFromDateInput(value), draft.dueLocal))}
+            timeValue={draft.dueLocal.slice(11, 16)}
+            onPickTime={(value) =>
+              patchDue(`${draft.dueLocal.slice(0, 10) || dueLocalOnDay(0).slice(0, 10)}T${value}`)
+            }
+          />
+          <PropertyMenu
+            menuKey="remind"
+            openKey={openMenu}
+            setOpenKey={setOpenMenu}
+            label="Remind"
+            value={remindLabel}
+            icon={<Bell className="h-4 w-4" />}
+            options={(draft.dueLocal ? REMIND_OPTIONS : REMIND_OPTIONS.filter((option) => option.value === 'none'))
+              .concat(draft.remind === 'custom' && draft.remindAtCustom
+                ? [{ value: 'custom', label: formatDayAndClock(draft.remindAtCustom)! }]
+                : [])}
+            onSelect={(value) => patch({ remind: value })}
           />
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -454,6 +519,8 @@ function DueMenu({
   onClear,
   onPickDate,
   extraActions,
+  timeValue,
+  onPickTime,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -466,6 +533,8 @@ function DueMenu({
   onClear: () => void;
   onPickDate: (value: string) => void;
   extraActions?: ReactNode;
+  timeValue?: string;
+  onPickTime?: (value: string) => void;
 }) {
   const fieldRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -532,6 +601,19 @@ function DueMenu({
                   }}
                 />
               </label>
+              {onPickTime ? (
+                <label className="block px-3 py-2 text-sm text-foreground">
+                  Time
+                  <input
+                    type="time"
+                    className="mt-1 h-9 w-full rounded-md border border-border px-2 text-sm"
+                    value={timeValue ?? ''}
+                    onChange={(event) => {
+                      if (event.target.value) onPickTime(event.target.value);
+                    }}
+                  />
+                </label>
+              ) : null}
             </div>,
             document.body,
           )
@@ -626,4 +708,10 @@ function PropertyMenu({
         : null}
     </>
   );
+}
+
+/** Keep the time already chosen when only the day changes ("Tomorrow" shouldn't reset 09:30 to 18:00). */
+function withTime(dayLocal: string, currentLocal: string) {
+  if (!currentLocal) return dayLocal;
+  return `${dayLocal.slice(0, 10)}T${currentLocal.slice(11, 16)}`;
 }

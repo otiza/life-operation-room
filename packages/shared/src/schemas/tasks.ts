@@ -93,6 +93,8 @@ export const createTaskSchema = z
     status: taskStatusSchema.optional(),
     priority: taskPrioritySchema.optional(),
     dueAt: z.string().datetime().optional().nullable(),
+    /** When to send a reminder. Moving it re-arms the reminder. */
+    remindAt: z.string().datetime().optional().nullable(),
     whenDate: calendarDateSchema.optional().nullable(),
     whenEvening: z.boolean().optional(),
     isSomeday: z.boolean().optional(),
@@ -109,6 +111,8 @@ export const updateTaskSchema = z
     status: taskStatusSchema.optional(),
     priority: taskPrioritySchema.optional(),
     dueAt: z.string().datetime().optional().nullable(),
+    /** When to send a reminder. Moving it re-arms the reminder. */
+    remindAt: z.string().datetime().optional().nullable(),
     whenDate: calendarDateSchema.optional().nullable(),
     whenEvening: z.boolean().optional(),
     isSomeday: z.boolean().optional(),
@@ -152,6 +156,8 @@ export const taskSchema = z.object({
   status: taskStatusSchema,
   priority: taskPrioritySchema,
   dueAt: z.string().nullable(),
+  remindAt: z.string().nullable(),
+  remindedAt: z.string().nullable(),
   whenDate: calendarDateSchema.nullable(),
   whenEvening: z.boolean(),
   isSomeday: z.boolean(),

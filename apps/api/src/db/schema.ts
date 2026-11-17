@@ -1,5 +1,6 @@
 import type { Appearance } from '@life-room/shared';
 import { boolean, date, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const workspaceKindEnum = pgEnum('workspace_kind', ['personal', 'shared']);
 export const memberRoleEnum = pgEnum('member_role', ['owner', 'admin', 'member', 'guest']);
@@ -127,6 +128,9 @@ export const tasks = pgTable('tasks', {
   status: text('status').notNull().default('todo'),
   priority: text('priority').notNull().default('none'),
   dueAt: timestamp('due_at', { withTimezone: true }),
+  /** When to ping the assignee (or creator). Cleared `reminded_at` means the reminder is armed. */
+  remindAt: timestamp('remind_at', { withTimezone: true }),
+  remindedAt: timestamp('reminded_at', { withTimezone: true }),
   whenDate: date('when_date'),
   whenEvening: boolean('when_evening').notNull().default(false),
   isSomeday: boolean('is_someday').notNull().default(false),
@@ -147,6 +151,9 @@ export const tasks = pgTable('tasks', {
   index('tasks_workspace_is_someday_idx').on(table.workspaceId, table.isSomeday),
   index('tasks_workspace_completed_at_idx').on(table.workspaceId, table.completedAt),
   index('tasks_workspace_today_position_idx').on(table.workspaceId, table.todayPosition),
+  index('tasks_pending_reminder_idx')
+    .on(table.remindAt)
+    .where(sql`${table.remindedAt} is null and ${table.completedAt} is null and ${table.deletedAt} is null`),
 ]);
 
 /** Timed events use start_at/end_at; all-day uses start_date/end_date (exclusive end). */
