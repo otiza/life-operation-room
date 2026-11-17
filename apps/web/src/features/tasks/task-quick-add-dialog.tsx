@@ -14,6 +14,12 @@ import { Dialog } from '../../components/ui/dialog';
 import { Button } from '../../components/ui/button';
 import { ApiError } from '../../lib/api';
 import { cn } from '../../lib/utils';
+import { Bell } from '../../components/ui/icons';
+import { formatDayAndClock } from './task-status';
+
+function formatReminder(iso: string) {
+  return formatDayAndClock(iso) ?? '';
+}
 
 export type QuickAddDefaults = {
   projectId?: string | null;
@@ -42,6 +48,8 @@ export function TaskQuickAddDialog({
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [keepOpen, setKeepOpen] = useState(false);
+  /** The user's override of the guess (a time range reads as an event, a lone time as a task). */
+  const [forcedKind, setForcedKind] = useState<'task' | 'event' | null>(null);
 
   const projectsQuery = useQuery({
     queryKey: ['projects', workspaceId],
@@ -69,11 +77,13 @@ export function TaskQuickAddDialog({
     [calendarInstalled, projects, settings.priorities, text, timeZone],
   );
   const parsed = capture.task;
+  const canBeEvent = calendarInstalled && Boolean(capture.event.start) && !capture.event.isAllDay;
+  const kind = forcedKind === 'event' && canBeEvent ? 'event' : forcedKind === 'task' ? 'task' : capture.kind;
   const eventDraft = useMemo(
-    () => (capture.kind === 'event' ? draftFromParsedEvent(capture.event, timeZone) : null),
-    [capture.event, capture.kind, timeZone],
+    () => (kind === 'event' ? draftFromParsedEvent(capture.event, timeZone) : null),
+    [capture.event, kind, timeZone],
   );
-  const addingEvent = capture.kind === 'event';
+  const addingEvent = kind === 'event';
 
   useEffect(() => {
     if (!open) return;
@@ -118,6 +128,7 @@ export function TaskQuickAddDialog({
         whenEvening: parsed.whenEvening,
         isSomeday: parsed.isSomeday,
         dueAt: parsed.dueAt,
+        remindAt: parsed.remindAt,
         priority: parsed.priority ?? undefined,
         recurrenceRrule: parsed.recurrenceRrule,
       });
@@ -127,6 +138,7 @@ export function TaskQuickAddDialog({
       await queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
       await queryClient.invalidateQueries({ queryKey: ['task-counts', workspaceId] });
       await queryClient.invalidateQueries({ queryKey: ['calendar-events', workspaceId] });
+      setForcedKind(null);
       if (keepOpen) {
         setText('');
         setKeepOpen(false);
@@ -173,7 +185,9 @@ export function TaskQuickAddDialog({
               ? `${eventDraft?.title ?? 'Event'}${eventWhen ? ` · ${eventWhen}` : ''}`
               : repeatLabel
                 ? `${parsed.title || 'Task'} · ${repeatLabel}`
-                : 'Try “Pay rent every Monday” or “Call Sam at 5”. Enter adds it. Shift+Enter adds another.'}
+                : parsed.remindAt
+                  ? `${parsed.title || 'Task'} · reminder ${formatReminder(parsed.remindAt)}`
+                  : 'Try “Print documents tomorrow 5pm” — a time sets a reminder. Enter adds it. Shift+Enter adds another.'}
           </p>
         </div>
         <div className="relative rounded-lg border border-border bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring">
@@ -181,7 +195,10 @@ export function TaskQuickAddDialog({
             ref={inputRef}
             value={text}
             tokens={addingEvent ? [] : parsed.tokens}
-            onChange={setText}
+            onChange={(value) => {
+              setText(value);
+              if (!value.trim()) setForcedKind(null);
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Backspace' && text === '' && chips.length) {
                 event.preventDefault();
@@ -210,6 +227,7 @@ export function TaskQuickAddDialog({
                 )}
                 onClick={() => chipRemovable(token) && removeToken(token)}
               >
+                {token.kind === 'time' ? <Bell className="h-3 w-3" aria-hidden /> : null}
                 {token.label}
                 {chipRemovable(token) ? <span aria-hidden>×</span> : null}
               </button>
@@ -217,7 +235,16 @@ export function TaskQuickAddDialog({
           </div>
         ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <div className="flex justify-end gap-2">
+        <div className="flex items-center justify-end gap-2">
+          {canBeEvent ? (
+            <button
+              type="button"
+              className="mr-auto text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              onClick={() => setForcedKind(addingEvent ? 'task' : 'event')}
+            >
+              {addingEvent ? 'Make it a task with a reminder' : 'Make it a calendar event'}
+            </button>
+          ) : null}
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
@@ -255,7 +282,7 @@ const HighlightedInput = forwardRef<
         ref={ref}
         className="relative z-10 w-full bg-transparent text-base text-foreground outline-none sm:text-sm"
         value={value}
-        placeholder="Pay rent every Monday, or Call Sam at 5"
+        placeholder="Print documents tomorrow 5pm"
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={onKeyDown}
         aria-label="Quick add"

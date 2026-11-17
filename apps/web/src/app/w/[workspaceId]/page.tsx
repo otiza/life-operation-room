@@ -10,6 +10,7 @@ import { listCalendarEvents, viewerTimeZone } from '../../../features/calendar/c
 import { addDays, startOfDay } from '../../../features/calendar/calendar-range';
 import { useShellStore } from '../../../features/shell/shell-store';
 import { createTask, listTasks } from '../../../features/tasks/tasks-api';
+import { QuickTaskPreview, taskInputFromText } from '../../../features/tasks/quick-task';
 import { TodayTaskList } from '../../../features/today/today-review';
 import { TodayMasthead, type MastheadNext } from '../../../features/today/masthead';
 import { me } from '../../../features/auth/auth-api';
@@ -88,11 +89,7 @@ export default function WorkspaceHomePage() {
   });
 
   const createTodayTask = useMutation({
-    mutationFn: (title: string) =>
-      createTask(workspaceId, {
-        title,
-        whenDate: todayKey,
-      }),
+    mutationFn: (title: string) => createTask(workspaceId, taskInputFromText(title, { defaultWhenDate: todayKey })),
     onSuccess: async () => {
       setComposerTitle('');
       setComposerError(null);
@@ -296,6 +293,7 @@ export default function WorkspaceHomePage() {
                   Add
                 </Button>
               </form>
+              <QuickTaskPreview text={composerTitle} context={{ defaultWhenDate: todayKey }} />
               {composerError ? <p className="text-sm text-destructive">{composerError}</p> : null}
             </section>
           ) : (

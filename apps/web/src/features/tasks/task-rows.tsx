@@ -160,6 +160,8 @@ export function TaskRows({
               whenEvening={task.whenEvening}
               isSomeday={task.isSomeday}
               dueAt={task.dueAt}
+              remindAt={task.remindAt}
+              remindedAt={task.remindedAt}
               overdue={overdue}
             />
           </div>

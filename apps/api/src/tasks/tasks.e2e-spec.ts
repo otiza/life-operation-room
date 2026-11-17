@@ -212,4 +212,76 @@ describe('Tasks e2e', () => {
       .set('Cookie', ownerCookie)
       .expect(400);
   });
+  it('stores a reminder, moves it with the deadline, and carries it to the next repeat', async () => {
+    const server = app.getHttpServer();
+    const base = `/workspaces/${workspaceId}/tasks`;
+    const created = await request(server)
+      .post(base)
+      .set('Cookie', ownerCookie)
+      .send({
+        title: 'Print documents',
+        whenDate: '2030-01-07',
+        dueAt: '2030-01-07T17:00:00.000Z',
+        remindAt: '2030-01-07T17:00:00.000Z',
+        recurrenceRrule: 'FREQ=WEEKLY;BYDAY=MO',
+      })
+      .expect(201);
+    const task = created.body.task;
+    expect(task.remindAt).toBe('2030-01-07T17:00:00.000Z');
+    expect(task.remindedAt).toBeNull();
+
+    const renamed = await request(server)
+      .patch(`${base}/${task.id}`)
+      .set('Cookie', ownerCookie)
+      .send({ title: 'Print the documents' })
+      .expect(200);
+    expect(renamed.body.task.remindAt).toBe('2030-01-07T17:00:00.000Z');
+
+    const moved = await request(server)
+      .patch(`${base}/${task.id}`)
+      .set('Cookie', ownerCookie)
+      .send({ dueAt: '2030-01-07T18:30:00.000Z' })
+      .expect(200);
+    expect(moved.body.task.remindAt).toBe('2030-01-07T18:30:00.000Z');
+
+    const earlier = await request(server)
+      .patch(`${base}/${task.id}`)
+      .set('Cookie', ownerCookie)
+      .send({ remindAt: '2030-01-07T17:30:00.000Z' })
+      .expect(200);
+    expect(earlier.body.task.remindAt).toBe('2030-01-07T17:30:00.000Z');
+
+    // A reminder an hour before the deadline stays put when only the title changes and when the deadline moves.
+    const dueMoved = await request(server)
+      .patch(`${base}/${task.id}`)
+      .set('Cookie', ownerCookie)
+      .send({ dueAt: '2030-01-07T19:00:00.000Z' })
+      .expect(200);
+    expect(dueMoved.body.task.remindAt).toBe('2030-01-07T17:30:00.000Z');
+
+    await request(server)
+      .patch(`${base}/${task.id}`)
+      .set('Cookie', ownerCookie)
+      .send({ status: 'done' })
+      .expect(200);
+    const upcoming = await request(server)
+      .get(base)
+      .query({ view: 'upcoming', tz: 'UTC' })
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    const next = upcoming.body.tasks.find(
+      (item: { title: string; id: string }) => item.title === 'Print the documents' && item.id !== task.id,
+    );
+    expect(next).toBeTruthy();
+    expect(next.whenDate).toBe('2030-01-14');
+    expect(next.dueAt).toBe('2030-01-14T19:00:00.000Z');
+    expect(next.remindAt).toBe('2030-01-14T17:30:00.000Z');
+
+    const cleared = await request(server)
+      .patch(`${base}/${next.id}`)
+      .set('Cookie', ownerCookie)
+      .send({ remindAt: null })
+      .expect(200);
+    expect(cleared.body.task.remindAt).toBeNull();
+  });
 });

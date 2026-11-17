@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Settings, X } from '../../components/ui/icons';
 import type { TaskView } from '@life-room/shared';
-import { parseTaskQuickAdd } from '@life-room/shared';
+import { parseTaskQuickAdd, type CreateTaskInput } from '@life-room/shared';
 import {
   createTask,
   deleteTask,
@@ -33,6 +33,7 @@ import type { TaskBoardMove } from './tasks-board';
 import { groupByKey, groupTasks } from './task-group-utils';
 import { TasksActionPickers } from './tasks-action-pickers';
 import { TasksComposer } from './tasks-composer';
+import { QuickTaskPreview, taskInputFromText } from './quick-task';
 import { TasksFiltersBar } from './tasks-filters-bar';
 import { TasksListSection } from './tasks-list-section';
 import { useTaskKeyboardShortcuts } from './use-task-keyboard-shortcuts';
@@ -130,12 +131,7 @@ export function TasksWorkspace({
   }, [searchText, urlQuery]);
 
   const createMutation = useMutation({
-    mutationFn: (input: {
-      title: string;
-      projectId?: string | null;
-      status?: string;
-      whenDate?: string | null;
-    }) => createTask(workspaceId, input),
+    mutationFn: (input: CreateTaskInput) => createTask(workspaceId, input),
     onSuccess: async (_task, variables) => {
       if (!variables.status) {
         setComposerTitle('');
@@ -616,14 +612,17 @@ export function TasksWorkspace({
     });
   }
 
+  const quickTaskContext = {
+    defaultWhenDate: defaultWhenDate ?? null,
+    defaultProjectId: defaultComposerProjectId,
+    projects: activeProjects.map((project) => ({ id: project.id, name: project.name })),
+    priorities: settings.priorities,
+  };
+
   function onCreate(event: FormEvent) {
     event.preventDefault();
     if (!composerTitle.trim()) return;
-    createMutation.mutate({
-      title: composerTitle.trim(),
-      projectId: defaultComposerProjectId,
-      whenDate: defaultWhenDate ?? null,
-    });
+    createMutation.mutate(taskInputFromText(composerTitle, quickTaskContext));
   }
 
   const showAssignee = workspaceQuery.data?.workspace.kind !== 'personal';
@@ -703,6 +702,7 @@ export function TasksWorkspace({
           error={error}
           onSubmit={onCreate}
         />
+        <QuickTaskPreview text={composerTitle} context={quickTaskContext} />
 
         <TasksFiltersBar
           smartView={smartView}
@@ -737,12 +737,7 @@ export function TasksWorkspace({
           onMove={moveTasks}
           onOpenTask={openTask}
           onCreate={(status, title) =>
-            createMutation.mutate({
-              title,
-              projectId: defaultComposerProjectId,
-              status,
-              whenDate: defaultWhenDate ?? null,
-            })
+            createMutation.mutate({ ...taskInputFromText(title, quickTaskContext), status })
           }
           onAddTask={() =>
             openQuickAdd({

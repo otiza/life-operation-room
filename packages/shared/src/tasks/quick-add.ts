@@ -9,6 +9,7 @@ export type TaskQuickAddTokenKind =
   | 'project'
   | 'when'
   | 'due'
+  | 'time'
   | 'priority'
   | 'someday'
   | 'repeat'
@@ -31,6 +32,8 @@ export type TaskQuickAddResult = {
   whenEvening: boolean;
   isSomeday: boolean;
   dueAt: string | null;
+  /** When to ping. Set whenever the text names a clock time ("5pm", "at 17:00", "in 2 hours"). */
+  remindAt: string | null;
   priority: string | null;
   tokens: TaskQuickAddToken[];
   /** Human label such as "Every Monday", or "every" when the phrase is not a supported rule. */
@@ -57,6 +60,7 @@ function emptyResult(title = ''): TaskQuickAddResult {
     whenEvening: false,
     isSomeday: false,
     dueAt: null,
+    remindAt: null,
     priority: null,
     tokens: [],
     recurrenceHint: null,
@@ -131,6 +135,83 @@ function findFirst(re: RegExp, text: string) {
   const flags = re.flags.includes('i') ? 'i' : '';
   const match = new RegExp(re.source, flags).exec(text);
   return match;
+}
+
+type ClockMatch = { hour: number; minute: number; explicit: boolean; text: string; index: number };
+type RelativeMatch = { ms: number; text: string; index: number };
+
+const CLOCK_PATTERNS: Array<{ re: RegExp; read: (m: RegExpExecArray) => { hour: number; minute: number; explicit: boolean } | null }> = [
+  {
+    re: /\b(?:at\s+)?(\d{1,2})(?::([0-5]\d))?\s*(am|pm)\b/i,
+    read: (m) => {
+      let hour = Number(m[1]);
+      if (hour < 1 || hour > 12) return null;
+      const pm = m[3]!.toLowerCase() === 'pm';
+      if (hour === 12) hour = pm ? 12 : 0;
+      else if (pm) hour += 12;
+      return { hour, minute: Number(m[2] ?? 0), explicit: true };
+    },
+  },
+  {
+    re: /\b(?:at\s+)?([01]?\d|2[0-3])[:h]([0-5]\d)\b/i,
+    read: (m) => ({ hour: Number(m[1]), minute: Number(m[2]), explicit: Number(m[1]) >= 13 || m[1]!.startsWith('0') }),
+  },
+  {
+    re: /\b(?:at\s+)?(noon|midnight)\b/i,
+    read: (m) => ({ hour: m[1]!.toLowerCase() === 'noon' ? 12 : 0, minute: 0, explicit: true }),
+  },
+  {
+    re: /\bat\s+(\d{1,2})\b(?![:\d]|\s*(?:%|st\b|nd\b|rd\b|th\b))/i,
+    read: (m) => {
+      const hour = Number(m[1]);
+      return hour <= 23 ? { hour, minute: 0, explicit: hour >= 13 } : null;
+    },
+  },
+];
+
+function findClock(text: string): ClockMatch | null {
+  let best: ClockMatch | null = null;
+  for (const pattern of CLOCK_PATTERNS) {
+    const m = pattern.re.exec(text);
+    if (!m) continue;
+    const value = pattern.read(m);
+    if (!value) continue;
+    if (!best || m.index < best.index) best = { ...value, text: m[0], index: m.index };
+  }
+  return best;
+}
+
+const RELATIVE_RE = /\bin\s+(\d+(?:\.\d+)?|an?|half an)\s*(minutes?|mins?|m|hours?|hrs?|h)\b/i;
+
+function findRelative(text: string): RelativeMatch | null {
+  const m = RELATIVE_RE.exec(text);
+  if (!m) return null;
+  const raw = m[1]!.toLowerCase();
+  const amount = raw === 'half an' ? 0.5 : raw === 'a' || raw === 'an' ? 1 : Number(raw);
+  const unit = m[2]!.toLowerCase();
+  const minutes = unit.startsWith('h') ? amount * 60 : amount;
+  if (!Number.isFinite(minutes) || minutes <= 0) return null;
+  return { ms: Math.round(minutes * 60_000), text: m[0], index: m.index };
+}
+
+function wallTime(dateKey: string, hour: number, minute: number, timeZone: string) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return zonedWallTimeToUtc(year, month, day, hour, minute, 0, 0, timeZone);
+}
+
+function formatClockLabel(hour: number, minute: number) {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+/** chrono reads dates in the machine's timezone; rebuild the wall time in the user's. */
+function chronoInTimeZone(components: chrono.ParsedComponents, timeZone: string) {
+  const hasTime = components.isCertain('hour');
+  const year = components.get('year')!;
+  const month = components.get('month')!;
+  const day = components.get('day')!;
+  const hour = hasTime ? components.get('hour') ?? 12 : 12;
+  const minute = hasTime ? components.get('minute') ?? 0 : 0;
+  return { date: zonedWallTimeToUtc(year, month, day, hour, minute, 0, 0, timeZone), hasTime };
 }
 
 /** Parse Tasks natural-language quick add. Calendar `parseQuickAdd` is unchanged. */
@@ -209,11 +290,26 @@ export function parseTaskQuickAdd(input: string, options: ParseTaskQuickAddOptio
     const dueText = dueMatch[1].trim();
     const chronoResults = chrono.parse(dueText, referenceDate, { forwardDate: true });
     if (chronoResults[0]) {
-      result.dueAt = chronoResults[0].start.date().toISOString();
+      const due = chronoInTimeZone(chronoResults[0].start, timeZone);
+      result.dueAt = due.date.toISOString();
+      if (due.hasTime) result.remindAt = result.dueAt;
       const start = dueMatch.index;
       const end = start + dueMatch[0].length;
       tokens.push({ kind: 'due', text: dueMatch[0], start, end, label: `due ${dueText}` });
       working = stripRange(working, start, end);
+    }
+  }
+
+  // Clock time ("5pm", "at 17:00", "noon") or relative ("in 2 hours"): a time means a reminder.
+  let clock: ClockMatch | null = null;
+  let relative: RelativeMatch | null = null;
+  if (!result.dueAt && !result.isSomeday) {
+    relative = findRelative(working);
+    if (relative) {
+      working = stripRange(working, relative.index, relative.index + relative.text.length);
+    } else {
+      clock = findClock(working);
+      if (clock) working = stripRange(working, clock.index, clock.index + clock.text.length);
     }
   }
 
@@ -305,6 +401,29 @@ export function parseTaskQuickAdd(input: string, options: ParseTaskQuickAddOptio
         }
       }
     }
+  }
+
+  if (relative) {
+    const due = new Date(referenceDate.getTime() + relative.ms);
+    result.dueAt = due.toISOString();
+    result.remindAt = result.dueAt;
+    result.whenDate = calendarDateKeyInTimeZone(due, timeZone);
+    result.whenEvening = false;
+    tokens.push({ kind: 'time', text: relative.text, start: 0, end: 0, label: relative.text.trim() });
+  } else if (clock) {
+    let hour = clock.hour;
+    // "at 5" means 5 in the afternoon; "tonight at 8" means 20:00. "5am" and "05:00" stay as written.
+    if (!clock.explicit && hour < 12 && (result.whenEvening ? hour >= 1 : hour >= 1 && hour <= 7)) hour += 12;
+    let dateKey = result.whenDate ?? todayKey;
+    let due = wallTime(dateKey, hour, clock.minute, timeZone);
+    if (!result.whenDate && !result.recurrenceRrule && due.getTime() <= referenceDate.getTime()) {
+      dateKey = addDaysKey(todayKey, 1, timeZone);
+      due = wallTime(dateKey, hour, clock.minute, timeZone);
+    }
+    result.whenDate = dateKey;
+    result.dueAt = due.toISOString();
+    result.remindAt = result.dueAt;
+    tokens.push({ kind: 'time', text: clock.text, start: 0, end: 0, label: formatClockLabel(hour, clock.minute) });
   }
 
   result.title = working.replace(/^[\s\-–,]+|[\s\-–,]+$/g, '').trim() || original.trim();

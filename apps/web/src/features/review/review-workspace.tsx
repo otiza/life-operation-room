@@ -21,6 +21,7 @@ import { listCalendarEvents, viewerTimeZone, type CalendarOccurrenceDto } from '
 import { getTodayNote, updateNoteBody } from '../notes/notes-api';
 import { useShellStore } from '../shell/shell-store';
 import { createTask, listTasks, type Task } from '../tasks/tasks-api';
+import { QuickTaskPreview, taskInputFromText } from '../tasks/quick-task';
 import { addCalendarDays } from '../today/today-decisions';
 import { TaskRowList } from '../today/today-review';
 import { useTodayDecisions } from '../today/use-today-decisions';
@@ -531,7 +532,7 @@ function TomorrowComposer({ workspaceId, tomorrowKey }: { workspaceId: string; t
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const create = useMutation({
-    mutationFn: (value: string) => createTask(workspaceId, { title: value, whenDate: tomorrowKey }),
+    mutationFn: (value: string) => createTask(workspaceId, taskInputFromText(value, { defaultWhenDate: tomorrowKey })),
     onSuccess: async () => {
       setTitle('');
       await Promise.all([
@@ -549,7 +550,8 @@ function TomorrowComposer({ workspaceId, tomorrowKey }: { workspaceId: string; t
   }
 
   return (
-    <form className="flex gap-2" onSubmit={onSubmit}>
+    <form className="space-y-1.5" onSubmit={onSubmit}>
+      <div className="flex gap-2">
       <Input
         placeholder="Add a task for tomorrow…"
         aria-label="Add a task for tomorrow"
@@ -559,6 +561,8 @@ function TomorrowComposer({ workspaceId, tomorrowKey }: { workspaceId: string; t
       <Button type="submit" variant="outline" disabled={!title.trim() || create.isPending}>
         Add
       </Button>
+      </div>
+      <QuickTaskPreview text={title} context={{ defaultWhenDate: tomorrowKey }} />
     </form>
   );
 }

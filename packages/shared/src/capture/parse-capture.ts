@@ -20,6 +20,16 @@ function hasClockTime(text: string) {
   return CLOCK_RE.test(text) || AT_HOUR_RE.test(text);
 }
 
+/** "5-6pm", "from 3 to 4", "until 18:00", "for 1h": something that occupies time, i.e. an event. */
+const CLOCK_TOKEN = String.raw`\d{1,2}(?:[:h][0-5]\d)?\s*(?:am|pm)?`;
+const RANGE_RE = new RegExp(String.raw`\b${CLOCK_TOKEN}\s*(?:-|–|to|until|till)\s*${CLOCK_TOKEN}`, 'i');
+const UNTIL_RE = new RegExp(String.raw`\b(?:until|till)\s+${CLOCK_TOKEN}`, 'i');
+const DURATION_RE = /\bfor\s+(?:\d+(?:\.\d+)?|an?|half an)\s*(?:h|hrs?|hours?|m|mins?|minutes?)\b/i;
+
+function occupiesTime(text: string) {
+  return RANGE_RE.test(text) || UNTIL_RE.test(text) || DURATION_RE.test(text);
+}
+
 /** "at 5" means 5 in the afternoon. "5am", "17:00", and "noon" stay as written. */
 function preferAfternoon(event: QuickAddParseResult, source: string): QuickAddParseResult {
   if (!event.start || event.isAllDay) return event;
@@ -58,6 +68,7 @@ export function parseCapture(input: string, options: ParseCaptureOptions = {}): 
   if (forced === 'task' || !allowEvents) kind = 'task';
   else if (forced === 'event') kind = 'event';
   else if (TASK_SIGNAL_RE.test(text)) kind = 'task';
-  else if (hasClockTime(text) && event.start && !event.isAllDay) kind = 'event';
+  // A lone clock time is a reminder on a task ("print documents at 5"). Only a span of time is an event.
+  else if (hasClockTime(text) && occupiesTime(text) && event.start && !event.isAllDay) kind = 'event';
   return { kind, text, task, event };
 }

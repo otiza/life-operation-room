@@ -259,3 +259,67 @@ describe('parseTaskQuickAdd', () => {
     expect(result.dueAt).toBeTruthy();
   });
 });
+
+describe('parseTaskQuickAdd clock times and reminders', () => {
+  it.each([
+    ['print documents tomorrow 5pm', '2026-11-10', '2026-11-10T17:00:00.000Z'],
+    ['print documents tomorrow at 17:00', '2026-11-10', '2026-11-10T17:00:00.000Z'],
+    ['print documents 17h30', '2026-11-09', '2026-11-09T17:30:00.000Z'],
+    ['print documents at 5', '2026-11-09', '2026-11-09T17:00:00.000Z'],
+    ['print documents friday 9am', '2026-11-13', '2026-11-13T09:00:00.000Z'],
+    ['print documents at noon', '2026-11-09', '2026-11-09T12:00:00.000Z'],
+  ])('%s', (input, whenDate, dueAt) => {
+    const result = parse(input);
+    expect(result.title).toBe('print documents');
+    expect(result.whenDate).toBe(whenDate);
+    expect(result.dueAt).toBe(dueAt);
+    expect(result.remindAt).toBe(dueAt);
+  });
+
+  it('moves a time that already passed today to tomorrow', () => {
+    const result = parse('Stretch at 9am');
+    expect(result.whenDate).toBe('2026-11-10');
+    expect(result.dueAt).toBe('2026-11-10T09:00:00.000Z');
+  });
+
+  it('reads tonight at 8 as 20:00 in the evening', () => {
+    const result = parse('Call mom tonight at 8');
+    expect(result.title).toBe('Call mom');
+    expect(result.whenEvening).toBe(true);
+    expect(result.dueAt).toBe('2026-11-09T20:00:00.000Z');
+  });
+
+  it('reads relative times', () => {
+    expect(parse('Take pills in 2 hours').dueAt).toBe('2026-11-09T12:00:00.000Z');
+    expect(parse('Check oven in 30 min').dueAt).toBe('2026-11-09T10:30:00.000Z');
+    expect(parse('Check oven in 30 min').title).toBe('Check oven');
+  });
+
+  it('builds the wall time in the given timezone', () => {
+    const result = parse('Print tomorrow 5pm', { timeZone: 'Europe/Paris' });
+    expect(result.dueAt).toBe('2026-11-10T16:00:00.000Z');
+    expect(parse('Print due tomorrow 5pm', { timeZone: 'America/New_York' }).dueAt).toBe('2026-11-10T22:00:00.000Z');
+  });
+
+  it('sets a reminder for due with a time, but not for a bare due date', () => {
+    expect(parse('File taxes due friday 5pm').remindAt).toBe('2026-11-13T17:00:00.000Z');
+    expect(parse('File taxes due friday').remindAt).toBeNull();
+  });
+
+  it('keeps plain numbers in the title', () => {
+    const result = parse('Buy 3 apples');
+    expect(result.title).toBe('Buy 3 apples');
+    expect(result.remindAt).toBeNull();
+  });
+
+  it('puts the first occurrence of a repeating task at its time', () => {
+    const result = parse('Gym every monday at 7am');
+    expect(result.recurrenceRrule).toBe('FREQ=WEEKLY;BYDAY=MO');
+    expect(result.title).toBe('Gym');
+    expect(result.remindAt).toBeTruthy();
+  });
+
+  it('shows the time as a chip', () => {
+    expect(parse('print documents tomorrow 5pm').tokens.map((token) => token.label)).toContain('17:00');
+  });
+});

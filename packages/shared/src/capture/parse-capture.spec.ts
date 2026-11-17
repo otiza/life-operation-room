@@ -8,19 +8,36 @@ function capture(input: string, allowEvents = true) {
 }
 
 describe('parseCapture', () => {
-  it('turns a clock time into an event', () => {
+  it('turns a lone clock time into a task with a reminder', () => {
     const result = capture('Call Sam at 5');
-    expect(result.kind).toBe('event');
-    expect(result.event.title.toLowerCase()).toContain('call sam');
-    expect(result.event.start).toBeTruthy();
-    expect(result.event.isAllDay).toBe(false);
-    expect(result.event.start!.getHours()).toBe(17);
+    expect(result.kind).toBe('task');
+    expect(result.task.title).toBe('Call Sam');
+    expect(result.task.dueAt).toBe('2026-11-09T17:00:00.000Z');
+    expect(result.task.remindAt).toBe(result.task.dueAt);
   });
 
   it('keeps an explicit morning time in the morning', () => {
-    const result = capture('Call Sam at 5am');
+    const result = capture('Call Sam tomorrow at 5am');
+    expect(result.kind).toBe('task');
+    expect(result.task.dueAt).toBe('2026-11-10T05:00:00.000Z');
+  });
+
+  it('turns a time range into an event', () => {
+    const result = capture('Dentist 5-6pm');
     expect(result.kind).toBe('event');
-    expect(result.event.start!.getHours()).toBe(5);
+    expect(result.event.isAllDay).toBe(false);
+  });
+
+  it('turns a duration into an event', () => {
+    const result = capture('Lunch with Sam at 1pm for 1h');
+    expect(result.kind).toBe('event');
+    expect(result.event.title.toLowerCase()).toContain('lunch');
+  });
+
+  it('lets event force an event from a lone time', () => {
+    const result = capture('event Call Sam at 5');
+    expect(result.kind).toBe('event');
+    expect(result.event.start!.getHours()).toBe(17);
   });
 
   it('turns a date without a clock time into a task', () => {

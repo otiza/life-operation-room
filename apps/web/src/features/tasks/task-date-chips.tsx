@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarDays, Flag } from '../../components/ui/icons';
+import { Bell, CalendarDays, Flag } from '../../components/ui/icons';
 import { cn } from '../../lib/utils';
 import { taskDateChips, type TaskDateChip } from './task-status';
 
@@ -9,6 +9,8 @@ export function TaskDateChips({
   whenEvening,
   isSomeday,
   dueAt,
+  remindAt,
+  remindedAt,
   overdue,
   className,
   compact,
@@ -17,11 +19,13 @@ export function TaskDateChips({
   whenEvening?: boolean;
   isSomeday?: boolean;
   dueAt: string | null;
+  remindAt?: string | null;
+  remindedAt?: string | null;
   overdue?: boolean;
   className?: string;
   compact?: boolean;
 }) {
-  const chips = taskDateChips({ whenDate, whenEvening, isSomeday, dueAt });
+  const chips = taskDateChips({ whenDate, whenEvening, isSomeday, dueAt, remindAt, remindedAt });
   if (chips.length === 0) return null;
   return (
     <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
@@ -41,8 +45,9 @@ function DateChip({
   overdue?: boolean;
   compact?: boolean;
 }) {
-  const Icon = chip.kind === 'when' ? CalendarDays : Flag;
-  const danger = chip.kind === 'due' && overdue;
+  const Icon = chip.kind === 'when' ? CalendarDays : chip.kind === 'remind' ? Bell : Flag;
+  const danger = chip.kind !== 'when' && overdue;
+  const name = chip.kind === 'when' ? 'When' : chip.kind === 'remind' ? 'Reminder' : 'Deadline';
   return (
     <span
       className={cn(
@@ -52,11 +57,11 @@ function DateChip({
         danger && (compact ? 'bg-danger-soft font-medium text-danger-soft-foreground' : 'font-medium text-destructive'),
         !compact && !danger && 'text-muted-foreground',
       )}
-      title={chip.kind === 'when' ? 'When' : 'Deadline'}
+      title={name}
     >
       <Icon className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
       <span>
-        <span className="sr-only">{chip.kind === 'when' ? 'When: ' : 'Deadline: '}</span>
+        <span className="sr-only">{name}: </span>
         {chip.label}
       </span>
     </span>
